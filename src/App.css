@@ -1,0 +1,44 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 120px 2rem 4rem 2rem; 
+  text-align: left;
+}
+
+header {
+  position: fixed; 
+  width: 100vw; 
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  background-color: #e3e4e5; 
+  box-shadow: 0px 14px 20px -17px rgba(66, 68, 90, 1); 
+}
+
+.card {
+  padding: 2em;
+}
+
+.logo {
+  display: none;
+}
+
+
+@media (max-width: 600px) {
+  #root {
+    padding: 100px 1rem 2rem 1rem;
+  }
+
+  h1 {
+    font-size: 1.8em;
+  }
+
+  button {
+    font-size: 0.9em;
+    padding: 0.5em 1em;
+  }
+
+  .card {
+    padding: 1em;
+  }
+}
