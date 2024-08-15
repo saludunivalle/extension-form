@@ -71,16 +71,18 @@ function ResultsPage() {
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Nombre de la Dependencia:</strong> {formData.nombre_dependencia}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Tipo:</strong> {formData.tipo}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Modalidad:</strong> {formData.modalidad}</Typography></StyledGridItem>
+        <StyledGridItem item xs={12}><Typography variant="body1"><strong>Tipo de Oferta:</strong> {formData.tipo_oferta}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Ofrecido por:</strong> {formData.ofrecido_por}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Unidad Académica:</strong> {formData.unidad_academica}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Ofrecido para:</strong> {formData.ofrecido_para}</Typography></StyledGridItem>
-        <StyledGridItem item xs={12}><Typography variant="body1"><strong>Intensidad Horaria:</strong> {formData.intensidad_horaria}</Typography></StyledGridItem>
-        <StyledGridItem item xs={12}><Typography variant="body1"><strong>Horas Modalidad:</strong> {formData.horas_modalidad}</Typography></StyledGridItem>
-        <StyledGridItem item xs={12}><Typography variant="body1"><strong>Horas Trabajo Independiente:</strong> {formData.horas_trabj_ind}</Typography></StyledGridItem>
+        <StyledGridItem item xs={12}><Typography variant="body1"><strong>Intensidad Horaria:</strong> {formData.total_horas}</Typography></StyledGridItem>
+        <StyledGridItem item xs={12}><Typography variant="body1"><strong>Horas Presencial:</strong> {formData.horas_trabajo_presencial}</Typography></StyledGridItem>
+        <StyledGridItem item xs={12}><Typography variant="body1"><strong>Horas Sincrónicas:</strong> {formData.horas_sincronicas}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Créditos:</strong> {formData.creditos}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Cupo Mínimo:</strong> {formData.cupo_min}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Cupo Máximo:</strong> {formData.cupo_max}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Nombre del Coordinador:</strong> {formData.nombre_coordinador}</Typography></StyledGridItem>
+        <StyledGridItem item xs={12}><Typography variant="body1"><strong>Correo del Coordinador:</strong> {formData.correo_coordinador}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Teléfono del Coordinador:</strong> {formData.tel_coordinador}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Profesor Participante:</strong> {formData.profesor_participante}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Formas de Evaluación:</strong> {formData.formas_evaluacion}</Typography></StyledGridItem>
@@ -94,14 +96,17 @@ function ResultsPage() {
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Becas Otros:</strong> {formData.becas_otros}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Becas Total:</strong> {formData.becas_total}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Fechas de la Actividad:</strong> {formData.fechas_actividad}</Typography></StyledGridItem>
+        <StyledGridItem item xs={12}><Typography variant="body1"><strong>Fechas por meses:</strong> {formData.fecha_por_meses}</Typography></StyledGridItem>
+        <StyledGridItem item xs={12}><Typography variant="body1"><strong>Fechas de Inicio:</strong> {formData.fecha_inicio}</Typography></StyledGridItem>
+        <StyledGridItem item xs={12}><Typography variant="body1"><strong>Fechas Final:</strong> {formData.fecha_final}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Organización de la Actividad:</strong> {formData.organizacion_actividad}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Nombre Firma:</strong> {formData.nombre_firma}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Cargo Firma:</strong> {formData.cargo_firma}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Firma:</strong> {formData.firma}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}>
-          <Typography variant="body1"><strong>Anexo Documento:</strong>
-            {formData.anexo_documento ? (
-              <StyledLink href={formData.anexo_documento} target="_blank" rel="noopener noreferrer">
+          <Typography variant="body1"><strong> Matriz de riesgo:</strong>
+            {formData.matriz_riesgo ? (
+              <StyledLink href={formData.matriz_riesgo} target="_blank" rel="noopener noreferrer">
                 Enlace
               </StyledLink>
             ) : ' No disponible'}

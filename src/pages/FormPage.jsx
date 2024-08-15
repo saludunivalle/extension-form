@@ -18,16 +18,18 @@ function FormPage({ userData }) {
     nombre_dependencia: '',
     tipo: '',
     modalidad: '',
+    tipo_oferta: '',
     ofrecido_por: '',
     unidad_academica: '',
     ofrecido_para: '',
-    intensidad_horaria: '',
-    horas_modalidad: '',
-    horas_trabj_ind: '',
+    total_horas: '',
+    horas_trabajo_presencial: '',
+    horas_sincronicas: '',
     creditos: '',
     cupo_min: '',
     cupo_max: '',
     nombre_coordinador: '',
+    correo_coordinador:'',
     tel_coordinador: '',
     profesor_participante: '',
     formas_evaluacion: '',
@@ -35,17 +37,20 @@ function FormPage({ userData }) {
     calificacion_minima: '',
     razon_no_certificado: '',
     valor_inscripcion: '',
-    becas_convenio: 2,
+    becas_convenio: 0,
     becas_estudiantes: 0,
     becas_docentes: 0,
     becas_otros: 0,
-    becas_total: 2,
+    becas_total: 0,
     fechas_actividad: '',
+    fecha_por_meses: '',
+    fecha_inicio: '',
+    fecha_final: '',
     organizacion_actividad: '',
     nombre_firma: '',
     cargo_firma: '',
     firma: '',
-    anexo_documento: '' 
+    matriz_riesgo: '' 
   });
 
   useEffect(() => {
@@ -62,7 +67,7 @@ function FormPage({ userData }) {
           setFormData(response.data);
         } else {
           const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
-            params: { sheetName: 'SOLICITUDES' }
+            params: { sheetName: 'ETAPAS' }
           });
           const newId = parseInt(response.data.lastId, 10) + 1;
           setFormData((prevState) => ({
@@ -101,10 +106,10 @@ function FormPage({ userData }) {
 
     try {
       let fileUrl = '';
-      if (formData.anexo_documento && isLastStep) {
+      if (formData.matriz_riesgo && isLastStep) {
         // Subir el archivo a Google Drive
         const formDataFile = new FormData();
-        formDataFile.append('anexo_documento', formData.anexo_documento);
+        formDataFile.append('matriz_riesgo', formData.matriz_riesgo);
 
         const uploadResponse = await axios.post('https://siac-extension-server.vercel.app/uploadFile', formDataFile, {
           headers: {
@@ -117,7 +122,7 @@ function FormPage({ userData }) {
 
       const response = await axios.post('https://siac-extension-server.vercel.app/saveProgress', {
         id_usuario: userData.id,
-        formData: { ...formData, anexo_documento: fileUrl },
+        formData: { ...formData, matriz_riesgo: fileUrl },
         activeStep,  
       });
 
@@ -139,7 +144,7 @@ function FormPage({ userData }) {
       padding: { xs: '0 15px', sm: '0 20px' } 
     }}>
       <Typography variant={ isSmallScreen ? 'h5' : 'h4'} gutterBottom>
-        Formulario de Solicitud
+        Formulario de Solicitud Parte 1
       </Typography>
       <Stepper activeStep={activeStep} orientation={isSmallScreen ? 'vertical' : 'horizontal'}>
         {steps.map((label) => (
