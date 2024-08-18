@@ -160,6 +160,7 @@ function FormSection({ step, formData, handleInputChange }) {
                   value={formData.nombre_escuela || ''}
                   onChange={handleInputChange}
                 >
+                  <MenuItem value="">Sin Seleccionar</MenuItem>
                   {escuelas.map((escuela, index) => (
                     <MenuItem key={index} value={escuela}>
                       {escuela}
@@ -167,6 +168,7 @@ function FormSection({ step, formData, handleInputChange }) {
                   ))}
                 </TextField>
               </Grid>
+
               {formData.nombre_escuela && (
                 <Grid item xs={12}>
                   <TextField
@@ -177,6 +179,7 @@ function FormSection({ step, formData, handleInputChange }) {
                     value={formData.nombre_departamento || ''}
                     onChange={handleInputChange}
                   >
+                    <MenuItem value="">Sin Seleccionar</MenuItem>
                     {departamentos.map((departamento, index) => (
                       <MenuItem key={index} value={departamento}>
                         {departamento}
@@ -185,6 +188,7 @@ function FormSection({ step, formData, handleInputChange }) {
                   </TextField>
                 </Grid>
               )}
+
               {formData.nombre_departamento && (
                 <Grid item xs={12}>
                   <TextField
@@ -195,14 +199,16 @@ function FormSection({ step, formData, handleInputChange }) {
                     value={formData.nombre_seccion || ''}
                     onChange={handleInputChange}
                   >
+                    <MenuItem value="">Sin Seleccionar</MenuItem>
                     {secciones.map((seccion, index) => (
-                      <MenuItem key={index} value={seccion || "General"}>
-                        {seccion || "General"}
+                      <MenuItem key={index} value={seccion}>
+                        {seccion}
                       </MenuItem>
                     ))}
                   </TextField>
                 </Grid>
               )}
+
               {formData.nombre_seccion && (
                 <Grid item xs={12}>
                   <TextField
@@ -213,6 +219,7 @@ function FormSection({ step, formData, handleInputChange }) {
                     value={formData.nombre_dependencia || ''}
                     onChange={handleInputChange}
                   >
+                    <MenuItem value="">Sin Seleccionar</MenuItem>
                     {programas.map((programa, index) => (
                       <MenuItem key={index} value={programa.Programa}>
                         {programa.Programa}

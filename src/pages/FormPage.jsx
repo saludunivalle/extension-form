@@ -89,45 +89,78 @@ function FormPage({ userData }) {
 
   const handleInputChange = (event) => {
     const { name, value, files } = event.target;
-    if (files) {
-      setFormData({ ...formData, [name]: files[0] });
-    } else {
-      setFormData({ ...formData, [name]: value });
-    }
+  
+    setFormData((prevFormData) => {
+      let updatedFormData = { ...prevFormData, [name]: files ? files[0] : value };
+  
+      // Si el nombre del campo es 'nombre_departamento' y se deseleccionó
+      if (name === 'nombre_departamento' && value === '') {
+        updatedFormData.nombre_dependencia = prevFormData.nombre_escuela;
+      }
+  
+      // Si el nombre del campo es 'nombre_seccion' y se deseleccionó
+      if (name === 'nombre_seccion' && value === '') {
+        updatedFormData.nombre_dependencia = prevFormData.nombre_departamento || prevFormData.nombre_escuela;
+      }
+  
+      // Si el nombre del campo es 'nombre_dependencia' y se deseleccionó
+      if (name === 'nombre_dependencia' && value === '') {
+        updatedFormData.nombre_dependencia = prevFormData.nombre_seccion || prevFormData.nombre_departamento || prevFormData.nombre_escuela;
+      }
+  
+      // Validar inmediatamente después de cada cambio
+      if (!updatedFormData.nombre_dependencia) {
+        updatedFormData.nombre_dependencia = updatedFormData.nombre_seccion || updatedFormData.nombre_departamento || updatedFormData.nombre_escuela;
+      }
+  
+      return updatedFormData;
+    });
   };
+  
 
   const handleNext = async () => {
     if (!userData) {
       console.error('userData no está definido');
       return;
     }
-
+  
+    // Validar y asegurar que nombre_dependencia no esté vacío
+    setFormData((prevFormData) => {
+      let updatedFormData = { ...prevFormData };
+  
+      if (!updatedFormData.nombre_dependencia) {
+        updatedFormData.nombre_dependencia = updatedFormData.nombre_seccion || updatedFormData.nombre_departamento || updatedFormData.nombre_escuela;
+      }
+  
+      return updatedFormData;
+    });
+  
     const isLastStep = activeStep === steps.length - 1;
-
+  
     try {
       let fileUrl = '';
       if (formData.matriz_riesgo && isLastStep) {
         // Subir el archivo a Google Drive
         const formDataFile = new FormData();
         formDataFile.append('matriz_riesgo', formData.matriz_riesgo);
-
+  
         const uploadResponse = await axios.post('https://siac-extension-server.vercel.app/uploadFile', formDataFile, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
         });
-
+  
         fileUrl = uploadResponse.data.fileUrl;
       }
-
+  
       const response = await axios.post('https://siac-extension-server.vercel.app/saveProgress', {
         id_usuario: userData.id,
         formData: { ...formData, matriz_riesgo: fileUrl },
         activeStep,  
       });
-
+  
       console.log(isLastStep ? 'Formulario enviado:' : 'Progreso guardado:', response.data);
-
+  
       if (!isLastStep) {
         setActiveStep((prevActiveStep) => prevActiveStep + 1);
       }
@@ -135,6 +168,7 @@ function FormPage({ userData }) {
       console.error(isLastStep ? 'Error al enviar el formulario:' : 'Error al guardar el progreso:', error);
     }
   };
+  
 
   return (
     <Container sx={{ 
