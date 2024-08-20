@@ -208,7 +208,6 @@ useEffect(() => {
       return;
     }
   
-    // Validar y asegurar que nombre_dependencia no esté vacío
     setFormData((prevFormData) => {
       let updatedFormData = { ...prevFormData };
   
@@ -224,7 +223,6 @@ useEffect(() => {
     try {
       let fileUrl = '';
       if (formData.matriz_riesgo && isLastStep) {
-        // Subir el archivo a Google Drive
         const formDataFile = new FormData();
         formDataFile.append('matriz_riesgo', formData.matriz_riesgo);
   
