@@ -2,29 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MenuItem, TextField, Grid, Typography, RadioGroup, FormControlLabel, Radio, FormLabel, FormControl, Box, InputLabel, Select } from '@mui/material';
 import axios from 'axios';
 
-function FormSection({ step, formData, handleInputChange }) {
-  const [escuelas, setEscuelas] = useState([]);
-  const [departamentos, setDepartamentos] = useState([]);
-  const [secciones, setSecciones] = useState([]);
-  const [programas, setProgramas] = useState([]);
-  const [oficinas, setOficinas] = useState([]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await axios.get('https://siac-extension-server.vercel.app/getProgramasYOficinas');
-        const data = response.data;
-  
-        setEscuelas([...new Set(data.programas.map(item => item.Escuela).filter(Boolean))]);
-        setOficinas(data.oficinas); 
-        setProgramas(data.programas); 
-      } catch (error) {
-        console.error('Error al obtener datos de la hoja de Google Sheets:', error);
-      }
-    };
-  
-    fetchData();
-  }, []);
+function FormSection({ step, formData, handleInputChange, escuelas, departamentos, secciones, programas, oficinas }) {
 
   useEffect(() => {
     const totalHoras =
@@ -39,66 +17,6 @@ function FormSection({ step, formData, handleInputChange }) {
     });
   }, [formData.horas_trabajo_presencial, formData.horas_sincronicas]);
   
-  useEffect(() => {
-    if (formData.nombre_escuela) {
-      const departamentosFiltrados = [
-        ...new Set(
-          programas
-            .filter(item => item.Escuela === formData.nombre_escuela)
-            .map(item => item.Departamento)
-            .filter(Boolean)
-        ),
-      ];
-
-      if (programas.some(item => item.Escuela === formData.nombre_escuela && !item.Departamento)) {
-        departamentosFiltrados.push("General");
-      }
-
-      setDepartamentos(departamentosFiltrados);
-    }
-  }, [formData.nombre_escuela, programas]);
-
-  useEffect(() => {
-    if (formData.nombre_departamento) {
-      const seccionesFiltradas = [
-        ...new Set(
-          programas
-            .filter(
-              item =>
-                item.Escuela === formData.nombre_escuela &&
-                (item.Departamento === formData.nombre_departamento || (!item.Departamento && formData.nombre_departamento === "General"))
-            )
-            .map(item => item.Sección)
-        ),
-      ];
-
-      if (
-        programas.some(
-          item =>
-            item.Escuela === formData.nombre_escuela &&
-            (item.Departamento === formData.nombre_departamento || (!item.Departamento && formData.nombre_departamento === "General")) &&
-            !item.Sección
-        )
-      ) {
-        seccionesFiltradas.push("General");
-      }
-
-      setSecciones(seccionesFiltradas);
-    }
-  }, [formData.nombre_departamento, formData.nombre_escuela, programas]);
-
-  useEffect(() => {
-    if (formData.nombre_seccion) {
-      const programasFiltrados = programas.filter(
-        item =>
-          item.Escuela === formData.nombre_escuela &&
-          (item.Departamento === formData.nombre_departamento || (!item.Departamento && formData.nombre_departamento === "General")) &&
-          (item.Sección === formData.nombre_seccion || (!item.Sección && formData.nombre_seccion === "General"))
-      );
-      setProgramas(programasFiltrados);
-    }
-  }, [formData.nombre_seccion, formData.nombre_departamento, formData.nombre_escuela, programas]);
-
   return (
     <Grid container spacing={2} sx={{ padding: { xs: '0.5rem 0', sm: '1rem 0' } }}>
       {step === 0 && (
@@ -220,16 +138,25 @@ function FormSection({ step, formData, handleInputChange }) {
                     onChange={handleInputChange}
                   >
                     <MenuItem value="">Sin Seleccionar</MenuItem>
-                    {programas.map((programa, index) => (
-                      <MenuItem key={index} value={programa.Programa}>
-                        {programa.Programa}
-                      </MenuItem>
+                    {programas
+                      .filter((programa, index, self) => 
+                        programa && 
+                        programa.Programa && 
+                        self.findIndex(p => p.Programa === programa.Programa) === index
+                      ) // Filtrar duplicados y valores nulos/undefined
+                      .map((programa, index) => (
+                        <MenuItem key={index} value={programa.Programa}>
+                          {programa.Programa}
+                        </MenuItem>
                     ))}
+                    <MenuItem value="General">General</MenuItem>
                   </TextField>
                 </Grid>
               )}
+
             </>
           )}
+
           {formData.dependencia_tipo === "Oficinas" && (
             <Grid item xs={12}>
               <TextField
@@ -250,7 +177,6 @@ function FormSection({ step, formData, handleInputChange }) {
           )}
         </>
       )}
-
       {step === 1 && (
         <>
           <Grid item xs={12}>

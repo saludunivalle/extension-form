@@ -53,7 +53,122 @@ function FormPage({ userData }) {
     matriz_riesgo: '' 
   });
 
+  const [escuelas, setEscuelas] = useState([]);
+  const [departamentos, setDepartamentos] = useState([]);
+  const [secciones, setSecciones] = useState([]);
+  const [programas, setProgramas] = useState([]);
+  const [oficinas, setOficinas] = useState([]);
+
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axios.get('https://siac-extension-server.vercel.app/getProgramasYOficinas');
+        const data = response.data;
+
+        setEscuelas([...new Set(data.programas.map(item => item.Escuela).filter(Boolean))]);
+        setOficinas(data.oficinas);
+        setProgramas(data.programas);
+      } catch (error) {
+        console.error('Error al obtener datos de la hoja de Google Sheets:', error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+useEffect(() => {
+    if (formData.nombre_escuela) {
+        const departamentosFiltrados = [
+            ...new Set(
+                programas
+                    .filter(item => item.Escuela === formData.nombre_escuela)
+                    .map(item => item.Departamento || "General")
+            ),
+        ];
+
+        setDepartamentos(departamentosFiltrados);
+
+        if (departamentosFiltrados.length === 0) {
+            setFormData(prevFormData => ({
+                ...prevFormData,
+                nombre_departamento: '',
+                nombre_seccion: '',
+                nombre_dependencia: '',
+            }));
+        }
+    } else {
+        setDepartamentos([]);
+    }
+}, [formData.nombre_escuela, programas]);
+
+  useEffect(() => {
+      if (formData.nombre_departamento) {
+          const seccionesFiltradas = [
+              ...new Set(
+                  programas
+                      .filter(
+                          item =>
+                              item.Escuela === formData.nombre_escuela &&
+                              (item.Departamento === formData.nombre_departamento || (!item.Departamento && formData.nombre_departamento === "General"))
+                      )
+                      .map(item => item.Sección || "General")
+              ),
+          ];
+
+          setSecciones(seccionesFiltradas);
+      }
+  }, [formData.nombre_departamento, formData.nombre_escuela, programas]);
+
+  useEffect(() => {
+      if (formData.nombre_seccion) {
+          const programasFiltrados = programas.filter(
+              item =>
+                  item.Escuela === formData.nombre_escuela &&
+                  (item.Departamento === formData.nombre_departamento || (!item.Departamento && formData.nombre_departamento === "General")) &&
+                  (item.Sección === formData.nombre_seccion || (!item.Sección && formData.nombre_seccion === "General"))
+          );
+
+          setProgramas(programasFiltrados);
+
+          if (!formData.nombre_dependencia && programasFiltrados.length > 0) {
+              setFormData(prevFormData => ({
+                  ...prevFormData,
+                  nombre_dependencia: programasFiltrados[0].Programa || "General",
+              }));
+          }
+      }
+  }, [formData.nombre_seccion, formData.nombre_departamento, formData.nombre_escuela, programas]);
+
+  const handleInputChange = (event) => {
+    const { name, value, files } = event.target;
+
+    setFormData((prevFormData) => {
+        let updatedFormData = { ...prevFormData, [name]: files ? files[0] : value };
+
+        if (name === 'nombre_escuela') {
+            updatedFormData.nombre_departamento = '';
+            updatedFormData.nombre_seccion = '';
+            updatedFormData.nombre_dependencia = '';
+        }
+
+        if (name === 'nombre_departamento') {
+            updatedFormData.nombre_seccion = '';
+            updatedFormData.nombre_dependencia = '';
+        }
+
+        if (name === 'nombre_seccion') {
+            updatedFormData.nombre_dependencia = '';
+        }
+
+        if (!updatedFormData.nombre_dependencia) {
+            updatedFormData.nombre_dependencia = updatedFormData.nombre_seccion || updatedFormData.nombre_departamento || updatedFormData.nombre_escuela;
+        }
+
+        return updatedFormData;
+    });
+  };
+
+   useEffect(() => {
     const fetchLastId = async () => {
       try {
         const queryParams = new URLSearchParams(location.search);
@@ -86,37 +201,6 @@ function FormPage({ userData }) {
   const handleBack = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
-
-  const handleInputChange = (event) => {
-    const { name, value, files } = event.target;
-  
-    setFormData((prevFormData) => {
-      let updatedFormData = { ...prevFormData, [name]: files ? files[0] : value };
-  
-      // Si el nombre del campo es 'nombre_departamento' y se deseleccionó
-      if (name === 'nombre_departamento' && value === '') {
-        updatedFormData.nombre_dependencia = prevFormData.nombre_escuela;
-      }
-  
-      // Si el nombre del campo es 'nombre_seccion' y se deseleccionó
-      if (name === 'nombre_seccion' && value === '') {
-        updatedFormData.nombre_dependencia = prevFormData.nombre_departamento || prevFormData.nombre_escuela;
-      }
-  
-      // Si el nombre del campo es 'nombre_dependencia' y se deseleccionó
-      if (name === 'nombre_dependencia' && value === '') {
-        updatedFormData.nombre_dependencia = prevFormData.nombre_seccion || prevFormData.nombre_departamento || prevFormData.nombre_escuela;
-      }
-  
-      // Validar inmediatamente después de cada cambio
-      if (!updatedFormData.nombre_dependencia) {
-        updatedFormData.nombre_dependencia = updatedFormData.nombre_seccion || updatedFormData.nombre_departamento || updatedFormData.nombre_escuela;
-      }
-  
-      return updatedFormData;
-    });
-  };
-  
 
   const handleNext = async () => {
     if (!userData) {
@@ -168,7 +252,6 @@ function FormPage({ userData }) {
       console.error(isLastStep ? 'Error al enviar el formulario:' : 'Error al guardar el progreso:', error);
     }
   };
-  
 
   return (
     <Container sx={{ 
@@ -187,7 +270,16 @@ function FormPage({ userData }) {
           </Step>
         ))}
       </Stepper>
-      <FormSection step={activeStep} formData={formData} handleInputChange={handleInputChange} />
+      <FormSection 
+        step={activeStep} 
+        formData={formData} 
+        handleInputChange={handleInputChange} 
+        escuelas={escuelas}
+        departamentos={departamentos}
+        secciones={secciones}
+        programas={programas}
+        oficinas={oficinas}
+      />
       <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', marginBottom: '20px' }}>
         <Button disabled={activeStep === 0} onClick={handleBack}>
           Atrás
