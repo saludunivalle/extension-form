@@ -4,6 +4,29 @@ import axios from 'axios';
 
 function FormSection({ step, formData, handleInputChange, escuelas, departamentos, secciones, programas, oficinas }) {
 
+  const calculateDateDifference = (startDate, endDate) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffTime = Math.abs(end - start);
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const handleFechaChange = (event, fieldName) => {
+    handleInputChange(event);
+    if (formData.fecha_inicio && formData.fecha_final) {
+      const diffDays = calculateDateDifference(
+        fieldName === 'fecha_inicio' ? event.target.value : formData.fecha_inicio,
+        fieldName === 'fecha_final' ? event.target.value : formData.fecha_final
+      );
+      handleInputChange({
+        target: {
+          name: 'matriz_riesgo_enabled',
+          value: diffDays > 14,
+        },
+      });
+    }
+  };
+
   useEffect(() => {
     const totalHoras =
       (parseInt(formData.horas_trabajo_presencial || 0) +
@@ -143,7 +166,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                         programa && 
                         programa.Programa && 
                         self.findIndex(p => p.Programa === programa.Programa) === index
-                      ) // Filtrar duplicados y valores nulos/undefined
+                      ) 
                       .map((programa, index) => (
                         <MenuItem key={index} value={programa.Programa}>
                           {programa.Programa}
@@ -488,8 +511,10 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                   label="Convenio Docencia o Servicio"
                   fullWidth
                   name="becas_convenio"
+                  type="number"
                   value={formData.becas_convenio}
                   onChange={handleInputChange}
+                  inputProps={{ min: "0" }} 
                 />
               </Grid>
               <Grid item xs={2}>
@@ -497,8 +522,10 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                   label="Estudiantes"
                   fullWidth
                   name="becas_estudiantes"
+                  type="number"
                   value={formData.becas_estudiantes}
                   onChange={handleInputChange}
+                  inputProps={{ min: "0" }} 
                 />
               </Grid>
               <Grid item xs={2}>
@@ -506,8 +533,10 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                   label="Docentes"
                   fullWidth
                   name="becas_docentes"
+                  type="number"
                   value={formData.becas_docentes}
                   onChange={handleInputChange}
+                  inputProps={{ min: "0" }} 
                 />
               </Grid>
               <Grid item xs={2}>
@@ -515,8 +544,10 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                   label="Otros"
                   fullWidth
                   name="becas_otros"
+                  type="number"
                   value={formData.becas_otros}
                   onChange={handleInputChange}
+                  inputProps={{ min: "0" }} 
                 />
               </Grid>
               <Grid item xs={2}>
@@ -539,7 +570,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
               </Grid>
             </Grid>
           </Grid>
-
+                  
           <Grid item xs={12}>
             <FormControl component="fieldset">
               <FormLabel component="legend">Fechas en las que se llevará a cabo</FormLabel>
@@ -602,21 +633,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                       fullWidth
                       name="fecha_inicio"
                       value={formData.fecha_inicio || ''}
-                      onChange={(event) => {
-                        handleInputChange(event);
-                        if (formData.fecha_final) {
-                          const startDate = new Date(event.target.value);
-                          const endDate = new Date(formData.fecha_final);
-                          const diffTime = Math.abs(endDate - startDate);
-                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                          handleInputChange({
-                            target: {
-                              name: 'matriz_riesgo_enabled',
-                              value: diffDays > 14,
-                            },
-                          });
-                        }
-                      }}
+                      onChange={(event) => handleFechaChange(event, 'fecha_inicio')}
                       InputLabelProps={{
                         shrink: true,
                       }}
@@ -629,21 +646,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                       fullWidth
                       name="fecha_final"
                       value={formData.fecha_final || ''}
-                      onChange={(event) => {
-                        handleInputChange(event);
-                        if (formData.fecha_inicio) {
-                          const startDate = new Date(formData.fecha_inicio);
-                          const endDate = new Date(event.target.value);
-                          const diffTime = Math.abs(endDate - startDate);
-                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                          handleInputChange({
-                            target: {
-                              name: 'matriz_riesgo_enabled',
-                              value: diffDays > 14,
-                            },
-                          });
-                        }
-                      }}
+                      onChange={(event) => handleFechaChange(event, 'fecha_final')}
                       InputLabelProps={{
                         shrink: true,
                       }}
