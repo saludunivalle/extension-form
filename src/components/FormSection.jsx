@@ -55,6 +55,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
               InputLabelProps={{
                 shrink: true,
               }}
+              required
             />
           </Grid>
           <Grid item xs={12}>
@@ -64,6 +65,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
               name="nombre_actividad"
               value={formData.nombre_actividad}
               onChange={handleInputChange}
+              required
             />
           </Grid>
           <Grid item xs={12}>
@@ -73,6 +75,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
               name="nombre_solicitante"
               value={formData.nombre_solicitante}
               onChange={handleInputChange}
+              required
             />
           </Grid>
           <Grid item xs={12}>
@@ -100,6 +103,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                   name="nombre_escuela"
                   value={formData.nombre_escuela || ''}
                   onChange={handleInputChange}
+                  required
                 >
                   <MenuItem value="">Sin Seleccionar</MenuItem>
                   {escuelas.map((escuela, index) => (
@@ -271,6 +275,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
               name="ofrecido_por"
               value={formData.ofrecido_por || ''}
               onChange={handleInputChange}
+              required
             />
           </Grid>
           <Grid item xs={12}>
@@ -282,6 +287,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
               InputProps={{
                 readOnly: true,
               }}
+              required
             />
           </Grid>
           <Grid item xs={12}>
@@ -293,6 +299,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
               name="ofrecido_para"
               value={formData.ofrecido_para}
               onChange={handleInputChange}
+              required
             />
           </Grid>
         </>
@@ -353,6 +360,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
               name="creditos"
               value={formData.creditos}
               onChange={handleInputChange}
+              required
             />
           </Grid>
 
@@ -363,6 +371,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
               name="cupo_min"
               value={formData.cupo_min}
               onChange={handleInputChange}
+              required
             />
           </Grid>
 
@@ -374,6 +383,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
               value={formData.cupo_max}
               onChange={handleInputChange}
               helperText="Este valor no incluye las becas"
+              required
             />
           </Grid>
         </>
@@ -390,6 +400,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                   name="nombre_coordinador"
                   value={formData.nombre_coordinador}
                   onChange={handleInputChange}
+                  required
                 />
               </Grid>
               <Grid item xs={4}>
@@ -399,6 +410,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                   name="correo_coordinador"
                   value={formData.correo_coordinador}
                   onChange={handleInputChange}
+                  required
                 />
               </Grid>
               <Grid item xs={4}>
@@ -408,6 +420,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                   name="tel_coordinador"
                   value={formData.tel_coordinador}
                   onChange={handleInputChange}
+                  required
                 />
               </Grid>
             </Grid>
@@ -424,6 +437,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                   name="profesor_participante"
                   value={formData.profesor_participante}
                   onChange={handleInputChange}
+                  required
                 />
               </Grid>
               <Grid item xs={6}>
@@ -435,6 +449,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                   name="formas_evaluacion"
                   value={formData.formas_evaluacion}
                   onChange={handleInputChange}
+                  required
                 />
               </Grid>
             </Grid>
@@ -494,6 +509,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                   },
                 })
               }
+              required
             />
           </Grid>
         </>
@@ -515,6 +531,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                   value={formData.becas_convenio}
                   onChange={handleInputChange}
                   inputProps={{ min: "0" }} 
+                  required
                 />
               </Grid>
               <Grid item xs={2}>
@@ -526,6 +543,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                   value={formData.becas_estudiantes}
                   onChange={handleInputChange}
                   inputProps={{ min: "0" }} 
+                  required
                 />
               </Grid>
               <Grid item xs={2}>
@@ -537,6 +555,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                   value={formData.becas_docentes}
                   onChange={handleInputChange}
                   inputProps={{ min: "0" }} 
+                  required
                 />
               </Grid>
               <Grid item xs={2}>
@@ -548,6 +567,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                   value={formData.becas_otros}
                   onChange={handleInputChange}
                   inputProps={{ min: "0" }} 
+                  required
                 />
               </Grid>
               <Grid item xs={2}>
@@ -566,6 +586,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                   InputProps={{
                     readOnly: true,
                   }}
+                  required
                 />
               </Grid>
             </Grid>
@@ -578,6 +599,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
                 name="fechas_actividad"
                 value={formData.fechas_actividad || ''}
                 onChange={handleInputChange}
+                required
               >
                 <FormControlLabel value="Oferta periódica" control={<Radio />} label="Oferta periódica" />
                 <FormControlLabel value="Periodo finito - fechas por meses" control={<Radio />} label="Periodo finito - fechas por meses" />
@@ -671,6 +693,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
               name="nombre_firma"
               value={formData.nombre_firma}
               onChange={handleInputChange}
+              required
             />
           </Grid>
           <Grid item xs={12}>
@@ -680,6 +703,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
               name="cargo_firma"
               value={formData.cargo_firma}
               onChange={handleInputChange}
+              required
             />
           </Grid>
           <Grid item xs={12}>
@@ -692,6 +716,7 @@ function FormSection({ step, formData, handleInputChange, escuelas, departamento
               InputLabelProps={{
                 shrink: true,
               }}
+              required
             />
           </Grid>
 

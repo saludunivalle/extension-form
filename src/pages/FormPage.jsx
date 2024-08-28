@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Button, Stepper, Step, StepLabel, useMediaQuery, Box } from '@mui/material';
+import { Container, Typography, Button, Stepper, Step, StepLabel, useMediaQuery, Box, Alert } from '@mui/material';
 import FormSection from '../components/FormSection';
 import axios from 'axios';
 import { useLocation } from 'react-router-dom';
@@ -58,6 +58,7 @@ function FormPage({ userData }) {
   const [secciones, setSecciones] = useState([]);
   const [programas, setProgramas] = useState([]);
   const [oficinas, setOficinas] = useState([]);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -76,7 +77,28 @@ function FormPage({ userData }) {
     fetchData();
   }, []);
 
-useEffect(() => {
+  const validateStep = () => {
+    const requiredFieldsByStep = [
+      ['fecha_solicitud', 'nombre_actividad', 'nombre_solicitante', 'nombre_escuela'], // Step 0
+      ['ofrecido_por', 'ofrecido_para'], // Step 1
+      ['creditos', 'cupo_min', 'cupo_max'], // Step 2
+      ['nombre_coordinador', 'correo_coordinador', 'tel_coordinador', 'profesor_participante', 'formas_evaluacion', 'valor_inscripcion'], // Step 3
+      [] // Step 4 
+    ];
+
+    const requiredFields = requiredFieldsByStep[activeStep];
+    const missingFields = requiredFields.filter(field => !formData[field]);
+
+    if (missingFields.length > 0) {
+      setError(true);
+      return false;
+    }
+
+    setError(false);
+    return true;
+  };
+
+  useEffect(() => {
     if (formData.nombre_escuela) {
         const departamentosFiltrados = [
             ...new Set(
@@ -99,7 +121,7 @@ useEffect(() => {
     } else {
         setDepartamentos([]);
     }
-}, [formData.nombre_escuela, programas]);
+  }, [formData.nombre_escuela, programas]);
 
   useEffect(() => {
       if (formData.nombre_departamento) {
@@ -140,33 +162,35 @@ useEffect(() => {
   }, [formData.nombre_seccion, formData.nombre_departamento, formData.nombre_escuela, programas]);
 
   const handleInputChange = (event) => {
-    const { name, value, files } = event.target;
+      const { name, value, files } = event.target;
 
-    setFormData((prevFormData) => {
-        let updatedFormData = { ...prevFormData, [name]: files ? files[0] : value };
+      setFormData((prevFormData) => {
+          let updatedFormData = { ...prevFormData, [name]: files ? files[0] : value };
 
-        if (name === 'nombre_escuela') {
-            updatedFormData.nombre_departamento = '';
-            updatedFormData.nombre_seccion = '';
-            updatedFormData.nombre_dependencia = '';
-        }
+          if (name === 'nombre_escuela') {
+              updatedFormData.nombre_departamento = '';
+              updatedFormData.nombre_seccion = '';
+              updatedFormData.nombre_dependencia = '';
+          }
 
-        if (name === 'nombre_departamento') {
-            updatedFormData.nombre_seccion = '';
-            updatedFormData.nombre_dependencia = '';
-        }
+          if (name === 'nombre_departamento') {
+              updatedFormData.nombre_seccion = '';
+              updatedFormData.nombre_dependencia = '';
+          }
 
-        if (name === 'nombre_seccion') {
-            updatedFormData.nombre_dependencia = '';
-        }
+          if (name === 'nombre_seccion') {
+              updatedFormData.nombre_dependencia = '';
+          }
 
-        if (!updatedFormData.nombre_dependencia) {
-            updatedFormData.nombre_dependencia = updatedFormData.nombre_seccion || updatedFormData.nombre_departamento || updatedFormData.nombre_escuela;
-        }
+          // Verificar si nombre_dependencia es "General" o está vacío, y asignar nombre_escuela
+          if (!updatedFormData.nombre_dependencia || updatedFormData.nombre_dependencia === "General") {
+              updatedFormData.nombre_dependencia = updatedFormData.nombre_escuela;
+          }
 
-        return updatedFormData;
-    });
+          return updatedFormData;
+      });
   };
+
 
    useEffect(() => {
     const fetchLastId = async () => {
@@ -205,6 +229,10 @@ useEffect(() => {
   const handleNext = async () => {
     if (!userData) {
       console.error('userData no está definido');
+      return;
+    }
+    
+    if (!validateStep()) {
       return;
     }
   
@@ -268,6 +296,11 @@ useEffect(() => {
           </Step>
         ))}
       </Stepper>
+      {error && (
+        <Alert severity="error" sx={{ marginBottom: '20px' }}>
+          Por favor llenar todos los campos requeridos.
+        </Alert>
+      )}
       <FormSection 
         step={activeStep} 
         formData={formData} 
