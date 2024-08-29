@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Button, Stepper, Step, StepLabel, useMediaQuery, Box, Alert } from '@mui/material';
+import { Container, Typography, Button, Stepper, Step, StepLabel, useMediaQuery, Box, Alert, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import FormSection from '../components/FormSection';
+import FormSection2 from '../components/FormSection2';
+import FormSection3 from '../components/FormSection3'; // Asegúrate de importar FormSection3
 import axios from 'axios';
 import { useLocation } from 'react-router-dom';
 
@@ -8,9 +10,12 @@ const steps = ['Datos Generales', 'Detalles de la Actividad', 'Certificación y 
 
 function FormPage({ userData }) {
   const location = useLocation();
-  const isSmallScreen = useMediaQuery('(max-width:600px)'); 
+  const isSmallScreen = useMediaQuery('(max-width:600px)');
   const [activeStep, setActiveStep] = useState(0);
+  const [showDialog, setShowDialog] = useState(false); // Estado para controlar el diálogo
+  const [currentSection, setCurrentSection] = useState(1); // Nuevo estado para manejar la sección del formulario
   const [formData, setFormData] = useState({
+    // Todos los campos de datos que se necesitan en las secciones
     id_solicitud: '',
     fecha_solicitud: '',
     nombre_actividad: '',
@@ -29,7 +34,7 @@ function FormPage({ userData }) {
     cupo_min: '',
     cupo_max: '',
     nombre_coordinador: '',
-    correo_coordinador:'',
+    correo_coordinador: '',
     tel_coordinador: '',
     profesor_participante: '',
     formas_evaluacion: '',
@@ -50,7 +55,7 @@ function FormPage({ userData }) {
     nombre_firma: '',
     cargo_firma: '',
     firma: '',
-    matriz_riesgo: '' 
+    matriz_riesgo: ''
   });
 
   const [escuelas, setEscuelas] = useState([]);
@@ -100,99 +105,98 @@ function FormPage({ userData }) {
 
   useEffect(() => {
     if (formData.nombre_escuela) {
-        const departamentosFiltrados = [
-            ...new Set(
-                programas
-                    .filter(item => item.Escuela === formData.nombre_escuela)
-                    .map(item => item.Departamento || "General")
-            ),
-        ];
+      const departamentosFiltrados = [
+        ...new Set(
+          programas
+            .filter(item => item.Escuela === formData.nombre_escuela)
+            .map(item => item.Departamento || "General")
+        ),
+      ];
 
-        setDepartamentos(departamentosFiltrados);
+      setDepartamentos(departamentosFiltrados);
 
-        if (departamentosFiltrados.length === 0) {
-            setFormData(prevFormData => ({
-                ...prevFormData,
-                nombre_departamento: '',
-                nombre_seccion: '',
-                nombre_dependencia: '',
-            }));
-        }
+      if (departamentosFiltrados.length === 0) {
+        setFormData(prevFormData => ({
+          ...prevFormData,
+          nombre_departamento: '',
+          nombre_seccion: '',
+          nombre_dependencia: '',
+        }));
+      }
     } else {
-        setDepartamentos([]);
+      setDepartamentos([]);
     }
   }, [formData.nombre_escuela, programas]);
 
   useEffect(() => {
-      if (formData.nombre_departamento) {
-          const seccionesFiltradas = [
-              ...new Set(
-                  programas
-                      .filter(
-                          item =>
-                              item.Escuela === formData.nombre_escuela &&
-                              (item.Departamento === formData.nombre_departamento || (!item.Departamento && formData.nombre_departamento === "General"))
-                      )
-                      .map(item => item.Sección || "General")
-              ),
-          ];
+    if (formData.nombre_departamento) {
+      const seccionesFiltradas = [
+        ...new Set(
+          programas
+            .filter(
+              item =>
+                item.Escuela === formData.nombre_escuela &&
+                (item.Departamento === formData.nombre_departamento || (!item.Departamento && formData.nombre_departamento === "General"))
+            )
+            .map(item => item.Sección || "General")
+        ),
+      ];
 
-          setSecciones(seccionesFiltradas);
-      }
+      setSecciones(seccionesFiltradas);
+    }
   }, [formData.nombre_departamento, formData.nombre_escuela, programas]);
 
   useEffect(() => {
-      if (formData.nombre_seccion) {
-          const programasFiltrados = programas.filter(
-              item =>
-                  item.Escuela === formData.nombre_escuela &&
-                  (item.Departamento === formData.nombre_departamento || (!item.Departamento && formData.nombre_departamento === "General")) &&
-                  (item.Sección === formData.nombre_seccion || (!item.Sección && formData.nombre_seccion === "General"))
-          );
+    if (formData.nombre_seccion) {
+      const programasFiltrados = programas.filter(
+        item =>
+          item.Escuela === formData.nombre_escuela &&
+          (item.Departamento === formData.nombre_departamento || (!item.Departamento && formData.nombre_departamento === "General")) &&
+          (item.Sección === formData.nombre_seccion || (!item.Sección && formData.nombre_seccion === "General"))
+      );
 
-          setProgramas(programasFiltrados);
+      setProgramas(programasFiltrados);
 
-          if (!formData.nombre_dependencia && programasFiltrados.length > 0) {
-              setFormData(prevFormData => ({
-                  ...prevFormData,
-                  nombre_dependencia: programasFiltrados[0].Programa || "General",
-              }));
-          }
+      if (!formData.nombre_dependencia && programasFiltrados.length > 0) {
+        setFormData(prevFormData => ({
+          ...prevFormData,
+          nombre_dependencia: programasFiltrados[0].Programa || "General",
+        }));
       }
+    }
   }, [formData.nombre_seccion, formData.nombre_departamento, formData.nombre_escuela, programas]);
 
   const handleInputChange = (event) => {
-      const { name, value, files } = event.target;
+    const { name, value, files } = event.target;
 
-      setFormData((prevFormData) => {
-          let updatedFormData = { ...prevFormData, [name]: files ? files[0] : value };
+    setFormData((prevFormData) => {
+      let updatedFormData = { ...prevFormData, [name]: files ? files[0] : value };
 
-          if (name === 'nombre_escuela') {
-              updatedFormData.nombre_departamento = '';
-              updatedFormData.nombre_seccion = '';
-              updatedFormData.nombre_dependencia = '';
-          }
+      if (name === 'nombre_escuela') {
+        updatedFormData.nombre_departamento = '';
+        updatedFormData.nombre_seccion = '';
+        updatedFormData.nombre_dependencia = '';
+      }
 
-          if (name === 'nombre_departamento') {
-              updatedFormData.nombre_seccion = '';
-              updatedFormData.nombre_dependencia = '';
-          }
+      if (name === 'nombre_departamento') {
+        updatedFormData.nombre_seccion = '';
+        updatedFormData.nombre_dependencia = '';
+      }
 
-          if (name === 'nombre_seccion') {
-              updatedFormData.nombre_dependencia = '';
-          }
+      if (name === 'nombre_seccion') {
+        updatedFormData.nombre_dependencia = '';
+      }
 
-          // Verificar si nombre_dependencia es "General" o está vacío, y asignar nombre_escuela
-          if (!updatedFormData.nombre_dependencia || updatedFormData.nombre_dependencia === "General") {
-              updatedFormData.nombre_dependencia = updatedFormData.nombre_escuela;
-          }
+      // Verificar si nombre_dependencia es "General" o está vacío, y asignar nombre_escuela
+      if (!updatedFormData.nombre_dependencia || updatedFormData.nombre_dependencia === "General") {
+        updatedFormData.nombre_dependencia = updatedFormData.nombre_escuela;
+      }
 
-          return updatedFormData;
-      });
+      return updatedFormData;
+    });
   };
 
-
-   useEffect(() => {
+  useEffect(() => {
     const fetchLastId = async () => {
       try {
         const queryParams = new URLSearchParams(location.search);
@@ -231,98 +235,147 @@ function FormPage({ userData }) {
       console.error('userData no está definido');
       return;
     }
-    
+
     if (!validateStep()) {
       return;
     }
-  
+
     setFormData((prevFormData) => {
       let updatedFormData = { ...prevFormData };
-  
+
       if (!updatedFormData.nombre_dependencia) {
         updatedFormData.nombre_dependencia = updatedFormData.nombre_seccion || updatedFormData.nombre_departamento || updatedFormData.nombre_escuela;
       }
-  
+
       return updatedFormData;
     });
-  
-    const isLastStep = activeStep === steps.length - 1;
-  
+
+    const isLastStepOfFirstPart = activeStep === steps.length - 1; // Último step de la primera parte 
+
     try {
       let fileUrl = '';
-      if (formData.matriz_riesgo && isLastStep) {
+      if (formData.matriz_riesgo && isLastStepOfFirstPart) {
         const formDataFile = new FormData();
         formDataFile.append('matriz_riesgo', formData.matriz_riesgo);
-  
+
         const uploadResponse = await axios.post('https://siac-extension-server.vercel.app/uploadFile', formDataFile, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
         });
-  
+
         fileUrl = uploadResponse.data.fileUrl;
       }
-  
+
       const response = await axios.post('https://siac-extension-server.vercel.app/saveProgress', {
         id_usuario: userData.id,
         formData: { ...formData, matriz_riesgo: fileUrl },
-        activeStep,  
+        activeStep,
       });
-  
-      console.log(isLastStep ? 'Formulario enviado:' : 'Progreso guardado:', response.data);
-  
-      if (!isLastStep) {
+
+      console.log(isLastStepOfFirstPart ? 'Formulario enviado:' : 'Progreso guardado:', response.data);
+
+      if (isLastStepOfFirstPart) {
+        setShowDialog(true);
+      } else {
         setActiveStep((prevActiveStep) => prevActiveStep + 1);
       }
     } catch (error) {
-      console.error(isLastStep ? 'Error al enviar el formulario:' : 'Error al guardar el progreso:', error);
+      console.error(isLastStepOfFirstPart ? 'Error al enviar el formulario:' : 'Error al guardar el progreso:', error);
+    }
+  };
+
+  const handleCloseDialog = () => {
+    setShowDialog(false);
+    setCurrentSection(2); 
+    setActiveStep(0);
+  };
+
+  const renderFormSection = () => {
+    if (currentSection === 1) {
+      return (
+        <>
+          <Typography variant={isSmallScreen ? 'h5' : 'h4'} gutterBottom>
+            {`Formulario de Solicitud Parte ${activeStep + 1}`}
+          </Typography>
+          <Stepper activeStep={activeStep} orientation={isSmallScreen ? 'vertical' : 'horizontal'}>
+            {steps.map((label) => (
+              <Step key={label} sx={{ marginBottom: { xs: '10px', sm: '25px' } }}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+          {error && (
+            <Alert severity="error" sx={{ marginBottom: '20px' }}>
+              Por favor llenar todos los campos requeridos.
+            </Alert>
+          )}
+          <FormSection
+            step={activeStep}
+            formData={formData}
+            handleInputChange={handleInputChange}
+            escuelas={escuelas}
+            departamentos={departamentos}
+            secciones={secciones}
+            programas={programas}
+            oficinas={oficinas}
+          />
+        </>
+      );
+    } else if (currentSection === 2) {
+      return (
+        <FormSection2
+          formData={formData}
+          handleInputChange={handleInputChange}
+          setCurrentSection={setCurrentSection} // Pasa la función al FormSection2
+        />
+      );
+    } else if (currentSection === 3) {
+      return (
+        <FormSection3
+          formData={formData}
+          handleInputChange={handleInputChange}
+        />
+      );
     }
   };
 
   return (
-    <Container sx={{ 
-      marginTop: isSmallScreen ? '130px' : '130px', 
+    <Container sx={{
+      marginTop: isSmallScreen ? '130px' : '130px',
       marginBottom: isSmallScreen ? '200px' : '20px',
-      maxWidth: '100%', 
-      padding: { xs: '0 15px', sm: '0 20px' } 
+      maxWidth: '100%',
+      padding: { xs: '0 15px', sm: '0 20px' }
     }}>
-      <Typography variant={ isSmallScreen ? 'h5' : 'h4'} gutterBottom>
-        Formulario de Solicitud Parte 1
-      </Typography>
-      <Stepper activeStep={activeStep} orientation={isSmallScreen ? 'vertical' : 'horizontal'}>
-        {steps.map((label) => (
-          <Step key={label} sx={{ marginBottom: { xs: '10px', sm: '25px' } }}>
-            <StepLabel>{label}</StepLabel>
-          </Step>
-        ))}
-      </Stepper>
-      {error && (
-        <Alert severity="error" sx={{ marginBottom: '20px' }}>
-          Por favor llenar todos los campos requeridos.
-        </Alert>
-      )}
-      <FormSection 
-        step={activeStep} 
-        formData={formData} 
-        handleInputChange={handleInputChange} 
-        escuelas={escuelas}
-        departamentos={departamentos}
-        secciones={secciones}
-        programas={programas}
-        oficinas={oficinas}
-      />
+      {renderFormSection()}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', marginBottom: '20px' }}>
-        <Button disabled={activeStep === 0} onClick={handleBack}>
-          Atrás
-        </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleNext}
-        >
-          {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
-        </Button>
+        {currentSection === 1 && (
+          <>
+            <Button disabled={activeStep === 0} onClick={handleBack}>
+              Atrás
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleNext}
+            >
+              {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
+            </Button>
+          </>
+        )}
       </Box>
+
+      <Dialog open={showDialog} onClose={handleCloseDialog}>
+        <DialogTitle>Datos Guardados</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Sus datos han sido guardados exitosamente.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }
