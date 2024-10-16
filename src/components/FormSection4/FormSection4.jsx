@@ -19,18 +19,31 @@ function FormSection4({ formData, handleInputChange, setCurrentSection, userData
   ];
 
   const handleNext = async () => {
-    try {
-      await axios.post('https://siac-extension-server.vercel.app/saveProgress', {
-        id_usuario: userData.id,
-        formData: formData,
-        activeStep: activeStep,
-      });
-      setActiveStep((prevActiveStep) => prevActiveStep + 1);
-    } catch (error) {
-      console.error('Error al guardar el progreso:', error);
+    console.log("Datos del user:", userData);
+    const id_usuario = userData?.id || ''; // Asegúrate de que `userData` contiene el id del usuario.
+  
+    if (!id_usuario) {
+      console.error("Error: id_usuario no está definido.");
+      return;
     }
+  
+    console.log("Datos antes de enviar:", formData);
+  
+    try {
+      const response = await axios.post("https://siac-extension-server.vercel.app/saveProgress", {
+        id_usuario,
+        formData,
+        activeStep,
+      });
+      console.log("Respuesta del servidor al guardar:", response.data);
+    } catch (error) {
+      console.error("Error al guardar el progreso, pero avanzaremos al siguiente paso:", error);
+    }
+  
+    // Pasar al siguiente paso, incluso si hubo un error al guardar
+    setActiveStep((prevActiveStep) => prevActiveStep + 1);
   };
-
+  
   const handleBack = () => setActiveStep((prevStep) => prevStep - 1);
 
   const renderStepContent = (step) => {

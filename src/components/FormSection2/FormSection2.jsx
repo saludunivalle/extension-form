@@ -28,24 +28,21 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
       return;
     }
   
-    // Elimina las propiedades que tengan valores `undefined` para evitar problemas al enviarlas
-    const sanitizedFormData = Object.fromEntries(
-      Object.entries(formData).filter(([_, value]) => value !== undefined)
-    );
-  
-    console.log("Datos antes de enviar:", sanitizedFormData);
+    console.log("Datos antes de enviar:", formData);
   
     try {
       const response = await axios.post("https://siac-extension-server.vercel.app/saveProgress", {
         id_usuario,
-        formData: sanitizedFormData,
+        formData,
         activeStep,
       });
       console.log("Respuesta del servidor al guardar:", response.data);
-      setActiveStep((prevActiveStep) => prevActiveStep + 1);
     } catch (error) {
-      console.error("Error al guardar el progreso:", error);
+      console.error("Error al guardar el progreso, pero avanzaremos al siguiente paso:", error);
     }
+  
+    // Pasar al siguiente paso, incluso si hubo un error al guardar
+    setActiveStep((prevActiveStep) => prevActiveStep + 1);
   };
   
 
