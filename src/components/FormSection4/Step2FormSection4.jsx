@@ -1,0 +1,85 @@
+import { TextField, Box, Typography, Grid } from '@mui/material';
+
+function Step2FormSection4({ formData, handleInputChange }) {
+  return (
+    <Box>
+      <Typography variant="h6" gutterBottom>
+        Atributos del programa
+      </Typography>
+      <Typography variant="body1" gutterBottom>
+        Básicos: Aportan valor a la audiencia pero no es exclusivo del programa
+      </Typography>
+      <TextField
+        label="Atributos Básicos"
+        name="atributosBasicos"
+        value={formData.atributosBasicos || ''}
+        onChange={handleInputChange}
+        fullWidth
+        margin="normal"
+      />
+      <Typography variant="body1" gutterBottom>
+        Diferenciadores: Atributos únicos del programa
+      </Typography>
+      <TextField
+        label="Atributos Diferenciadores"
+        name="atributosDiferenciadores"
+        value={formData.atributosDiferenciadores || ''}
+        onChange={handleInputChange}
+        fullWidth
+        margin="normal"
+      />
+
+      <Typography variant="h6" gutterBottom>
+        ¿Cuál es la competencia y en qué se diferencia frente al programa? (Valor agregado, precio, ubicación, modalidad)
+      </Typography>
+      <Grid container spacing={2}>
+        <Grid item xs={6}>
+          <TextField
+            label="Competencia"
+            name="competencia"
+            value={formData.competencia || ''}
+            onChange={handleInputChange}
+            fullWidth
+            margin="normal"
+          />
+        </Grid>
+        <Grid item xs={6}>
+          <TextField
+            label="Programa"
+            name="programa"
+            value={formData.programa || ''}
+            onChange={handleInputChange}
+            fullWidth
+            margin="normal"
+          />
+        </Grid>
+      </Grid>
+
+      <Typography variant="h6" gutterBottom>
+        ¿Qué programas similares o iguales ofrecen otras instituciones educativas de la región?
+      </Typography>
+      <TextField
+        label="Programas similares"
+        name="programasSimilares"
+        value={formData.programasSimilares || ''}
+        onChange={handleInputChange}
+        fullWidth
+        margin="normal"
+      />
+
+      <Typography variant="h6" gutterBottom>
+        ¿Qué estrategias ha implementado la competencia para tener la acogida y reconocimiento de su programa?
+      </Typography>
+      <TextField
+        label="Estrategias de la competencia"
+        name="estrategiasCompetencia"
+        value={formData.estrategiasCompetencia || ''}
+        onChange={handleInputChange}
+        fullWidth
+        margin="normal"
+      />
+    </Box>
+  );
+}
+
+export default Step2FormSection4;

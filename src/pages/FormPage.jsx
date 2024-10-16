@@ -1,21 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Button, Stepper, Step, StepLabel, useMediaQuery, Box, Alert, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
-import FormSection from '../components/FormSection';
-import FormSection2 from '../components/FormSection2';
-import FormSection3 from '../components/FormSection3'; // Asegúrate de importar FormSection3
+import { 
+  Container, Typography, useMediaQuery, Box, 
+  Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button 
+} from '@mui/material';
+import FormSection from '../components/FormSection/FormSection';
+import FormSection2 from '../components/FormSection2/FormSection2';
+import FormSection3 from '../components/FormSection3/FormSection3';
+import FormSection4 from '../components/FormSection4/FormSection4';
+import FormSection5 from '../components/FormSection5/FormSection5';
 import axios from 'axios';
 import { useLocation } from 'react-router-dom';
+import FormStepper from './FormStepper'; // Importa el componente FormStepper
 
-const steps = ['Datos Generales', 'Detalles de la Actividad', 'Certificación y Evaluación', 'Información Coordinador', 'Información Adicional'];
+// Definimos los títulos respectivos para cada sección del formulario
+const sectionTitles = [
+  'Formulario F-04-MP-05-01-01 - Propuesta', 
+  'Formulario F-05-MP-05-01-01 - Aprobación', 
+  'Formulario F-06-MP-05-01-01 - Presupuesto', 
+  'Formulario F-07-MP-05-01-01 - Indentificación de Mercadeo', 
+  'Formulario F-08-MP-05-01-01 - Riesgos Potenciales'
+];
 
 function FormPage({ userData }) {
   const location = useLocation();
   const isSmallScreen = useMediaQuery('(max-width:600px)');
-  const [activeStep, setActiveStep] = useState(0);
+  const [currentSection, setCurrentSection] = useState(1); // Iniciamos con la sección 1
   const [showDialog, setShowDialog] = useState(false); // Estado para controlar el diálogo
-  const [currentSection, setCurrentSection] = useState(1); // Nuevo estado para manejar la sección del formulario
+  const [highestStepReached, setHighestStepReached] = useState(1); // Iniciamos con el paso 1 alcanzado
   const [formData, setFormData] = useState({
-    // Todos los campos de datos que se necesitan en las secciones
     id_solicitud: '',
     fecha_solicitud: '',
     nombre_actividad: '',
@@ -65,6 +77,7 @@ function FormPage({ userData }) {
   const [oficinas, setOficinas] = useState([]);
   const [error, setError] = useState(false);
 
+  // Fetch de los datos de escuelas y oficinas
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -78,31 +91,10 @@ function FormPage({ userData }) {
         console.error('Error al obtener datos de la hoja de Google Sheets:', error);
       }
     };
-
     fetchData();
   }, []);
 
-  const validateStep = () => {
-    const requiredFieldsByStep = [
-      ['fecha_solicitud', 'nombre_actividad', 'nombre_solicitante', 'nombre_escuela'], // Step 0
-      ['ofrecido_por', 'ofrecido_para'], // Step 1
-      ['creditos', 'cupo_min', 'cupo_max'], // Step 2
-      ['nombre_coordinador', 'correo_coordinador', 'tel_coordinador', 'profesor_participante', 'formas_evaluacion', 'valor_inscripcion'], // Step 3
-      [] // Step 4 
-    ];
-
-    const requiredFields = requiredFieldsByStep[activeStep];
-    const missingFields = requiredFields.filter(field => !formData[field]);
-
-    if (missingFields.length > 0) {
-      setError(true);
-      return false;
-    }
-
-    setError(false);
-    return true;
-  };
-
+  // Manejo de dependencias (escuelas, departamentos, secciones y programas)
   useEffect(() => {
     if (formData.nombre_escuela) {
       const departamentosFiltrados = [
@@ -112,7 +104,6 @@ function FormPage({ userData }) {
             .map(item => item.Departamento || "General")
         ),
       ];
-
       setDepartamentos(departamentosFiltrados);
 
       if (departamentosFiltrados.length === 0) {
@@ -141,7 +132,6 @@ function FormPage({ userData }) {
             .map(item => item.Sección || "General")
         ),
       ];
-
       setSecciones(seccionesFiltradas);
     }
   }, [formData.nombre_departamento, formData.nombre_escuela, programas]);
@@ -187,7 +177,6 @@ function FormPage({ userData }) {
         updatedFormData.nombre_dependencia = '';
       }
 
-      // Verificar si nombre_dependencia es "General" o está vacío, y asignar nombre_escuela
       if (!updatedFormData.nombre_dependencia || updatedFormData.nombre_dependencia === "General") {
         updatedFormData.nombre_dependencia = updatedFormData.nombre_escuela;
       }
@@ -196,147 +185,31 @@ function FormPage({ userData }) {
     });
   };
 
-  useEffect(() => {
-    const fetchLastId = async () => {
-      try {
-        const queryParams = new URLSearchParams(location.search);
-        const solicitudId = queryParams.get('solicitud');
-
-        if (solicitudId) {
-          const response = await axios.get('https://siac-extension-server.vercel.app/getFormData', {
-            params: { id_solicitud: solicitudId }
-          });
-
-          setFormData(response.data);
-        } else {
-          const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
-            params: { sheetName: 'ETAPAS' }
-          });
-          const newId = parseInt(response.data.lastId, 10) + 1;
-          setFormData((prevState) => ({
-            ...prevState,
-            id_solicitud: newId,
-          }));
-        }
-      } catch (error) {
-        console.error('Error al obtener el ID o los datos del formulario:', error);
-      }
-    };
-
-    fetchLastId();
-  }, [location.search]);
-
-  const handleBack = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep - 1);
-  };
-
-  const handleNext = async () => {
-    if (!userData) {
-      console.error('userData no está definido');
-      return;
+  const handleSectionChange = (newSection) => {
+    setCurrentSection(newSection);
+    if (newSection > highestStepReached) {
+      setHighestStepReached(newSection);
     }
-
-    if (!validateStep()) {
-      return;
-    }
-
-    setFormData((prevFormData) => {
-      let updatedFormData = { ...prevFormData };
-
-      if (!updatedFormData.nombre_dependencia) {
-        updatedFormData.nombre_dependencia = updatedFormData.nombre_seccion || updatedFormData.nombre_departamento || updatedFormData.nombre_escuela;
-      }
-
-      return updatedFormData;
-    });
-
-    const isLastStepOfFirstPart = activeStep === steps.length - 1; // Último step de la primera parte 
-
-    try {
-      let fileUrl = '';
-      if (formData.matriz_riesgo && isLastStepOfFirstPart) {
-        const formDataFile = new FormData();
-        formDataFile.append('matriz_riesgo', formData.matriz_riesgo);
-
-        const uploadResponse = await axios.post('https://siac-extension-server.vercel.app/uploadFile', formDataFile, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-
-        fileUrl = uploadResponse.data.fileUrl;
-      }
-
-      const response = await axios.post('https://siac-extension-server.vercel.app/saveProgress', {
-        id_usuario: userData.id,
-        formData: { ...formData, matriz_riesgo: fileUrl },
-        activeStep,
-      });
-
-      console.log(isLastStepOfFirstPart ? 'Formulario enviado:' : 'Progreso guardado:', response.data);
-
-      if (isLastStepOfFirstPart) {
-        setShowDialog(true);
-      } else {
-        setActiveStep((prevActiveStep) => prevActiveStep + 1);
-      }
-    } catch (error) {
-      console.error(isLastStepOfFirstPart ? 'Error al enviar el formulario:' : 'Error al guardar el progreso:', error);
-    }
-  };
+  };  
 
   const handleCloseDialog = () => {
     setShowDialog(false);
-    setCurrentSection(2); 
-    setActiveStep(0);
   };
 
   const renderFormSection = () => {
-    if (currentSection === 1) {
-      return (
-        <>
-          <Typography variant={isSmallScreen ? 'h5' : 'h4'} gutterBottom>
-            {`Formulario de Solicitud Parte ${activeStep + 1}`}
-          </Typography>
-          <Stepper activeStep={activeStep} orientation={isSmallScreen ? 'vertical' : 'horizontal'}>
-            {steps.map((label) => (
-              <Step key={label} sx={{ marginBottom: { xs: '10px', sm: '25px' } }}>
-                <StepLabel>{label}</StepLabel>
-              </Step>
-            ))}
-          </Stepper>
-          {error && (
-            <Alert severity="error" sx={{ marginBottom: '20px' }}>
-              Por favor llenar todos los campos requeridos.
-            </Alert>
-          )}
-          <FormSection
-            step={activeStep}
-            formData={formData}
-            handleInputChange={handleInputChange}
-            escuelas={escuelas}
-            departamentos={departamentos}
-            secciones={secciones}
-            programas={programas}
-            oficinas={oficinas}
-          />
-        </>
-      );
-    } else if (currentSection === 2) {
-      return (
-        <FormSection2
-          formData={formData}
-          handleInputChange={handleInputChange}
-          setCurrentSection={setCurrentSection} // Pasa la función al FormSection2
-        />
-      );
-    } else if (currentSection === 3) {
-      return (
-        <FormSection3
-          formData={formData}
-          handleInputChange={handleInputChange}
-        />
-      );
+    switch (currentSection) {
+      case 1:
+        return <FormSection2 userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} />;
+      case 2:
+        return <FormSection  userData={userData} formData={formData} escuelas={escuelas} departamentos={departamentos} secciones={secciones} programas={programas} oficinas={oficinas} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} />;
+      case 3:
+        return <FormSection3 userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} />;
+      case 4:
+        return <FormSection4 userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} />;
+      case 5:
+        return <FormSection5 userData={userData} formData={formData} handleInputChange={handleInputChange} />;
+      default:
+        return null;
     }
   };
 
@@ -347,23 +220,15 @@ function FormPage({ userData }) {
       maxWidth: '100%',
       padding: { xs: '0 15px', sm: '0 20px' }
     }}>
+
+      {/* Agrega el FormStepper al layout */}
+      <FormStepper activeStep={currentSection - 1} steps={sectionTitles} setCurrentSection={handleSectionChange} highestStepReached={highestStepReached} />
+      {/* Contenido del formulario */}
+      <Typography variant={isSmallScreen ? 'h5' : 'h4'} gutterBottom>
+        {sectionTitles[currentSection - 1]}
+      </Typography>
+
       {renderFormSection()}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', marginBottom: '20px' }}>
-        {currentSection === 1 && (
-          <>
-            <Button disabled={activeStep === 0} onClick={handleBack}>
-              Atrás
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleNext}
-            >
-              {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
-            </Button>
-          </>
-        )}
-      </Box>
 
       <Dialog open={showDialog} onClose={handleCloseDialog}>
         <DialogTitle>Datos Guardados</DialogTitle>
