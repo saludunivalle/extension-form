@@ -1,10 +1,11 @@
 import React from 'react';
-import { Grid, TextField } from '@mui/material';
+import { Grid, TextField, Tooltip } from '@mui/material';
 
 function Step4FormSection2({ formData, handleInputChange }) {
   return (
     <Grid container spacing={2}>
       <Grid item xs={12}>
+      <Tooltip title="Forma en que se ha programado la actividad, forma en que se ha dividido ya sea en capítulos o módulos, y temas a tratar en cada uno de estos módulos.">
         <TextField
           label="Programa y Contenidos"
           fullWidth
@@ -15,8 +16,10 @@ function Step4FormSection2({ formData, handleInputChange }) {
           onChange={handleInputChange}
           required
         />
+        </Tooltip>
       </Grid>
       <Grid item xs={12}>
+      <Tooltip title="Tiempo total que tomara realizar la actividad, también pueden darse los horarios que se manejaran.">
         <TextField
           label="Duración"
           fullWidth
@@ -25,6 +28,7 @@ function Step4FormSection2({ formData, handleInputChange }) {
           onChange={handleInputChange}
           required
         />
+        </Tooltip>
       </Grid>
     </Grid>
   );

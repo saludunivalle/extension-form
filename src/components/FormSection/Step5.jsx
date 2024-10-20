@@ -47,6 +47,30 @@ function Step5({ formData, handleInputChange }) {
           </Grid>
           <Grid item xs={2}>
             <TextField
+              label="Egresados"
+              fullWidth
+              name="becas_egresados"
+              type="number"
+              value={formData.becas_egresados}
+              onChange={handleInputChange}
+              inputProps={{ min: "0" }} 
+              required
+            />
+          </Grid>
+          <Grid item xs={2}>
+            <TextField
+              label="Funcionarios"
+              fullWidth
+              name="becas_funcionarios"
+              type="number"
+              value={formData.becas_funcionarios}
+              onChange={handleInputChange}
+              inputProps={{ min: "0" }} 
+              required
+            />
+          </Grid>
+          <Grid item xs={2}>
+            <TextField
               label="Otros"
               fullWidth
               name="becas_otros"
@@ -67,6 +91,8 @@ function Step5({ formData, handleInputChange }) {
                   parseInt(formData.becas_convenio || 0) +
                   parseInt(formData.becas_estudiantes || 0) +
                   parseInt(formData.becas_docentes || 0) +
+                  parseInt(formData.becas_egresados || 0) +
+                  parseInt(formData.becas_funcionarios || 0) +
                   parseInt(formData.becas_otros || 0)
                 ).toString()
               }
@@ -96,7 +122,7 @@ function Step5({ formData, handleInputChange }) {
         </FormControl>
       </Grid>
               
-      <Grid item xs={12}>
+      {/* <Grid item xs={12}>
         <FormControl component="fieldset">
           <FormLabel component="legend">Fechas en las que se llevará a cabo</FormLabel>
           <RadioGroup
@@ -181,7 +207,35 @@ function Step5({ formData, handleInputChange }) {
             </Grid>
           )}
         </FormControl>
+      </Grid> */}
+
+      <Grid item xs={12}>
+        <FormControl component="fieldset">
+          <FormLabel component="legend">La organización de la actividad se hará por</FormLabel>
+          <RadioGroup
+            name="Organizacion_actividad"
+            value={formData.organizacion_actividad || ''}
+            onChange={handleInputChange}
+            required
+          >
+            <FormControlLabel value="ofi_ext" control={<Radio />} label="Oficina de Extensión" />
+            <FormControlLabel value="unidad_acad" control={<Radio />} label="Unidad Académica" />
+            <FormControlLabel value="otro_act" control={<Radio />} label="Otro" />
+          </RadioGroup>
+          {formData.tipo === "otro_act" && (
+            <Box sx={{ marginTop: 2 }}>
+              <TextField
+                label="¿Cuál?"
+                fullWidth
+                name="otro_tipo_act"
+                value={formData.otro_tipo_act || ""}
+                onChange={handleInputChange}
+              />
+            </Box>
+          )}
+        </FormControl>
       </Grid>
+
     </Grid>
   );
 }

@@ -41,7 +41,7 @@ function Step4({ formData, handleInputChange }) {
 
       <Grid item xs={12}>
         <Grid container spacing={2}>
-          <Grid item xs={6}>
+          {/* <Grid item xs={6}>
             <TextField
               label="Profesor(es) que participan"
               fullWidth
@@ -49,6 +49,18 @@ function Step4({ formData, handleInputChange }) {
               rows={4}
               name="profesor_participante"
               value={formData.profesor_participante}
+              onChange={handleInputChange}
+              required
+            />
+          </Grid> */}
+          <Grid item xs={6}>
+            <TextField
+              label="Perfil Competencia (educación, experiencia, formación) que debe tener el personal docente, coordinador o ejecutor que va a desarrollar las actividades de extensión"
+              fullWidth
+              multiline
+              rows={4}
+              name="perfil_competencia"
+              value={formData.perfil_competencia}
               onChange={handleInputChange}
               required
             />
@@ -70,7 +82,7 @@ function Step4({ formData, handleInputChange }) {
 
       <Grid item xs={12}>
         <FormControl component="fieldset">
-          <FormLabel component="legend">Certificado que solicita expedir</FormLabel>
+          <FormLabel component="legend">Certificado o constancia que solicita expedir</FormLabel>
           <RadioGroup
             row
             name="certificado_solicitado"
@@ -110,7 +122,7 @@ function Step4({ formData, handleInputChange }) {
 
       <Grid item xs={12}>
         <TextField
-          label="Valor de la inscripción en SMMLV"
+          label="Valor unitario del programa EC expresado en SMMLV"
           fullWidth
           name="valor_inscripcion"
           value={formData.valor_inscripcion || '0'}

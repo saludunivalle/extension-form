@@ -52,7 +52,7 @@ function Step2({ formData, handleInputChange }) {
         </FormControl>
       </Grid>
 
-      <Grid item xs={12}>
+      {/* <Grid item xs={12}>
         <FormControl component="fieldset">
           <FormLabel component="legend">Tipo de Oferta</FormLabel>
           <RadioGroup
@@ -65,8 +65,8 @@ function Step2({ formData, handleInputChange }) {
             <FormControlLabel value="Oferta Cerrada" control={<Radio />} label="Oferta Cerrada" />
           </RadioGroup>
         </FormControl>
-      </Grid>
-
+      </Grid> */}
+{/* 
       <Grid item xs={12}>
         <TextField
           label="Ofrecido por"
@@ -88,8 +88,8 @@ function Step2({ formData, handleInputChange }) {
           }}
           required
         />
-      </Grid>
-      <Grid item xs={12}>
+      </Grid> */}
+      {/* <Grid item xs={12}>
         <TextField
           label="Ofrecido para"
           fullWidth
@@ -100,7 +100,7 @@ function Step2({ formData, handleInputChange }) {
           onChange={handleInputChange}
           required
         />
-      </Grid>
+      </Grid> */}
     </Grid>
   );
 }

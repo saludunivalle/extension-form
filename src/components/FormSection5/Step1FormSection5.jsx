@@ -11,7 +11,7 @@ function Step1FormSection5({ formData, handleInputChange }) {
       <TextField label="El seguimiento y/o control del diseño y desarrollo de programas de educación continua está orientado a la verificación del cumplimiento de los requisitos normativos." name="comentario" value={formData.comentario || ''} onChange={handleInputChange} fullWidth margin="normal" />
 
       <Typography variant="h6" gutterBottom>PROGRAMA</Typography>
-      <TextField label="Programa: Educación Continua" name="programa" value={formData.programa || ''} onChange={handleInputChange} fullWidth margin="normal" />
+      <TextField label="Programa" name="programa" value={formData.programa || ''} onChange={handleInputChange} fullWidth margin="normal" />
       
       <Typography variant="h6" gutterBottom>FECHA</Typography>
       <TextField label="Fecha" name="fecha" value={formData.fecha || ''} onChange={handleInputChange} fullWidth margin="normal" />

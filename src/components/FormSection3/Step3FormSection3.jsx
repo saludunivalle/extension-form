@@ -38,7 +38,7 @@ function Step3FormSection3({ formData, handleInputChange, totalAportesUnivalle, 
               </TableCell>
             </TableRow>
             <TableRow>
-              <TableCell colSpan={1} style={{ fontWeight: 'bold' }}>Total Aportes</TableCell>
+              <TableCell colSpan={1} style={{ fontWeight: 'bold' }}>Total Recursos</TableCell>
               <TableCell align="right" style={{ fontWeight: 'bold' }}>
                 {totalAportesUnivalle}
               </TableCell>

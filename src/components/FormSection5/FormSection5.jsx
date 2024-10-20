@@ -1,47 +1,180 @@
-import React, { useState } from 'react';
-import { Box, Button, Stepper, Step, StepLabel, Typography } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Button, Stepper, Step, StepLabel, Typography, Modal } from '@mui/material';
+import { useNavigate } from 'react-router-dom'; // Cambia useHistory por useNavigate
+import axios from 'axios';
+
+// Importa las secciones de los pasos
 import Step1FormSection5 from './Step1FormSection5';
 import Step2FormSection5 from './Step2FormSection5';
 import Step3FormSection5 from './Step3FormSection5';
 import Step4FormSection5 from './Step4FormSection5';
 import Step5FormSection5 from './Step5FormSection5';
-import axios from 'axios'; // Importa Axios para realizar la solicitud de guardado
 
-function FormSection5({ formData, handleInputChange, userData}) {
+function FormSection5({ formData, handleInputChange, userData }) {
   const [activeStep, setActiveStep] = useState(0);
+  const [openModal, setOpenModal] = useState(false); // Estado para controlar el modal
+  const id_usuario = userData?.id_usuario;
+  const navigate = useNavigate(); // Cambia useHistory por useNavigate
 
   // Step labels
   const steps = ['PROPÓSITO y Comentario', 'Matriz de Riesgos - Diseño', 'Matriz de Riesgos - Locaciones', 'Matriz de Riesgos - Desarrollo', 'Matriz de Riesgos - Cierre y Otros'];
 
-  // Navigation handlers
+  const [idSolicitud, setIdSolicitud] = useState(null); // Para almacenar el id_solicitud
+
+  // Obtener el último ID (inicial)
+  useEffect(() => {
+    const obtenerUltimoId = async () => {
+      try {
+        const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
+          params: { sheetName: 'SOLICITUDES5' }, // Cambia 'SOLICITUDES5' según la hoja en la que estés trabajando
+        });
+        const nuevoId = response.data.lastId + 1;
+        setIdSolicitud(nuevoId); // Establece el nuevo id_solicitud
+      } catch (error) {
+        console.error('Error al obtener el último ID:', error);
+      }
+    };
+
+    if (!idSolicitud) {
+      obtenerUltimoId();
+    }
+  }, [idSolicitud]);
+
   const handleNext = async () => {
-    console.log("Datos del user:", userData);
-    const id_usuario = userData?.id || ''; // Asegúrate de que `userData` contiene el id del usuario.
-  
-    if (!id_usuario) {
-      console.error("Error: id_usuario no está definido.");
-      return;
+    const hoja = 5; // Formulario va en SOLICITUDES5
+
+    const completarValoresConNo = (data) => {
+      const completado = {};
+      for (let key in data) {
+        completado[key] = data[key] === '' || data[key] === null || data[key] === undefined ? 'No' : data[key];
+      }
+      return completado;
+    };
+
+    // Definir los datos específicos según el paso actual
+    let pasoData = {};
+
+    switch (activeStep) {
+      case 0:
+        pasoData = {
+          proposito: formData.proposito,
+          comentario: formData.comentario,
+          programa: formData.programa,
+          fecha: formData.fecha,
+          elaboradoPor: formData.elaboradoPor,
+        };
+        break;
+      case 1:
+        pasoData = {
+          aplicaDiseno1: formData.aplicaDiseno1,
+          aplicaDiseno2: formData.aplicaDiseno2,
+          aplicaDiseno3: formData.aplicaDiseno3,
+          aplicaDiseno4: formData.aplicaDiseno4,
+        };
+        break;
+      case 2:
+        pasoData = {
+          aplicaLocacion1: formData.aplicaLocacion1,
+          aplicaLocacion2: formData.aplicaLocacion2,
+          aplicaLocacion3: formData.aplicaLocacion3,
+          aplicaLocacion4: formData.aplicaLocacion4,
+          aplicaLocacion5: formData.aplicaLocacion5,
+        };
+        break;
+      case 3:
+        pasoData = {
+          aplicaDesarrollo1: formData.aplicaDesarrollo1,
+          aplicaDesarrollo2: formData.aplicaDesarrollo2,
+          aplicaDesarrollo3: formData.aplicaDesarrollo3,
+          aplicaDesarrollo4: formData.aplicaDesarrollo4,
+          aplicaDesarrollo5: formData.aplicaDesarrollo5,
+          aplicaDesarrollo6: formData.aplicaDesarrollo6,
+          aplicaDesarrollo7: formData.aplicaDesarrollo7,
+          aplicaDesarrollo8: formData.aplicaDesarrollo8,
+          aplicaDesarrollo9: formData.aplicaDesarrollo9,
+          aplicaDesarrollo10: formData.aplicaDesarrollo10,
+          aplicaDesarrollo11: formData.aplicaDesarrollo11,
+        };
+        break;
+      case 4:
+        pasoData = {
+          aplicaCierre1: formData.aplicaCierre1,
+          aplicaCierre2: formData.aplicaCierre2,
+          aplicaCierre3: formData.aplicaCierre3,
+        };
+        break;
+      default:
+        break;
     }
-  
-    console.log("Datos antes de enviar:", formData);
-  
+
+    const pasoDataCompleto = completarValoresConNo(pasoData);
+
     try {
-      const response = await axios.post("https://siac-extension-server.vercel.app/saveProgress", {
-        id_usuario,
-        formData,
-        activeStep,
+      await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+        id_solicitud: idSolicitud,
+        formData: pasoDataCompleto,
+        paso: activeStep + 1,
+        hoja,
+        userData: {
+          id_usuario,
+          name: userData.name,
+        }
       });
-      console.log("Respuesta del servidor al guardar:", response.data);
+
+      // Mover al siguiente paso
+      setActiveStep((prevActiveStep) => prevActiveStep + 1);
     } catch (error) {
-      console.error("Error al guardar el progreso, pero avanzaremos al siguiente paso:", error);
+      console.error('Error al guardar el progreso:', error);
     }
-  
-    // Pasar al siguiente paso, incluso si hubo un error al guardar
-    setActiveStep((prevActiveStep) => prevActiveStep + 1);
+  };
+
+  const handleSubmit = async () => {
+    const hoja = 5; // Cambia este valor según la hoja a la que corresponda el formulario
+    
+    const completarValoresConNo = (data) => {
+      const completado = {};
+      for (let key in data) {
+        completado[key] = data[key] === '' || data[key] === null || data[key] === undefined ? 'No' : data[key];
+      }
+      return completado;
+    };
+
+    const pasoData = {
+      aplicaCierre1: formData.aplicaCierre1,
+      aplicaCierre2: formData.aplicaCierre2,
+      aplicaCierre3: formData.aplicaCierre3,
+    };
+
+    const pasoDataCompleto = completarValoresConNo(pasoData);
+
+    try {
+      // Guardar los datos del último paso en Google Sheets
+      await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+        id_solicitud: idSolicitud,
+        formData: pasoDataCompleto,
+        paso: 5,
+        hoja,
+        userData: {
+          id_usuario,
+          name: userData.name,
+        }
+      });
+
+      // Abrir el modal de confirmación
+      setOpenModal(true);
+    } catch (error) {
+      console.error('Error al guardar los datos del último paso:', error);
+    }
   };
   
+  const handleBack = () => {
+    setActiveStep((prevActiveStep) => prevActiveStep - 1); // Reducir el paso en 1
+  };
 
-  const handleBack = () => setActiveStep((prevStep) => prevStep - 1);
+  const handleCloseModal = () => {
+    setOpenModal(false); // Cerrar el modal
+    navigate('/');   // Usamos navigate en lugar de history.push('/')
+  };
 
   // Render step content based on activeStep
   const renderStepContent = (step) => {
@@ -65,7 +198,7 @@ function FormSection5({ formData, handleInputChange, userData}) {
     <Box>
       <Stepper activeStep={activeStep} alternativeLabel>
         {steps.map((label, index) => (
-          <Step key={index} sx={{marginBottom:'20px'}}>
+          <Step key={index} sx={{ marginBottom: '20px' }}>
             <StepLabel>{label}</StepLabel>
           </Step>
         ))}
@@ -77,10 +210,22 @@ function FormSection5({ formData, handleInputChange, userData}) {
       {/* Navigation buttons */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
         <Button disabled={activeStep === 0} onClick={handleBack}>Atrás</Button>
-        <Button variant="contained" color="primary" onClick={activeStep === steps.length - 1 ? () => console.log('Enviar') : handleNext}>
+        <Button variant="contained" color="primary" onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}>
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>
       </Box>
+
+      {/* Modal for confirmation */}
+      <Modal open={openModal} onClose={handleCloseModal}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <Box sx={{ backgroundColor: 'white', padding: '20px', textAlign: 'center' }}>
+            <Typography variant="h6">Se ha enviado todos los formularios con éxito</Typography>
+            <Button variant="contained" onClick={handleCloseModal} sx={{ marginTop: '10px' }}>
+              Cerrar
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
     </Box>
   );
 }

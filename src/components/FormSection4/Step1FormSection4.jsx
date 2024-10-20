@@ -13,6 +13,8 @@ function Step1FormSection4({ formData, handleInputChange }) {
         onChange={handleInputChange}
         fullWidth
         margin="normal"
+        multiline
+        rows={4}
       />
 
       <Typography variant="h6" gutterBottom>
@@ -25,6 +27,8 @@ function Step1FormSection4({ formData, handleInputChange }) {
         onChange={handleInputChange}
         fullWidth
         margin="normal"
+        multiline
+        rows={4}
       />
     </Box>
   );

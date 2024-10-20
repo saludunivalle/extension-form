@@ -1,27 +1,44 @@
 import React from 'react';
 import { Grid, TextField, Typography } from '@mui/material';
 
-function Step5FormSection3({ formData, handleInputChange }) {
+function Step5FormSection3({ formData, handleInputChange, totalIngresos, totalGastos, totalGastosImprevistos }) {
   return (
     <Grid container spacing={2}>
       <Grid item xs={12}>
-        <Typography variant="h6">Visto Bueno</Typography>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>CONCEPTO</TableCell>
+              <TableCell align="right">VALOR</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            <TableRow>
+              <TableCell>Total Ingresos</TableCell>
+              <TableCell align="right">{totalIngresos}</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell>Total Gastos</TableCell>
+              <TableCell align="right">{totalGastos}</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell>Total Gastos + Imprevistos</TableCell>
+              <TableCell align="right">{totalGastosImprevistos}</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell colSpan={1} style={{ fontWeight: 'bold' }}>TOTAL</TableCell>
+              <TableCell align="right" style={{ fontWeight: 'bold' }}>
+                {totalIngresos - totalGastosImprevistos}
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </Grid>
       <Grid item xs={12}>
         <TextField
-          label="Coordinador de la Actividad de Extensión"
+          label="Observaciones"
           fullWidth
-          name="coordinador_actividad"
-          value={formData.coordinador_actividad || ''}
-          onChange={handleInputChange}
-          required
-        />
-      </Grid>
-      <Grid item xs={12}>
-        <TextField
-          label="Visto Bueno de la Unidad Académica"
-          fullWidth
-          name="visto_bueno_unidad"
+          name="observaciones_presupuesto"
           value={formData.visto_bueno_unidad || ''}
           onChange={handleInputChange}
           required

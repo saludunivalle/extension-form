@@ -6,29 +6,32 @@ function Step2FormSection4({ formData, handleInputChange }) {
       <Typography variant="h6" gutterBottom>
         Atributos del programa
       </Typography>
-      <Typography variant="body1" gutterBottom>
-        Básicos: Aportan valor a la audiencia pero no es exclusivo del programa
-      </Typography>
-      <TextField
-        label="Atributos Básicos"
-        name="atributosBasicos"
-        value={formData.atributosBasicos || ''}
-        onChange={handleInputChange}
-        fullWidth
-        margin="normal"
-      />
-      <Typography variant="body1" gutterBottom>
-        Diferenciadores: Atributos únicos del programa
-      </Typography>
-      <TextField
-        label="Atributos Diferenciadores"
-        name="atributosDiferenciadores"
-        value={formData.atributosDiferenciadores || ''}
-        onChange={handleInputChange}
-        fullWidth
-        margin="normal"
-      />
-
+      <Grid container spacing={2}>
+        <Grid item xs={6}>
+          <TextField
+            label="Básicos: Aportan valor a la audiencia pero no es exclusivo del programa"
+            name="atributosBasicos"
+            value={formData.atributosBasicos || ''}
+            onChange={handleInputChange}
+            fullWidth
+            margin="normal"
+            multiline
+            rows={4}
+          />
+        </Grid>
+        <Grid item xs={6}>
+          <TextField
+            label="Diferenciadores: Atributos únicos del programa"
+            name="atributosDiferenciadores"
+            value={formData.atributosDiferenciadores || ''}
+            onChange={handleInputChange}
+            fullWidth
+            margin="normal"
+            multiline
+            rows={4}
+          />
+        </Grid>
+      </Grid>
       <Typography variant="h6" gutterBottom>
         ¿Cuál es la competencia y en qué se diferencia frente al programa? (Valor agregado, precio, ubicación, modalidad)
       </Typography>
@@ -41,6 +44,8 @@ function Step2FormSection4({ formData, handleInputChange }) {
             onChange={handleInputChange}
             fullWidth
             margin="normal"
+            multiline
+            rows={4}
           />
         </Grid>
         <Grid item xs={6}>
@@ -51,6 +56,8 @@ function Step2FormSection4({ formData, handleInputChange }) {
             onChange={handleInputChange}
             fullWidth
             margin="normal"
+            multiline
+            rows={4}
           />
         </Grid>
       </Grid>
@@ -65,6 +72,8 @@ function Step2FormSection4({ formData, handleInputChange }) {
         onChange={handleInputChange}
         fullWidth
         margin="normal"
+        multiline
+        rows={4}
       />
 
       <Typography variant="h6" gutterBottom>
@@ -77,6 +86,8 @@ function Step2FormSection4({ formData, handleInputChange }) {
         onChange={handleInputChange}
         fullWidth
         margin="normal"
+        multiline
+        rows={4}
       />
     </Box>
   );

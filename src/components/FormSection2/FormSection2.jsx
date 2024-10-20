@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Stepper, Step, StepLabel, Button, Box, Typography } from '@mui/material';
 import Step1FormSection2 from './Step1FormSection2';
 import Step2FormSection2 from './Step2FormSection2';
@@ -10,7 +10,6 @@ import axios from 'axios'; // Importa Axios para realizar la solicitud de guarda
 function FormSection2({ formData, handleInputChange, setCurrentSection, userData  }) {
   const [activeStep, setActiveStep] = useState(0);
   const id_usuario = userData?.id_usuario;
-
   const steps = [
     'Introducción y Objetivos',
     'Justificación y Descripción',
@@ -18,42 +17,122 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
     'Contenido y Duración',
     'Certificación y Recursos',
   ];
+  
+  const [idSolicitud, setIdSolicitud] = useState(null); // Para almacenar el id_solicitud
+
+  useEffect(() => {
+    const obtenerUltimoId = async () => {
+      try {
+        const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
+          params: { sheetName: 'SOLICITUDES' }, // Cambia 'SOLICITUDES' según la hoja en la que estés trabajando
+        });
+        const nuevoId = response.data.lastId + 1;
+        setIdSolicitud(nuevoId); // Establece el nuevo id_solicitud
+      } catch (error) {
+        console.error('Error al obtener el último ID:', error);
+      }
+    };
+
+    if (!idSolicitud) {
+      obtenerUltimoId();
+    }
+  }, [idSolicitud]);
 
   const handleNext = async () => {
-    console.log("Datos del user:", userData);
-    const id_usuario = userData?.id || ''; // Asegúrate de que `userData` contiene el id del usuario.
+    const hoja = 1; // Formulario 2 va en SOLICITUDES
+    
+    // Definir los datos específicos según el paso actual
+    let pasoData = {};
   
-    if (!id_usuario) {
-      console.error("Error: id_usuario no está definido.");
-      return;
+    switch (activeStep) {
+      case 0:
+        pasoData = {
+          introduccion: formData.introduccion,
+          objetivo_general: formData.objetivo_general,
+          objetivos_especificos: formData.objetivos_especificos,
+        };
+        break;
+      case 1:
+        pasoData = {
+          justificacion: formData.justificacion,
+          descripcion: formData.descripcion,
+        };
+        break;
+      case 2:
+        pasoData = {
+          alcance: formData.alcance,
+          metodologia: formData.metodologia,
+          dirigido_a: formData.dirigido_a,
+        };
+        break;
+      case 3:
+        pasoData = {
+          programa_contenidos: formData.programa_contenidos,
+          duracion: formData.duracion,
+        };
+        break;
+      case 4:
+        pasoData = {
+          certificacion: formData.certificacion,
+          recursos: formData.recursos,
+        };
+        break;
+      default:
+        break;
     }
-  
-    console.log("Datos antes de enviar:", formData);
   
     try {
-      const response = await axios.post("https://siac-extension-server.vercel.app/saveProgress", {
-        id_usuario,
-        formData,
-        activeStep,
+      await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+        id_solicitud: idSolicitud, // El ID de la solicitud
+        formData: pasoData, // Datos específicos del paso actual
+        paso: activeStep + 1, // Paso actual
+        hoja, // Indica qué hoja se está usando
+        userData: {
+          id_usuario, // Enviar el id_usuario
+          name: userData.name, // Enviar el nombre del usuario
+        }
       });
-      console.log("Respuesta del servidor al guardar:", response.data);
-    } catch (error) {
-      console.error("Error al guardar el progreso, pero avanzaremos al siguiente paso:", error);
-    }
   
-    // Pasar al siguiente paso, incluso si hubo un error al guardar
-    setActiveStep((prevActiveStep) => prevActiveStep + 1);
+      // Mover al siguiente paso
+      setActiveStep((prevActiveStep) => prevActiveStep + 1);
+    } catch (error) {
+      console.error('Error al guardar el progreso:', error);
+    }
   };
   
-
   const handleBack = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
-  const handleSubmit = () => {
-    setCurrentSection(2); // Cambia a FormSection (Formulario Aprobación)
+  const handleSubmit = async () => {
+    const hoja = 1; // Cambia este valor según la hoja a la que corresponda el formulario
+    
+    // Datos del último paso (Paso 5)
+    const pasoData = {
+      certificacion: formData.certificacion,
+      recursos: formData.recursos,
+    };
+  
+    try {
+      // Guardar los datos del último paso en Google Sheets
+      await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+        id_solicitud: idSolicitud, // El ID único de la solicitud
+        formData: pasoData, // Datos del último paso (Paso 5)
+        paso: 5, // El número del último paso
+        hoja, // Indica qué hoja se está usando
+        userData: {
+          id_usuario, // Enviar el id_usuario
+          name: userData.name, // Enviar el nombre del usuario
+        }
+      });
+  
+      // Después de guardar los datos, cambia de sección
+      setCurrentSection(2); // Cambia a FormSection (Formulario Aprobación)
+    } catch (error) {
+      console.error('Error al guardar los datos del último paso:', error);
+    }
   };
-
+  
   const renderStepContent = (step) => {
     switch (step) {
       case 0:

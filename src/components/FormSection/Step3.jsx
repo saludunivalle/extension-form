@@ -110,19 +110,6 @@ function Step3({ formData, handleInputChange }) {
           required
         />
       </Grid>
-      <Grid item xs={12}>
-            <TextField
-              label="Perfil/Competencia  (educación, experiencia, formación) que debe tener el personal docente, coordinador o ejecutor que va a desarrollar las actividades de extensiòn"
-              fullWidth
-              multiline
-              rows={4}
-              name="perfilCompt"
-              value={formData.profesor_participante}
-              onChange={handleInputChange}
-              required
-            />
-        </Grid>
-
     </Grid>
   );
 }
