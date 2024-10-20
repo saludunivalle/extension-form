@@ -59,6 +59,19 @@ function App() {
             )
           }
         />
+        <Route
+          path="/formulario/:formId"
+          element={
+            isLogged ? (
+              <Layout>
+                <FormPage userData={userInfo} />
+              </Layout>
+            ) : (
+              <GoogleLogin setIsLogin={setIsLogged} setUserInfo={setUserInfo} />
+            )
+          }
+        />
+
       </Routes>
     </Router>
   );

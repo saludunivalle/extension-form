@@ -6,9 +6,11 @@ import Step3FormSection2 from './Step3FormSection2';
 import Step4FormSection2 from './Step4FormSection2';
 import Step5FormSection2 from './Step5FormSection2';
 import axios from 'axios'; // Importa Axios para realizar la solicitud de guardado
+import { useLocation } from 'react-router-dom';
 
-function FormSection2({ formData, handleInputChange, setCurrentSection, userData  }) {
-  const [activeStep, setActiveStep] = useState(0);
+function FormSection2({ formData, handleInputChange, setCurrentSection, userData, currentStep  }) {
+  const [activeStep, setActiveStep] = useState(currentStep);  // Usar currentStep como el paso inicial
+  const location = useLocation(); // Obtener la ubicación actual
   const id_usuario = userData?.id_usuario;
   const steps = [
     'Introducción y Objetivos',
@@ -20,14 +22,22 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   
   const [idSolicitud, setIdSolicitud] = useState(null); // Para almacenar el id_solicitud
 
+  // useEffect(() => {
+  //   // Al cargar el componente, revisamos si hay parámetros en la URL (como el paso)
+  //   const searchParams = new URLSearchParams(location.search);
+  //   const paso = parseInt(searchParams.get('paso')) || 0; // Si no hay paso, iniciar en 0
+  //   setActiveStep(paso); // Establecemos el paso actual
+  // }, [location.search]);
+
   useEffect(() => {
     const obtenerUltimoId = async () => {
       try {
         const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
-          params: { sheetName: 'SOLICITUDES' }, // Cambia 'SOLICITUDES' según la hoja en la que estés trabajando
+          params: { sheetName: 'SOLICITUDES' },
         });
         const nuevoId = response.data.lastId + 1;
-        setIdSolicitud(nuevoId); // Establece el nuevo id_solicitud
+        setIdSolicitud(nuevoId); // Solo se genera una vez
+        localStorage.setItem('id_solicitud', nuevoId); // Almacena en localStorage
       } catch (error) {
         console.error('Error al obtener el último ID:', error);
       }
@@ -88,10 +98,12 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
         paso: activeStep + 1, // Paso actual
         hoja, // Indica qué hoja se está usando
         userData: {
-          id_usuario, // Enviar el id_usuario
+          id: userData.id, // Enviar el id_usuario
           name: userData.name, // Enviar el nombre del usuario
         }
       });
+
+      console.log('datos usuario', userData);
   
       // Mover al siguiente paso
       setActiveStep((prevActiveStep) => prevActiveStep + 1);

@@ -6,10 +6,13 @@ import Step3FormSection4 from './Step3FormSection4';
 import Step4FormSection4 from './Step4FormSection4';
 import Step5FormSection4 from './Step5FormSection4';
 import axios from 'axios'; // Importa Axios para realizar la solicitud de guardado
+import { useLocation } from 'react-router-dom';
 
-function FormSection4({ formData, handleInputChange, setCurrentSection, userData }) {
-  const [activeStep, setActiveStep] = useState(0);
+function FormSection4({ formData, handleInputChange, setCurrentSection, userData, currentStep}) {
+  const [activeStep, setActiveStep] = useState(currentStep);  // Usar currentStep como el paso inicial
   const id_usuario = userData?.id_usuario;
+  const location = useLocation(); // Obtener la ubicación actual
+
 
   const steps = [
     'Actividades de Mercadeo Relacional',
@@ -19,25 +22,32 @@ function FormSection4({ formData, handleInputChange, setCurrentSection, userData
     'DOFA del Programa',
   ];
 
-  const [idSolicitud, setIdSolicitud] = useState(null); // Para almacenar el id_solicitud
+  const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
 
-  useEffect(() => {
-    const obtenerUltimoId = async () => {
-      try {
-        const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
-          params: { sheetName: 'SOLICITUDES4' }, // Cambia 'SOLICITUDES' según la hoja en la que estés trabajando
-        });
-        const nuevoId = response.data.lastId + 1;
-        setIdSolicitud(nuevoId); // Establece el nuevo id_solicitud
-      } catch (error) {
-        console.error('Error al obtener el último ID:', error);
-      }
-    };
+  // useEffect(() => {
+  //   // Al cargar el componente, revisamos si hay parámetros en la URL (como el paso)
+  //   const searchParams = new URLSearchParams(location.search);
+  //   const paso = parseInt(searchParams.get('paso')) || 0; // Si no hay paso, iniciar en 0
+  //   setActiveStep(paso); // Establecemos el paso actual
+  // }, [location.search]);
 
-    if (!idSolicitud) {
-      obtenerUltimoId();
-    }
-  }, [idSolicitud]);
+  // useEffect(() => {
+  //   const obtenerUltimoId = async () => {
+  //     try {
+  //       const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
+  //         params: { sheetName: 'SOLICITUDES4' }, // Cambia 'SOLICITUDES' según la hoja en la que estés trabajando
+  //       });
+  //       const nuevoId = response.data.lastId + 1;
+  //       setIdSolicitud(nuevoId); // Establece el nuevo id_solicitud
+  //     } catch (error) {
+  //       console.error('Error al obtener el último ID:', error);
+  //     }
+  //   };
+
+  //   if (!idSolicitud) {
+  //     obtenerUltimoId();
+  //   }
+  // }, [idSolicitud]);
 
   const handleNext = async () => {
     const hoja = 4; // Formulario 2 va en SOLICITUDES
@@ -157,7 +167,6 @@ function FormSection4({ formData, handleInputChange, setCurrentSection, userData
   
       // Mover al siguiente paso
       setActiveStep((prevActiveStep) => prevActiveStep + 1);
-      setCurrentSection(5); // Cambia a FormSection (Formulario Aprobación)
     } catch (error) {
       console.error('Error al guardar el progreso:', error);
     }

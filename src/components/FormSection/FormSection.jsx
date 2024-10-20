@@ -6,9 +6,12 @@ import Step3 from './Step3';
 import Step4 from './Step4';
 import Step5 from './Step5';
 import axios from 'axios'; // Importa Axios para realizar la solicitud de guardado
+import { useLocation } from 'react-router-dom';
 
-function FormSection({ formData, handleInputChange, setCurrentSection, escuelas, departamentos, secciones, programas, oficinas, userData }) {
-  const [activeStep, setActiveStep] = useState(0);
+function FormSection({ formData, handleInputChange, setCurrentSection, escuelas, departamentos, secciones, programas, oficinas, userData,currentStep }) {
+  const [activeStep, setActiveStep] = useState(currentStep);  // Usar currentStep como el paso inicial
+  const location = useLocation(); // Obtener la ubicación actual
+
   const steps = [
     'Datos Generales',
     'Detalles de la Actividad',
@@ -16,27 +19,34 @@ function FormSection({ formData, handleInputChange, setCurrentSection, escuelas,
     'Información Coordinador',
     'Información Adicional',
   ];
+
+  // useEffect(() => {
+  //   // Al cargar el componente, revisamos si hay parámetros en la URL (como el paso)
+  //   const searchParams = new URLSearchParams(location.search);
+  //   const paso = parseInt(searchParams.get('paso')) || 0; // Si no hay paso, iniciar en 0
+  //   setActiveStep(paso); // Establecemos el paso actual
+  // }, [location.search]);
  
-  const [idSolicitud, setIdSolicitud] = useState(null); // Para almacenar el id_solicitud
   const id_usuario = userData?.id_usuario;
+  const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
 
-  useEffect(() => {
-    const obtenerUltimoId = async () => {
-      try {
-        const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
-          params: { sheetName: 'SOLICITUDES2' }, // Cambia 'SOLICITUDES' según la hoja en la que estés trabajando
-        });
-        const nuevoId = response.data.lastId + 1;
-        setIdSolicitud(nuevoId); // Establece el nuevo id_solicitud
-      } catch (error) {
-        console.error('Error al obtener el último ID:', error);
-      }
-    };
+  // useEffect(() => {
+  //   const obtenerUltimoId = async () => {
+  //     try {
+  //       const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
+  //         params: { sheetName: 'SOLICITUDES2' }, // Cambia 'SOLICITUDES' según la hoja en la que estés trabajando
+  //       });
+  //       const nuevoId = response.data.lastId + 1;
+  //       setIdSolicitud(nuevoId); // Establece el nuevo id_solicitud
+  //     } catch (error) {
+  //       console.error('Error al obtener el último ID:', error);
+  //     }
+  //   };
 
-    if (!idSolicitud) {
-      obtenerUltimoId();
-    }
-  }, [idSolicitud]);
+  //   if (!idSolicitud) {
+  //     obtenerUltimoId();
+  //   }
+  // }, [idSolicitud]);
 
   const handleNext = async () => {
     const hoja = 2; // Formulario 2 va en SOLICITUDES

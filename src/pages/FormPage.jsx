@@ -9,7 +9,7 @@
   import FormSection4 from '../components/FormSection4/FormSection4';
   import FormSection5 from '../components/FormSection5/FormSection5';
   import axios from 'axios';
-  import { useLocation } from 'react-router-dom';
+  import { useLocation, useSearchParams } from 'react-router-dom';
   import FormStepper from './FormStepper'; // Importa el componente FormStepper
 
   // Definimos los títulos respectivos para cada sección del formulario
@@ -22,9 +22,20 @@
   ];
 
   function FormPage({ userData }) {
+    const [searchParams] = useSearchParams();
+    const formId = searchParams.get('formulario') || 1; // Obtener el formulario
+    const formStep = searchParams.get('paso') || 0; // Obtener el paso
+    const [currentSection, setCurrentSection] = useState(parseInt(formId, 10)); // Sección basada en URL
+    const [currentStep, setCurrentStep] = useState(parseInt(formStep, 10)); // Paso basado en URL
+  
+    useEffect(() => {
+      // Actualiza la sección y el paso basado en los parámetros de búsqueda
+      setCurrentSection(parseInt(formId, 10));
+      setCurrentStep(parseInt(formStep, 10));
+    }, [formId, formStep]);
+
     const location = useLocation();
     const isSmallScreen = useMediaQuery('(max-width:600px)');
-    const [currentSection, setCurrentSection] = useState(1); // Iniciamos con la sección 1
     const [showDialog, setShowDialog] = useState(false); // Estado para controlar el diálogo
     const [highestStepReached, setHighestStepReached] = useState(1); // Iniciamos con el paso 1 alcanzado
     const [escuelas, setEscuelas] = useState([]);
@@ -212,7 +223,23 @@
       aplicaOtros1: '',
       aplicaOtros2: ''
     });
+
+    // Obtener los parámetros de la URL (formulario y paso)
+    useEffect(() => {
+      const searchParams = new URLSearchParams(location.search);
+      const formNumber = parseInt(searchParams.get('formulario'), 10);
+      const formPaso = parseInt(searchParams.get('paso'), 10);
     
+      if (!isNaN(formNumber) && formNumber >= 1 && formNumber <= 5 && !isNaN(formPaso)) {
+        setCurrentSection(formNumber); // Actualizamos la sección actual con el formulario
+        setCurrentStep(formPaso - 1);  // Actualizamos el paso actual
+      } else {
+        // Si no hay parámetros válidos, mostrar un formulario predeterminado (por ejemplo, el primero)
+        setCurrentSection(1);
+        setCurrentStep(0);
+      }
+    }, [location]);
+  
 
     // Fetch de los datos de escuelas y oficinas
     useEffect(() => {
@@ -336,15 +363,15 @@
     const renderFormSection = () => {
       switch (currentSection) {
         case 1:
-          return <FormSection2 formId={1} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} />;
+          return <FormSection2 formId={1} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} />;
         case 2:
-          return <FormSection  formId={2} userData={userData} formData={formData} escuelas={escuelas} departamentos={departamentos} secciones={secciones} programas={programas} oficinas={oficinas} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} />;
+          return <FormSection  formId={2} userData={userData} formData={formData} escuelas={escuelas} departamentos={departamentos} secciones={secciones} programas={programas} oficinas={oficinas} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} />;
         case 3:
-          return <FormSection3 formId={3} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} />;
+          return <FormSection3 formId={3} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} />;
         case 4:
-          return <FormSection4 formId={4} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} />;
+          return <FormSection4 formId={4} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep}/>;
         case 5:
-          return <FormSection5 formId={5} userData={userData} formData={formData} handleInputChange={handleInputChange} />;
+          return <FormSection5 formId={5} userData={userData} formData={formData} handleInputChange={handleInputChange} currentStep={currentStep}/>;
         default:
           return null;
       }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Button, Stepper, Step, StepLabel, Typography, Modal } from '@mui/material';
-import { useNavigate } from 'react-router-dom'; // Cambia useHistory por useNavigate
+import { useLocation, useNavigate } from 'react-router-dom'; // Cambia useHistory por useNavigate
 import axios from 'axios';
 
 // Importa las secciones de los pasos
@@ -10,35 +10,45 @@ import Step3FormSection5 from './Step3FormSection5';
 import Step4FormSection5 from './Step4FormSection5';
 import Step5FormSection5 from './Step5FormSection5';
 
-function FormSection5({ formData, handleInputChange, userData }) {
-  const [activeStep, setActiveStep] = useState(0);
+function FormSection5({ formData, handleInputChange, userData, currentStep }) {
+  const [activeStep, setActiveStep] = useState(currentStep);  // Usar currentStep como el paso inicial
   const [openModal, setOpenModal] = useState(false); // Estado para controlar el modal
   const id_usuario = userData?.id_usuario;
   const navigate = useNavigate(); // Cambia useHistory por useNavigate
+  const location = useLocation(); // Obtener la ubicación actual
+
+
 
   // Step labels
   const steps = ['PROPÓSITO y Comentario', 'Matriz de Riesgos - Diseño', 'Matriz de Riesgos - Locaciones', 'Matriz de Riesgos - Desarrollo', 'Matriz de Riesgos - Cierre y Otros'];
 
-  const [idSolicitud, setIdSolicitud] = useState(null); // Para almacenar el id_solicitud
+  const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
+
+  // useEffect(() => {
+  //   // Al cargar el componente, revisamos si hay parámetros en la URL (como el paso)
+  //   const searchParams = new URLSearchParams(location.search);
+  //   const paso = parseInt(searchParams.get('paso')) || 0; // Si no hay paso, iniciar en 0
+  //   setActiveStep(paso); // Establecemos el paso actual
+  // }, [location.search]);
 
   // Obtener el último ID (inicial)
-  useEffect(() => {
-    const obtenerUltimoId = async () => {
-      try {
-        const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
-          params: { sheetName: 'SOLICITUDES5' }, // Cambia 'SOLICITUDES5' según la hoja en la que estés trabajando
-        });
-        const nuevoId = response.data.lastId + 1;
-        setIdSolicitud(nuevoId); // Establece el nuevo id_solicitud
-      } catch (error) {
-        console.error('Error al obtener el último ID:', error);
-      }
-    };
+  // useEffect(() => {
+  //   const obtenerUltimoId = async () => {
+  //     try {
+  //       const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
+  //         params: { sheetName: 'SOLICITUDES5' }, // Cambia 'SOLICITUDES5' según la hoja en la que estés trabajando
+  //       });
+  //       const nuevoId = response.data.lastId + 1;
+  //       setIdSolicitud(nuevoId); // Establece el nuevo id_solicitud
+  //     } catch (error) {
+  //       console.error('Error al obtener el último ID:', error);
+  //     }
+  //   };
 
-    if (!idSolicitud) {
-      obtenerUltimoId();
-    }
-  }, [idSolicitud]);
+  //   if (!idSolicitud) {
+  //     obtenerUltimoId();
+  //   }
+  // }, [idSolicitud]);
 
   const handleNext = async () => {
     const hoja = 5; // Formulario va en SOLICITUDES5
