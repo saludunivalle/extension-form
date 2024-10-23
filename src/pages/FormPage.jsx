@@ -9,7 +9,7 @@
   import FormSection4 from '../components/FormSection4/FormSection4';
   import FormSection5 from '../components/FormSection5/FormSection5';
   import axios from 'axios';
-  import { useLocation, useSearchParams } from 'react-router-dom';
+  import { useLocation, useParams, useSearchParams } from 'react-router-dom';
   import FormStepper from './FormStepper'; // Importa el componente FormStepper
 
   // Definimos los títulos respectivos para cada sección del formulario
@@ -23,16 +23,28 @@
 
   function FormPage({ userData }) {
     const [searchParams] = useSearchParams();
-    const formId = searchParams.get('formulario') || 1; // Obtener el formulario
+    const { formId } = useParams(); // Extraemos formId directamente desde los parámetros de la URL
     const formStep = searchParams.get('paso') || 0; // Obtener el paso
     const [currentSection, setCurrentSection] = useState(parseInt(formId, 10)); // Sección basada en URL
     const [currentStep, setCurrentStep] = useState(parseInt(formStep, 10)); // Paso basado en URL
   
     useEffect(() => {
-      // Actualiza la sección y el paso basado en los parámetros de búsqueda
-      setCurrentSection(parseInt(formId, 10));
-      setCurrentStep(parseInt(formStep, 10));
+      // Asegúrate de que formId se convierte en número correctamente
+      const parsedFormId = parseInt(formId, 10);
+      const parsedFormStep = parseInt(formStep, 10);
+  
+      console.log(`Formulario: ${parsedFormId}, Paso: ${parsedFormStep}`);
+  
+      if (!isNaN(parsedFormId) && parsedFormId >= 1 && parsedFormId <= 5 && !isNaN(parsedFormStep)) {
+        setCurrentSection(parsedFormId); // Actualizamos la sección actual con el formulario
+        setCurrentStep(parsedFormStep - 1);  // Actualizamos el paso actual
+      } else {
+        // Si no hay parámetros válidos, inicializa al primer formulario
+        setCurrentSection(1);
+        setCurrentStep(0);
+      }
     }, [formId, formStep]);
+
 
     const location = useLocation();
     const isSmallScreen = useMediaQuery('(max-width:600px)');
@@ -44,6 +56,7 @@
     const [programas, setProgramas] = useState([]);
     const [oficinas, setOficinas] = useState([]);
     const [error, setError] = useState(false);
+    const solicitudId = searchParams.get('solicitud'); // Obtenemos el id_solicitud desde la URL
     const [formData, setFormData] = useState({
       // Hoja SOLICITUDES
       id_solicitud: '',
@@ -224,21 +237,67 @@
       aplicaOtros2: ''
     });
 
-    // Obtener los parámetros de la URL (formulario y paso)
-    useEffect(() => {
-      const searchParams = new URLSearchParams(location.search);
-      const formNumber = parseInt(searchParams.get('formulario'), 10);
-      const formPaso = parseInt(searchParams.get('paso'), 10);
-    
-      if (!isNaN(formNumber) && formNumber >= 1 && formNumber <= 5 && !isNaN(formPaso)) {
-        setCurrentSection(formNumber); // Actualizamos la sección actual con el formulario
-        setCurrentStep(formPaso - 1);  // Actualizamos el paso actual
-      } else {
-        // Si no hay parámetros válidos, mostrar un formulario predeterminado (por ejemplo, el primero)
-        setCurrentSection(1);
-        setCurrentStep(0);
+    // Cargar datos de la solicitud si hay un id_solicitud
+  useEffect(() => {
+    const fetchSolicitudData = async () => {
+      if (solicitudId) {
+        //setLoading(true);
+        try {
+          const response = await axios.get(`https://siac-extension-server.vercel.app/getSolicitud`, {
+            params: { id_solicitud: solicitudId }
+          });
+          const data = response.data;
+          
+          // Combina los datos de todas las hojas en formData
+          const combinedData = {
+            ...data.SOLICITUDES,
+            ...data.SOLICITUDES2,
+            ...data.SOLICITUDES3,
+            ...data.SOLICITUDES4,
+            ...data.SOLICITUDES5,
+          };
+
+          setFormData(combinedData);
+        } catch (error) {
+          console.error('Error al cargar los datos de la solicitud:', error);
+        } finally {
+          //setLoading(false);
+        }
       }
-    }, [location]);
+    };
+
+    fetchSolicitudData();
+  }, [solicitudId]);
+
+    // Obtener los parámetros de la URL (formulario y paso)
+    // useEffect(() => {
+    //   const searchParams = new URLSearchParams(location.search);
+    //   const formNumber = searchParams.get('formulario'); // Este debe devolver un string, no un número directamente
+    //   const formPaso = searchParams.get('paso'); // Este debe devolver un string
+    
+    //   console.log(`Formulario: ${formNumber}, Paso: ${formPaso}`);
+    
+    //   // Verificamos que formNumber y formPaso existan y que formNumber esté dentro del rango esperado (1-5)
+    //   if (formNumber && formPaso && !isNaN(formNumber) && !isNaN(formPaso)) {
+    //     const parsedFormNumber = parseInt(formNumber, 10);
+    //     const parsedFormPaso = parseInt(formPaso, 10);
+    
+    //     // Validamos que el número de formulario sea entre 1 y 5
+    //     if (parsedFormNumber >= 1 && parsedFormNumber <= 5) {
+    //       setCurrentSection(parsedFormNumber); // Actualizamos la sección actual con el formulario
+    //       setCurrentStep(parsedFormPaso - 1);  // Actualizamos el paso actual (restamos 1 porque los pasos están basados en 0)
+    //     } else {
+    //       // Si el formulario está fuera de los valores esperados, se inicializa a 1
+    //       setCurrentSection(1);
+    //       setCurrentStep(0);
+    //     }
+    //   } else {
+    //     // Si no hay parámetros válidos, mostrar un formulario predeterminado (por ejemplo, el primero)
+    //     setCurrentSection(1);
+    //     setCurrentStep(0);
+    //   }
+    // }, [location.search]);
+    
   
 
     // Fetch de los datos de escuelas y oficinas

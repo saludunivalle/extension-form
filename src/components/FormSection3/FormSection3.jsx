@@ -3,56 +3,32 @@ import { Box, Button, Stepper, Step, StepLabel, Typography } from '@mui/material
 import Step1FormSection3 from './Step1FormSection3';
 import Step2FormSection3 from './Step2FormSection3';
 import Step3FormSection3 from './Step3FormSection3';
-// import Step4FormSection3 from './Step4FormSection3';
-// import Step5FormSection3 from './Step5FormSection3';
-import axios from 'axios'; // Importa Axios para realizar la solicitud de guardado
+import axios from 'axios'; 
 import { useLocation } from 'react-router-dom';
 
 function FormSection3({ formData, handleInputChange, setCurrentSection, userData, totalAportesUnivalle, currentStep }) {
-
-  const [activeStep, setActiveStep] = useState(currentStep);  // Usar currentStep como el paso inicial
+  
+  const [activeStep, setActiveStep] = useState(currentStep);  // Inicializar con el paso actual
   const id_usuario = userData?.id_usuario;
-  const location = useLocation(); // Obtener la ubicación actual
-
+  const location = useLocation();
+  const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); 
 
   const steps = ['Datos Generales', 'Ingresos y Gastos', 'Resumen Financiero'];
 
-  const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
+  // Verificar que estamos recibiendo el `formData` y el `userData`
+  useEffect(() => {
+    console.log('Formulario data recibido: ', formData);
+    console.log('Datos del usuario: ', userData);
+  }, [formData, userData]);
 
-  // useEffect(() => {
-  //   // Obtener el valor de "paso" de la URL
-  //   const searchParams = new URLSearchParams(location.search);
-  //   const paso = parseInt(searchParams.get('paso'), 10);
-  //   if (!isNaN(paso)) {
-  //     setActiveStep(paso - 1); // Restar 1 porque los índices de los pasos empiezan en 0
-  //   }
-  // }, [location]);
-  
-  // useEffect(() => {
-  //   const obtenerUltimoId = async () => {
-  //     try {
-  //       const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
-  //         params: { sheetName: 'SOLICITUDES3' }, // Cambia 'SOLICITUDES' según la hoja en la que estés trabajando
-  //       });
-  //       const nuevoId = response.data.lastId + 1;
-  //       setIdSolicitud(nuevoId); // Establece el nuevo id_solicitud
-  //     } catch (error) {
-  //       console.error('Error al obtener el último ID:', error);
-  //     }
-  //   };
-
-  //   if (!idSolicitud) {
-  //     obtenerUltimoId();
-  //   }
-  // }, [idSolicitud]);
-
+  // Manejo del paso "Siguiente"
   const handleNext = async () => {
     const hoja = 3; // Formulario 3 va en SOLICITUDES3
-    console.log("formData antes de enviar:", formData); // Añadir este log para ver el contenido de formData
+    console.log("Datos del formulario antes de enviar:", formData); 
     
-    // Definir los datos específicos según el paso actual
+    
     let pasoData = {};
-  
+
     switch (activeStep) {
       case 0:
         pasoData = {
@@ -61,6 +37,7 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
         };
         break;
       case 1:
+        // Ingresos y Gastos (Paso 2)
         pasoData = {
           // Ingresos
           ingresos_cantidad: formData.ingresos_cantidad || '',
@@ -180,33 +157,29 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
         };        
         break;        
       case 2:
+        // Resumen Financiero
         pasoData = {
-          // Aportes Univalle
-          fondo_comun: totalIngresos * 0.3,  // Fondo Común calculado como el 30% de los ingresos totales
-          facultad_instituto: totalIngresos * 0.05,  // Facultad o Instituto calculado como el 5% de los ingresos totales
-      
-          // Escuela, Departamento, Área
-          escuela_departamento: (totalIngresos * (formData.escuela_departamento_porcentaje || 0) / 100),
-      
+          fondo_comun: formData.total_ingresos * 0.3,
+          facultad_instituto: formData.total_ingresos * 0.05,
+          escuela_departamento: (formData.total_ingresos * (formData.escuela_departamento_porcentaje || 0) / 100),
         };
         break;
       default:
         break;
     }
-  
+
     try {
       await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-        id_solicitud: idSolicitud, // El ID de la solicitud
-        formData: pasoData, // Datos específicos del paso actual
-        paso: activeStep + 1, // Paso actual
-        hoja, // Indica qué hoja se está usando
+        id_solicitud: idSolicitud,
+        formData: pasoData,
+        paso: activeStep + 1,
+        hoja,
         userData: {
-          id_usuario, // Enviar el id_usuario
-          name: userData.name, // Enviar el nombre del usuario
-        }
+          id_usuario,
+          name: userData.name,
+        },
       });
-      console.log("Datos enviados correctamente"); // Log para verificar que los datos se han enviado
-      // Mover al siguiente paso
+      console.log("Datos enviados correctamente:", pasoData); 
       setActiveStep((prevActiveStep) => prevActiveStep + 1);
     } catch (error) {
       console.error('Error al guardar el progreso:', error);
@@ -251,13 +224,9 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
       case 0:
         return <Step1FormSection3 formData={formData} handleInputChange={handleInputChange} />;
       case 1:
-        return <Step2FormSection3 formData={formData} handleNumberInputChange={handleInputChange} handleInputChange={handleInputChange} totalIngresos={0} totalGastos={0} imprevistos={0} totalGastosImprevistos={0} totalAportesUnivalle={0}/>;
+        return <Step2FormSection3 formData={formData} handleNumberInputChange={handleInputChange} handleInputChange={handleInputChange} totalIngresos={formData.total_ingresos || 0} totalGastos={formData.total_gastos || 0} />;
       case 2:
-        return <Step3FormSection3 formData={formData} handleInputChange={handleInputChange} totalIngresos={0} totalGastos={0} imprevistos={0} totalGastosImprevistos={0}  totalAportesUnivalle={0} />;
-      // case 3:
-      //   return <Step4FormSection3 formData={formData} handleInputChange={handleInputChange} totalRecursos={0} />;
-      // case 4:
-      //   return <Step5FormSection3 formData={formData} handleInputChange={handleInputChange} />;
+        return <Step3FormSection3 formData={formData} handleInputChange={handleInputChange} totalIngresos={formData.total_ingresos || 0} totalGastos={formData.total_gastos || 0} totalAportesUnivalle={totalAportesUnivalle || 0} />;
       default:
         return null;
     }
@@ -267,7 +236,7 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
     <Box>
       <Stepper activeStep={activeStep}>
         {steps.map((label, index) => (
-          <Step key={index} sx={{marginBottom:'20px'}}>
+          <Step key={index} sx={{ marginBottom: '20px' }}>
             <StepLabel>{label}</StepLabel>
           </Step>
         ))}
