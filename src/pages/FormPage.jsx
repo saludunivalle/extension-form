@@ -14,12 +14,22 @@
 
   // Definimos los títulos respectivos para cada sección del formulario
   const sectionTitles = [
-    'Formulario F-04-MP-05-01-01 - Propuesta', 
-    'Formulario F-05-MP-05-01-01 - Aprobación', 
-    'Formulario F-06-MP-05-01-01 - Presupuesto', 
-    'Formulario F-07-MP-05-01-01 - Indentificación de Mercadeo', 
-    'Formulario F-08-MP-05-01-01 - Riesgos Potenciales'
+    'Propuesta - Formulario F-04-MP-05-01-01', 
+    'Aprobación - Formulario F-05-MP-05-01-01', 
+    'Presupuesto - Formulario F-06-MP-05-01-01', 
+    'Indentificación de Mercadeo - Formulario F-07-MP-05-01-01', 
+    'Riesgos Potenciales - Formulario F-08-MP-05-01-01'
   ];
+
+    // Títulos cortos para el Stepper
+  const sectionShortTitles = [
+    'Propuesta', 
+    'Aprobación', 
+    'Presupuesto', 
+    'Indentificación de Mercadeo', 
+    'Riesgos Potenciales'
+  ];
+
 
   function FormPage({ userData }) {
     const [searchParams] = useSearchParams();
@@ -445,7 +455,7 @@
       }}>
 
         {/* Agrega el FormStepper al layout */}
-        <FormStepper activeStep={currentSection - 1} steps={sectionTitles} setCurrentSection={handleSectionChange} highestStepReached={highestStepReached} />
+        <FormStepper activeStep={currentSection - 1} steps={sectionShortTitles} setCurrentSection={handleSectionChange} highestStepReached={highestStepReached} />
         {/* Contenido del formulario */}
         <Typography variant={isSmallScreen ? 'h5' : 'h4'} gutterBottom>
           {sectionTitles[currentSection - 1]}

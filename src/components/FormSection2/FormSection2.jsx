@@ -7,6 +7,7 @@ import Step4FormSection2 from './Step4FormSection2';
 import Step5FormSection2 from './Step5FormSection2';
 import axios from 'axios'; // Importa Axios para realizar la solicitud de guardado
 import { useLocation } from 'react-router-dom';
+import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 
 function FormSection2({ formData, handleInputChange, setCurrentSection, userData, currentStep  }) {
   const [activeStep, setActiveStep] = useState(currentStep);  // Usar currentStep como el paso inicial
@@ -21,6 +22,8 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   ];
   
   const [idSolicitud, setIdSolicitud] = useState(null); // Para almacenar el id_solicitud
+  const [showModal, setShowModal] = useState(false); // Estado para el modal
+
 
   // useEffect(() => {
   //   // Al cargar el componente, revisamos si hay parámetros en la URL (como el paso)
@@ -137,9 +140,10 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
           name: userData.name, // Enviar el nombre del usuario
         }
       });
-  
+      
+      setShowModal(true); // Abre el modal
       // Después de guardar los datos, cambia de sección
-      setCurrentSection(2); // Cambia a FormSection (Formulario Aprobación)
+      //setCurrentSection(2); // Cambia a FormSection (Formulario Aprobación)
     } catch (error) {
       console.error('Error al guardar los datos del último paso:', error);
     }
@@ -185,6 +189,22 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
         >
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>
+        <Dialog open={showModal} onClose={() => setShowModal(false)}>
+          <DialogTitle>Ha finalizado el formulario Propuesta</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              ¿Desea continuar al siguiente formulario o salir al inicio?
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCurrentSection(2)} color="primary">
+              Continuar
+            </Button>
+            <Button onClick={() => window.location.href = '/'} color="secondary">
+              Salir
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </Box>
   );

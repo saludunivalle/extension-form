@@ -7,6 +7,8 @@ import Step4 from './Step4';
 import Step5 from './Step5';
 import axios from 'axios'; // Importa Axios para realizar la solicitud de guardado
 import { useLocation } from 'react-router-dom';
+import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+
 
 function FormSection({ formData, handleInputChange, setCurrentSection, escuelas, departamentos, secciones, programas, oficinas, userData,currentStep }) {
   const [activeStep, setActiveStep] = useState(currentStep);  // Usar currentStep como el paso inicial
@@ -29,6 +31,7 @@ function FormSection({ formData, handleInputChange, setCurrentSection, escuelas,
  
   const id_usuario = userData?.id_usuario;
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
+  const [showModal, setShowModal] = useState(false); // Estado para el modal
 
   // useEffect(() => {
   //   const obtenerUltimoId = async () => {
@@ -168,8 +171,8 @@ function FormSection({ formData, handleInputChange, setCurrentSection, escuelas,
         }
       });
   
-      // Después de guardar los datos, cambia de sección
-      setCurrentSection(3); // Cambia a FormSection (Formulario Aprobación)
+      setShowModal(true); // Abre el modal
+      //setCurrentSection(3); // Cambia a FormSection (Formulario Aprobación)
     } catch (error) {
       console.error('Error al guardar los datos del último paso:', error);
       console.error('Detalles del error:', error.response?.data); // Mostrar detalles del error si existen
@@ -226,6 +229,22 @@ function FormSection({ formData, handleInputChange, setCurrentSection, escuelas,
         >
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>
+        <Dialog open={showModal} onClose={() => setShowModal(false)}>
+          <DialogTitle>Ha finalizado el formulario Propuesta</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              ¿Desea continuar al siguiente formulario o salir al inicio?
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCurrentSection(3)} color="primary">
+              Continuar
+            </Button>
+            <Button onClick={() => window.location.href = '/'} color="secondary">
+              Salir
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </Box>
   );

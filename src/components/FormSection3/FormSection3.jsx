@@ -5,6 +5,7 @@ import Step2FormSection3 from './Step2FormSection3';
 import Step3FormSection3 from './Step3FormSection3';
 import axios from 'axios'; 
 import { useLocation } from 'react-router-dom';
+import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 
 function FormSection3({ formData, handleInputChange, setCurrentSection, userData, totalAportesUnivalle, currentStep }) {
   
@@ -12,6 +13,8 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
   const id_usuario = userData?.id_usuario;
   const location = useLocation();
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); 
+  const [showModal, setShowModal] = useState(false);
+
 
   const steps = ['Datos Generales', 'Ingresos y Gastos', 'Resumen Financiero'];
 
@@ -190,34 +193,35 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
-  // const handleSubmit = async () => {
-  //   const hoja = 3; // Cambia este valor según la hoja a la que corresponda el formulario
-    
-  //   // Datos del último paso (Paso 5)
-  //   const pasoData = {
-  //     certificacion: formData.certificacion,
-  //     recursos: formData.recursos,
-  //   };
+  const handleSubmit = async () => {
+    const hoja = 3;
   
-  //   try {
-  //     // Guardar los datos del último paso en Google Sheets
-  //     await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-  //       id_solicitud: idSolicitud, // El ID único de la solicitud
-  //       formData: pasoData, // Datos del último paso (Paso 5)
-  //       paso: 3, // El número del último paso
-  //       hoja, // Indica qué hoja se está usando
-  //       userData: {
-  //         id_usuario, // Enviar el id_usuario
-  //         name: userData.name, // Enviar el nombre del usuario
-  //       }
-  //     });
+    // Resumen Financiero
+    const pasoData = {
+      fondo_comun: formData.total_ingresos * 0.3,
+      facultad_instituto: formData.total_ingresos * 0.05,
+      escuela_departamento: (formData.total_ingresos * (formData.escuela_departamento_porcentaje || 0) / 100),
+    };
   
-  //     // Después de guardar los datos, cambia de sección
-  //     setCurrentSection(2); // Cambia a FormSection (Formulario Aprobación)
-  //   } catch (error) {
-  //     console.error('Error al guardar los datos del último paso:', error);
-  //   }
-  // };
+    try {
+      // Guardar los datos del último paso
+      await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+        id_solicitud: idSolicitud,
+        formData: pasoData,
+        paso: 3,
+        hoja,
+        userData: {
+          id_usuario,
+          name: userData.name,
+        },
+      });
+  
+      setShowModal(true);  // Mostrar el modal cuando se guarda correctamente
+    } catch (error) {
+      console.error('Error al guardar el progreso:', error);
+    }
+  };
+  
 
   const renderStepContent = (step) => {
     switch (step) {
@@ -248,9 +252,26 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
         <Button disabled={activeStep === 0} onClick={handleBack}>
           Atrás
         </Button>
-        <Button variant="contained" color="primary" onClick={activeStep === steps.length - 1 ? () => setCurrentSection(4) : handleNext}>
+        <Button variant="contained" color="primary" onClick={activeStep === steps.length - 1 ? () => setShowModal(true) : handleNext}>
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>
+        <Dialog open={showModal} onClose={() => setShowModal(false)}>
+          <DialogTitle>Formulario Completado</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              ¿Desea continuar al siguiente formulario o volver al inicio?
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCurrentSection(4)} color="primary">
+              Continuar
+            </Button>
+            <Button onClick={() => window.location.href = '/'} color="secondary">
+              Salir
+            </Button>
+          </DialogActions>
+        </Dialog>
+
       </Box>
     </Box>
   );
