@@ -5,7 +5,7 @@ function Step3FormSection2({ formData, handleInputChange }) {
   return (
     <Grid container spacing={2}>
       <Grid item xs={12}>
-      <Tooltip title="El alcance delimita claramente la actividad de extensión, indica los límites de aplicabilidad o cobertura de la actividad, es decir, a que áreas, sectores involucra o población objetivo.">
+      <Tooltip title={<span style={{ fontSize: '15px' }}>El alcance delimita claramente la actividad de extensión, indica los límites de aplicabilidad o cobertura de la actividad, es decir, a que áreas, sectores involucra o población objetivo.</span>}>
         <TextField
           label="Alcance"
           fullWidth
@@ -19,7 +19,7 @@ function Step3FormSection2({ formData, handleInputChange }) {
         </Tooltip>
       </Grid>
       <Grid item xs={12}>
-      <Tooltip title="Hace referencia al conjunto de procedimientos racionales utilizados para alcanzar los objetivos los propuestos">
+      <Tooltip title={<span style={{ fontSize: '15px' }}>Hace referencia al conjunto de procedimientos racionales utilizados para alcanzar los objetivos los propuestos.</span>}>
         <TextField
           label="Metodología"
           fullWidth
@@ -33,7 +33,7 @@ function Step3FormSection2({ formData, handleInputChange }) {
         </Tooltip>
       </Grid>
       <Grid item xs={12}>
-      <Tooltip title="Personas o entidades sobre las cuales se está intentando fortalecer los conocimientos en los temas  que estará dirigida la actividad.">
+      <Tooltip title={<span style={{ fontSize: '15px' }}>Personas o entidades sobre las cuales se está intentando fortalecer los conocimientos en los temas  que estará dirigida la actividad.</span>}>
         <TextField
           label="Dirigido a"
           fullWidth

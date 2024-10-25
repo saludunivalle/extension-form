@@ -5,7 +5,7 @@ function Step1FormSection2({ formData, handleInputChange }) {
   return (
     <Grid container spacing={2}>
       <Grid item xs={12}>
-        <Tooltip title="Sección inicial cuyo propósito principal es contextualizar el texto y normalmente se describe el alcance del documento, y se da una breve explicación o resumen del mismo. También se puede explicar algunos antecedentes que son importantes para el posterior desarrollo del tema central.">
+        <Tooltip title={<span style={{ fontSize: '15px' }}>Sección inicial cuyo propósito principal es contextualizar el texto y normalmente se describe el alcance del documento, y se da una breve explicación o resumen del mismo. También se puede explicar algunos antecedentes que son importantes para el posterior desarrollo del tema central.</span>}>
           <TextField
             label="Introducción"
             fullWidth
@@ -19,7 +19,7 @@ function Step1FormSection2({ formData, handleInputChange }) {
         </Tooltip>
       </Grid>
       <Grid item xs={12}>
-        <Tooltip title="Es la base, lo que sustenta el proyecto, permiten tener una visión concreta y clara de lo que se hará a largo plazo el objetivo general es único, y los pasos que se seguirán para conseguir dicho propósito.">
+        <Tooltip title={<span style={{ fontSize: '15px' }}>Es la base, lo que sustenta el proyecto, permiten tener una visión concreta y clara de lo que se hará a largo plazo el objetivo general es único, y los pasos que se seguirán para conseguir dicho propósito.</span>}>
           <TextField
             label="Objetivo General"
             fullWidth
@@ -33,7 +33,7 @@ function Step1FormSection2({ formData, handleInputChange }) {
         </Tooltip>
       </Grid>
       <Grid item xs={12}>
-        <Tooltip title="Son enunciados proposicionales desagregados, desentrañados de un objetivo general, que sin excederlo, lo especifican, a nivel cualitativo y cuantitativo.">
+        <Tooltip title={<span style={{ fontSize: '15px' }}>Son enunciados proposicionales desagregados, desentrañados de un objetivo general, que sin excederlo, lo especifican, a nivel cualitativo y cuantitativo.</span>}>
           <TextField
             label="Objetivos Específicos"
             fullWidth

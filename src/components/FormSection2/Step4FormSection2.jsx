@@ -5,7 +5,7 @@ function Step4FormSection2({ formData, handleInputChange }) {
   return (
     <Grid container spacing={2}>
       <Grid item xs={12}>
-      <Tooltip title="Forma en que se ha programado la actividad, forma en que se ha dividido ya sea en capítulos o módulos, y temas a tratar en cada uno de estos módulos.">
+      <Tooltip title={<span style={{ fontSize: '15px' }}>Forma en que se ha programado la actividad, forma en que se ha dividido ya sea en capítulos o módulos, y temas a tratar en cada uno de estos módulos.</span>}>
         <TextField
           label="Programa y Contenidos"
           fullWidth
@@ -19,7 +19,7 @@ function Step4FormSection2({ formData, handleInputChange }) {
         </Tooltip>
       </Grid>
       <Grid item xs={12}>
-      <Tooltip title="Tiempo total que tomara realizar la actividad, también pueden darse los horarios que se manejaran.">
+      <Tooltip title={<span style={{ fontSize: '15px' }}>Tiempo total que tomara realizar la actividad, también pueden darse los horarios que se manejaran.</span>}>
         <TextField
           label="Duración"
           fullWidth

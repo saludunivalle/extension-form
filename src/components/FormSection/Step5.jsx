@@ -17,7 +17,7 @@ function Step5({ formData, handleInputChange }) {
               type="number"
               value={formData.becas_convenio}
               onChange={handleInputChange}
-              inputProps={{ min: "0" }} 
+              placeholder="0"
               required
             />
           </Grid>
@@ -29,8 +29,9 @@ function Step5({ formData, handleInputChange }) {
               type="number"
               value={formData.becas_estudiantes}
               onChange={handleInputChange}
-              inputProps={{ min: "0" }} 
+              //inputProps={{ min: "0" }} 
               required
+              placeholder="0"
             />
           </Grid>
           <Grid item xs={2}>
@@ -41,7 +42,8 @@ function Step5({ formData, handleInputChange }) {
               type="number"
               value={formData.becas_docentes}
               onChange={handleInputChange}
-              inputProps={{ min: "0" }} 
+              //inputProps={{ min: "0" }}
+              placeholder="0"
               required
             />
           </Grid>
@@ -53,7 +55,8 @@ function Step5({ formData, handleInputChange }) {
               type="number"
               value={formData.becas_egresados}
               onChange={handleInputChange}
-              inputProps={{ min: "0" }} 
+              //inputProps={{ min: "0" }} 
+              placeholder="0"
               required
             />
           </Grid>
@@ -65,7 +68,8 @@ function Step5({ formData, handleInputChange }) {
               type="number"
               value={formData.becas_funcionarios}
               onChange={handleInputChange}
-              inputProps={{ min: "0" }} 
+              //inputProps={{ min: "0" }} 
+              placeholder="0"
               required
             />
           </Grid>
@@ -77,7 +81,8 @@ function Step5({ formData, handleInputChange }) {
               type="number"
               value={formData.becas_otros}
               onChange={handleInputChange}
-              inputProps={{ min: "0" }} 
+              //inputProps={{ min: "0" }} 
+              placeholder="0"
               required
             />
           </Grid>
