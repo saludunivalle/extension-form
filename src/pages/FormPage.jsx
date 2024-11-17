@@ -457,7 +457,7 @@
         {/* Agrega el FormStepper al layout */}
         <FormStepper activeStep={currentSection - 1} steps={sectionShortTitles} setCurrentSection={handleSectionChange} highestStepReached={highestStepReached} />
         {/* Contenido del formulario */}
-        <Typography variant={isSmallScreen ? 'h5' : 'h4'} gutterBottom>
+        <Typography variant={isSmallScreen ? 'h5' : 'h4'} gutterBottom sx={{fontWeight: 'bold'}}>
           {sectionTitles[currentSection - 1]}
         </Typography>
 

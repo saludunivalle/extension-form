@@ -23,17 +23,25 @@ const FormStepper = ({ activeStep, steps, setCurrentSection, highestStepReached,
         activeStep={activeStep}
         orientation={isSmallScreen ? 'horizontal' : 'horizontal'}
         sx={{
-          '& .MuiStepLabel-root': {
-            color: isMainStepper ? '#8B0000' : '#4F4F4F',  // Rojo oscuro para el principal, gris oscuro para los secundarios
+          '& .MuiStepLabel-label': {
+            color: '#4F4F4F', // Estilo estándar
+            fontWeight: 'normal', // Normal para no activos
+          },
+          '& .MuiStepLabel-label.Mui-active': {
+            color: '#4B0082',// Azul intenso para activo
+            fontWeight: 'bold', // Negrilla para activo
           },
           '& .MuiStepIcon-root': {
-            color: isMainStepper ? '#8B0000' : '#4F4F4F',  // Mismo esquema de colores para los íconos
+            fontSize: '24px', // Tamaño estándar
+            color: '#4F4F4F', // Íconos no activos
           },
-          '& .MuiStep-root.Mui-completed .MuiStepLabel-root': {
-            color: '#008000',  // Verde para los pasos completados
+          '& .MuiStepIcon-root.Mui-active': {
+            fontSize: '30px', // Tamaño más grande para activo
+            color: '#4B0082',
           },
         }}
-      >
+         
+      > 
         {steps.map((label, index) => (
           <Step key={label} onClick={() => handleStepClick(index)}>
             <StepLabel>{label}</StepLabel>

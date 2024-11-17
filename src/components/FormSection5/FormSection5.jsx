@@ -206,14 +206,37 @@ function FormSection5({ formData, handleInputChange, userData, currentStep }) {
 
   return (
     <Box>
-      <Stepper activeStep={activeStep} alternativeLabel>
+      <Stepper activeStep={activeStep} sx={{
+        '& .MuiStepLabel-label': {
+          color: '#4F4F4F', // Color estándar para los labels no activos
+          fontWeight: 'normal', // Peso normal para los labels no activos
+          fontSize: '14px', // Tamaño estándar para los no activos
+        },
+        '& .MuiStepLabel-label.Mui-active': {
+          color: '#0056b3', // Azul intenso para el texto del paso activo
+          fontWeight: 'bold', // Negrilla para el texto activo
+          fontSize: '16px', // Tamaño más grande para el texto activo
+        },
+        '& .MuiStepIcon-root': {
+          fontSize: '24px', // Tamaño estándar para los íconos no activos
+          color: '#4F4F4F', // Color estándar para los íconos no activos
+        },
+        '& .MuiStepIcon-root.Mui-active': {
+          fontSize: '30px', // Tamaño más grande para íconos activos
+          color: '#0056b3', // Azul intenso para los íconos activos
+        },
+        '& .MuiStepIcon-root.Mui-completed': {
+          fontSize: '24px', // Tamaño estándar para íconos completados
+          color: '#1976d2', // Azul para los íconos completados (el mismo color que el chulito)
+        },
+      }}>
         {steps.map((label, index) => (
           <Step key={index} sx={{ marginBottom: '20px' }}>
             <StepLabel>{label}</StepLabel>
           </Step>
         ))}
       </Stepper>
-
+      
       {/* Render the current step content */}
       {renderStepContent(activeStep)}
 
