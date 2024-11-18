@@ -40,6 +40,27 @@ function Dashboard({ userData }) {
     fetchCompletedRequests();
   }, [userData.id]);
 
+  const handleGenerateReport = async (request) => {
+    try {
+      const { idSolicitud } = request;
+      const response = await axios.post('https://siac-extension-server.vercel.app/generateReport', {
+        solicitudId: idSolicitud,
+      });
+  
+      const { links } = response.data;
+      if (!links || links.length === 0) {
+        throw new Error('No se generaron enlaces de informes');
+      }
+  
+      alert(`Informes generados exitosamente. Puedes descargarlos aquí: \n\n${links.join('\n')}`);
+      links.forEach((link) => window.open(link, '_blank'));
+    } catch (error) {
+      console.error('Error al generar los informes:', error);
+      alert('Hubo un error al generar los informes. Por favor, inténtalo de nuevo.');
+    }
+  };
+  
+  
   // Función para continuar con la solicitud en progreso
   const handleContinue = (request) => {
     const { idSolicitud, formulario, paso } = request;
@@ -49,7 +70,7 @@ function Dashboard({ userData }) {
     
     navigate(formRoute);
   };
-  
+
   
 
   return (
@@ -61,31 +82,48 @@ function Dashboard({ userData }) {
       </Typography>
       <List>
         {activeRequests.map((request) => (
-          <ListItem key={request.idSolicitud}>
+          <ListItem key={request.idSolicitud} style={{ display: 'flex', justifyContent: 'space-between' }}>
             {/* Usamos el nombre de la actividad si existe, si no mostramos "Solicitud {id_solicitud}" */}
             <ListItemText 
               primary={request.nombre_actividad ? request.nombre_actividad : `Solicitud ${request.idSolicitud}`} 
             />
-            <Button
-              variant="outlined"
-              onClick={() => handleContinue(request)} // Llamamos a handleContinue con la solicitud activa
-            >
-              Continuar
-            </Button>
+            <div>
+              <Button
+                variant="outlined"
+                onClick={() => handleContinue(request)} // Llamamos a handleContinue con la solicitud activa
+                style={{ marginRight: '10px' }}
+              >
+                Continuar
+              </Button>
+              <Button
+                variant="contained"
+                color="secondary"
+                onClick={() => handleGenerateReport(request)} // Nueva función para generar informe
+              >
+                Generar Informe
+              </Button>
+            </div>
           </ListItem>
         ))}
       </List>
+
 
       <Typography variant="h6" style={{ marginTop: '20px' }}>
         Solicitudes Terminadas:
       </Typography>
       <List>
         {completedRequests.map((request) => (
-          <ListItem key={request.idSolicitud}>
+          <ListItem key={request.idSolicitud} style={{ display: 'flex', justifyContent: 'space-between' }}>
             <ListItemText 
               primary={request.nombre_actividad ? request.nombre_actividad : `Solicitud ${request.idSolicitud}`} 
             />
-            {/* No tocamos las solicitudes terminadas, puedes agregar algo aquí si lo necesitas */}
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => handleGenerateReport(request)} // Misma función para generar informe
+            >
+              Generar Informe
+            </Button>
           </ListItem>
         ))}
       </List>

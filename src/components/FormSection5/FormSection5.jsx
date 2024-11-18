@@ -236,7 +236,7 @@ function FormSection5({ formData, handleInputChange, userData, currentStep }) {
           </Step>
         ))}
       </Stepper>
-      
+
       {/* Render the current step content */}
       {renderStepContent(activeStep)}
 
