@@ -39,28 +39,28 @@ function Dashboard({ userData }) {
     fetchActiveRequests();
     fetchCompletedRequests();
   }, [userData.id]);
-  
+
   const handleGenerateReport = async (request) => {
     try {
       const { idSolicitud } = request;
-  
-      console.log("Solicitando informe para la solicitud:", idSolicitud);
-  
+      console.log(`Solicitando informe para la solicitud: ${idSolicitud}`);
+      
       const response = await axios.post('https://siac-extension-server.vercel.app/generateReport', {
         solicitudId: idSolicitud,
       });
-  
-      // Log completo de la respuesta del servidor
-      console.log("Respuesta del servidor:", response.data);
-  
-      const { links } = response.data;
-  
-      if (!links || links.length === 0) {
+
+      const { link, links, message } = response.data;
+
+      // Validamos si la respuesta tiene un enlace o varios enlaces
+      if (link) {
+        alert(`Informe generado exitosamente. Puedes descargarlo aquí: \n\n${link}`);
+        window.open(link, '_blank');
+      } else if (links && links.length > 0) {
+        alert(`Informes generados exitosamente. Puedes descargarlos aquí: \n\n${links.join('\n')}`);
+        links.forEach((link) => window.open(link, '_blank'));
+      } else {
         throw new Error('No se generaron enlaces de informes en la respuesta del servidor');
       }
-  
-      alert(`Informes generados exitosamente. Puedes descargarlos aquí: \n\n${links.join('\n')}`);
-      links.forEach((link) => window.open(link, '_blank'));
     } catch (error) {
       console.error('Error al generar los informes:', error);
       alert('Hubo un error al generar los informes. Por favor, inténtalo de nuevo.');
