@@ -4,31 +4,27 @@
     Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button 
   } from '@mui/material';
   import FormSection from '../components/FormSection/FormSection';
-  import FormSection2 from '../components/FormSection2/FormSection2';
   import FormSection3 from '../components/FormSection3/FormSection3';
   import FormSection4 from '../components/FormSection4/FormSection4';
   import FormSection5 from '../components/FormSection5/FormSection5';
   import axios from 'axios';
-  import { useLocation, useParams, useSearchParams } from 'react-router-dom';
+  import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
   import FormStepper from './FormStepper'; // Importa el componente FormStepper
 
   // Definimos los títulos respectivos para cada sección del formulario
   const sectionTitles = [
-    'Propuesta - Formulario F-04-MP-05-01-01', 
     'Aprobación - Formulario F-05-MP-05-01-01', 
     'Presupuesto - Formulario F-06-MP-05-01-01', 
-    'Indentificación de Mercadeo - Formulario F-07-MP-05-01-01', 
+    'Identificación de Mercadeo - Formulario F-07-MP-05-01-01', 
     'Riesgos Potenciales - Formulario F-08-MP-05-01-01'
   ];
-
-    // Títulos cortos para el Stepper
+  
   const sectionShortTitles = [
-    'Propuesta', 
     'Aprobación', 
     'Presupuesto', 
-    'Indentificación de Mercadeo', 
+    'Identificación de Mercadeo', 
     'Riesgos Potenciales'
-  ];
+  ];  
 
 
   function FormPage({ userData }) {
@@ -37,6 +33,7 @@
     const formStep = searchParams.get('paso') || 0; // Obtener el paso
     const [currentSection, setCurrentSection] = useState(parseInt(formId, 10)); // Sección basada en URL
     const [currentStep, setCurrentStep] = useState(parseInt(formStep, 10)); // Paso basado en URL
+    const navigate = useNavigate();
   
     useEffect(() => {
       // Asegúrate de que formId se convierte en número correctamente
@@ -70,18 +67,7 @@
     const [formData, setFormData] = useState({
       // Hoja SOLICITUDES
       id_solicitud: '',
-      introduccion: '',
-      objetivo_general: '',
-      objetivos_especificos: '',
-      justificacion: '',
-      descripcion: '',
-      alcance: '',
-      metodologia: '',
-      dirigido_a: '',
-      programa_contenidos: '',
-      duracion: '',
-      certificacion: '',
-      recursos: '',
+      
     
       // Hoja SOLICITUDES2
       fecha_solicitud: '',
@@ -92,6 +78,11 @@
       nombre_departamento: '',
       nombre_seccion: '',
       nombre_dependencia: '',
+      introduccion: '',
+      objetivo_general: '',
+      objetivos_especificos: '',
+      justificacion: '',
+      metodologia: '',
       tipo: '',
       otro_tipo: '',
       modalidad: '',
@@ -251,6 +242,7 @@
   useEffect(() => {
     const fetchSolicitudData = async () => {
       if (solicitudId) {
+        console.log('Cargando datos de la solicitud:', solicitudId);
         //setLoading(true);
         try {
           const response = await axios.get(`https://siac-extension-server.vercel.app/getSolicitud`, {
@@ -260,7 +252,6 @@
           
           // Combina los datos de todas las hojas en formData
           const combinedData = {
-            ...data.SOLICITUDES,
             ...data.SOLICITUDES2,
             ...data.SOLICITUDES3,
             ...data.SOLICITUDES4,
@@ -278,6 +269,21 @@
 
     fetchSolicitudData();
   }, [solicitudId]);
+
+  useEffect(() => {
+    if (!solicitudId) {
+      // Si no hay solicitud en la URL, verificar en el localStorage
+      const storedId = localStorage.getItem('id_solicitud');
+      if (storedId) {
+        navigate(`/formulario/1?solicitud=${storedId}&paso=0`);
+      } else {
+        // Si no hay ni en la URL ni en el localStorage, redirige o lanza un error
+        alert('No se encontró una solicitud activa. Por favor, crea una nueva.');
+        navigate('/');
+      }
+    }
+  }, [solicitudId, navigate]);
+  
 
     // Obtener los parámetros de la URL (formulario y paso)
     // useEffect(() => {
@@ -432,15 +438,13 @@
     const renderFormSection = () => {
       switch (currentSection) {
         case 1:
-          return <FormSection2 formId={1} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} />;
+          return <FormSection  formId={1} userData={userData} formData={formData} escuelas={escuelas} departamentos={departamentos} secciones={secciones} programas={programas} oficinas={oficinas} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} />;
         case 2:
-          return <FormSection  formId={2} userData={userData} formData={formData} escuelas={escuelas} departamentos={departamentos} secciones={secciones} programas={programas} oficinas={oficinas} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} />;
+          return <FormSection3 formId={2} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} />;
         case 3:
-          return <FormSection3 formId={3} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} />;
+          return <FormSection4 formId={3} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep}/>;
         case 4:
-          return <FormSection4 formId={4} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep}/>;
-        case 5:
-          return <FormSection5 formId={5} userData={userData} formData={formData} handleInputChange={handleInputChange} currentStep={currentStep}/>;
+          return <FormSection5 formId={4} userData={userData} formData={formData} handleInputChange={handleInputChange} currentStep={currentStep}/>;
         default:
           return null;
       }

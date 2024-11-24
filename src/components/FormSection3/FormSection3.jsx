@@ -26,7 +26,7 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
 
   // Manejo del paso "Siguiente"
   const handleNext = async () => {
-    const hoja = 3; // Formulario 3 va en SOLICITUDES3
+    const hoja = 2; // Formulario 3 va en SOLICITUDES3
     console.log("Datos del formulario antes de enviar:", formData); 
     
     
@@ -286,7 +286,7 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setCurrentSection(4)} color="primary">
+            <Button onClick={() => setCurrentSection(3)} color="primary">
               Continuar
             </Button>
             <Button onClick={() => window.location.href = '/'} color="secondary">

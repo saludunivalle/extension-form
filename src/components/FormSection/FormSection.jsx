@@ -1,18 +1,38 @@
 import React, { useEffect, useState } from 'react';
-import { Stepper, Step, StepLabel, Button, Box, Typography } from '@mui/material';
+import { Stepper, Step, StepLabel, Button, Box } from '@mui/material';
 import Step1 from './Step1'; // Importamos los componentes de cada paso
 import Step2 from './Step2';
 import Step3 from './Step3';
 import Step4 from './Step4';
 import Step5 from './Step5';
-import axios from 'axios'; // Importa Axios para realizar la solicitud de guardado
-import { useLocation } from 'react-router-dom';
+import axios from 'axios';
 import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+
+function FormSection({ 
+  formData, 
+  handleInputChange, 
+  setCurrentSection, 
+  escuelas, 
+  departamentos, 
+  secciones, 
+  programas, 
+  oficinas, 
+  userData, 
+  currentStep 
+}) {
+  const [activeStep, setActiveStep] = useState(currentStep); // Usar currentStep como el paso inicial
+  const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usar id_solicitud desde el localStorage
+  const [showModal, setShowModal] = useState(false); // Estado para el modal de finalización
+  const navigate = useNavigate();
 
 
-function FormSection({ formData, handleInputChange, setCurrentSection, escuelas, departamentos, secciones, programas, oficinas, userData,currentStep }) {
-  const [activeStep, setActiveStep] = useState(currentStep);  // Usar currentStep como el paso inicial
-  const location = useLocation(); // Obtener la ubicación actual
+  useEffect(() => {
+    if (!idSolicitud) {
+      alert('No se encontró un ID válido para esta solicitud. Por favor, vuelve al dashboard.');
+      navigate('/');
+    }
+  }, [idSolicitud, navigate]);
 
   const steps = [
     'Datos Generales',
@@ -22,45 +42,17 @@ function FormSection({ formData, handleInputChange, setCurrentSection, escuelas,
     'Información Adicional',
   ];
 
-  // useEffect(() => {
-  //   // Al cargar el componente, revisamos si hay parámetros en la URL (como el paso)
-  //   const searchParams = new URLSearchParams(location.search);
-  //   const paso = parseInt(searchParams.get('paso')) || 0; // Si no hay paso, iniciar en 0
-  //   setActiveStep(paso); // Establecemos el paso actual
-  // }, [location.search]);
- 
-  const id_usuario = userData?.id_usuario;
-  const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
-  const [showModal, setShowModal] = useState(false); // Estado para el modal
-
-  // useEffect(() => {
-  //   const obtenerUltimoId = async () => {
-  //     try {
-  //       const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
-  //         params: { sheetName: 'SOLICITUDES2' }, // Cambia 'SOLICITUDES' según la hoja en la que estés trabajando
-  //       });
-  //       const nuevoId = response.data.lastId + 1;
-  //       setIdSolicitud(nuevoId); // Establece el nuevo id_solicitud
-  //     } catch (error) {
-  //       console.error('Error al obtener el último ID:', error);
-  //     }
-  //   };
-
-  //   if (!idSolicitud) {
-  //     obtenerUltimoId();
-  //   }
-  // }, [idSolicitud]);
-
+  // Manejar paso siguiente
   const handleNext = async () => {
-    const hoja = 2; // Formulario 2 va en SOLICITUDES
-    console.log("FormData antes de enviar:", formData); // Verifica el formData completo antes de enviar
-    // Definir los datos específicos según el paso actual
+    const hoja = 1; // Cambiar según corresponda al formulario actual
     let pasoData = {};
-    
+
+    // Configurar los datos según el paso actual
     switch (activeStep) {
       case 0:
         pasoData = {
-          fecha_solicitud: formData.fecha_solicitud || '',  // Si está vacío, asigna cadena vacía
+          id_solicitud: idSolicitud,
+          fecha_solicitud: formData.fecha_solicitud || '',
           nombre_actividad: formData.nombre_actividad || '',
           nombre_solicitante: formData.nombre_solicitante || '',
           dependencia_tipo: formData.dependencia_tipo || '',
@@ -72,13 +64,18 @@ function FormSection({ formData, handleInputChange, setCurrentSection, escuelas,
         break;
       case 1:
         pasoData = {
-          tipo: formData.tipo || '',
-          otro_tipo: formData.otro_tipo || '',
-          modalidad: formData.modalidad || '',
+          introduccion: formData.introduccion,
+          objetivo_general: formData.objetivo_general,
+          objetivos_especificos: formData.objetivos_especificos,
+          justificacion: formData.justificacion,
+          metodologia: formData.metodologia,
         };
         break;
       case 2:
         pasoData = {
+          tipo: formData.tipo || '',
+          otro_tipo: formData.otro_tipo || '',
+          modalidad: formData.modalidad || '',
           horas_trabajo_presencial: formData.horas_trabajo_presencial || '',
           horas_sincronicas: formData.horas_sincronicas || '',
           total_horas: formData.total_horas || '',
@@ -118,34 +115,33 @@ function FormSection({ formData, handleInputChange, setCurrentSection, escuelas,
       default:
         break;
     }
-  
+
     try {
+      // Guardar los datos del paso actual en el backend
       await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-        id_solicitud: idSolicitud, // El ID de la solicitud
-        formData: pasoData, // Datos específicos del paso actual
-        paso: activeStep + 1, // Paso actual
-        hoja, // Indica qué hoja se está usando
+        id_solicitud: idSolicitud,
+        formData: pasoData,
+        paso: activeStep + 1,
+        hoja,
         userData: {
-          id_usuario, // Enviar el id_usuario
-          name: userData.name, // Enviar el nombre del usuario
-        }
+          id_usuario: userData.id,
+          name: userData.name,
+        },
       });
-  
+
       // Mover al siguiente paso
       setActiveStep((prevActiveStep) => prevActiveStep + 1);
     } catch (error) {
       console.error('Error al guardar el progreso:', error);
     }
   };
-  
+
   const handleBack = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
   const handleSubmit = async () => {
-    const hoja = 2; // Cambia este valor según la hoja a la que corresponda el formulario
-    
-    // Datos del último paso (Paso 5)
+    const hoja = 1; // Cambiar según corresponda al formulario actual
     const pasoData = {
       becas_convenio: formData.becas_convenio || '',
       becas_estudiantes: formData.becas_estudiantes || '',
@@ -157,28 +153,26 @@ function FormSection({ formData, handleInputChange, setCurrentSection, escuelas,
       organizacion_actividad: formData.organizacion_actividad || '',
       otro_tipo_act: formData.otro_tipo_act || '',
     };
-  
+
     try {
-      // Guardar los datos del último paso en Google Sheets
+      // Guardar los datos del último paso
       await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-        id_solicitud: idSolicitud, // El ID único de la solicitud
-        formData: pasoData, // Datos del último paso (Paso 5)
-        paso: 5, // El número del último paso
-        hoja, // Indica qué hoja se está usando
+        id_solicitud: idSolicitud,
+        formData: pasoData,
+        paso: 5,
+        hoja,
         userData: {
-          id_usuario, // Enviar el id_usuario
-          name: userData.name, // Enviar el nombre del usuario
-        }
+          id_usuario: userData.id,
+          name: userData.name,
+        },
       });
-  
-      setShowModal(true); // Abre el modal
-      //setCurrentSection(3); // Cambia a FormSection (Formulario Aprobación)
+
+      setShowModal(true); // Mostrar modal de finalización
     } catch (error) {
       console.error('Error al guardar los datos del último paso:', error);
-      console.error('Detalles del error:', error.response?.data); // Mostrar detalles del error si existen
     }
   };
-  
+
   const renderStepContent = (step) => {
     switch (step) {
       case 0:
@@ -252,23 +246,24 @@ function FormSection({ formData, handleInputChange, setCurrentSection, escuelas,
         >
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>
-        <Dialog open={showModal} onClose={() => setShowModal(false)}>
-          <DialogTitle>Ha finalizado el formulario Propuesta</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              ¿Desea continuar al siguiente formulario o salir al inicio?
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setCurrentSection(3)} color="primary">
-              Continuar
-            </Button>
-            <Button onClick={() => window.location.href = '/'} color="secondary">
-              Salir
-            </Button>
-          </DialogActions>
-        </Dialog>
       </Box>
+
+      <Dialog open={showModal} onClose={() => setShowModal(false)}>
+        <DialogTitle>Formulario Finalizado</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Sus datos han sido guardados correctamente.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCurrentSection(2)} color="primary">
+            Continuar
+          </Button>
+          <Button onClick={() => window.location.href = '/'} color="secondary">
+            Salir
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -179,7 +179,7 @@ function FormSection4({ formData, handleInputChange, setCurrentSection, userData
   };
 
   const handleSubmit = async () => {
-    const hoja = 4; // Cambia este valor según la hoja a la que corresponda el formulario
+    const hoja = 3; // Cambia este valor según la hoja a la que corresponda el formulario
     
     const completarValoresConNo = (data) => {
       const completado = {};
@@ -305,7 +305,7 @@ function FormSection4({ formData, handleInputChange, setCurrentSection, userData
             </DialogContentText>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setCurrentSection(5)} color="primary">
+            <Button onClick={() => setCurrentSection(4)} color="primary">
               Continuar
             </Button>
             <Button onClick={() => window.location.href = '/'} color="secondary">

@@ -44,9 +44,20 @@ const Title = styled("div")(({ theme }) => ({
   color: "#423b3b",
   fontFamily: "Helvetica, sans-serif",
   [theme.breakpoints.down("sm")]: {
-    fontSize: "20px", 
+    fontSize: "20px",
     textAlign: "center",
-    margin: "5px 0", 
+    margin: "5px 0",
+  },
+}));
+
+const UserName = styled("div")(({ theme }) => ({
+  fontWeight: 400,
+  fontSize: "20px",
+  color: "#6b6b6b",
+  marginTop: "-7px",
+  [theme.breakpoints.down("sm")]: {
+    fontSize: "16px",
+    textAlign: "center",
   },
 }));
 
@@ -59,19 +70,27 @@ const Logo = styled("div")(({ theme }) => ({
     marginBottom: "10px",
     img: {
       height: "auto",
-      maxHeight: "40px", 
+      maxHeight: "40px",
     },
   },
   img: {
     height: "auto",
     maxHeight: "60px",
     [theme.breakpoints.down("sm")]: {
-      maxHeight: "40px", 
+      maxHeight: "40px",
     },
   },
 }));
 
-const Header = () => {
+const capitalizeWords = (str) => {
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+const Header = ({ userData }) => {
   return (
     <HeaderContainer role="navegación" aria-label="Navegación Principal">
       <Logo>
@@ -81,6 +100,7 @@ const Header = () => {
       </Logo>
       <TitleContainer>
         <Title>Solicitud Actividades de Extensión</Title>
+        {userData && <UserName>{`${capitalizeWords(userData.name)}`}</UserName>}
       </TitleContainer>
     </HeaderContainer>
   );

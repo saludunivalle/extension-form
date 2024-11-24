@@ -1,10 +1,10 @@
 import React from 'react';
 import Header from './Header';
 
-function Layout({ children }) {
+function Layout({ children, userData }) {
   return (
     <div>
-      <Header />
+      <Header userData = {userData} />
       {children}
     </div>
   );

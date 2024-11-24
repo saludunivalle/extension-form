@@ -27,7 +27,7 @@ function App() {
           path="/"
           element={
             isLogged ? (
-              <Layout>
+              <Layout userData={userInfo}>
                 <Dashboard userData={userInfo} />
               </Layout>
             ) : (
