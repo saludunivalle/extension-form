@@ -1,7 +1,67 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableRow, TextField } from '@mui/material';
 
-function Step2FormSection3({ formData, handleNumberInputChange, totalIngresos, totalGastos, imprevistos, totalGastosImprevistos, totalAportesUnivalle, handleInputChange  }) {
+function Step2FormSection3({
+  formData,
+  handleNumberInputChange,
+  handleInputChange,
+}) {
+  // Calcular dinámicamente el total de ingresos
+  const totalIngresos = (formData.ingresos_cantidad || 0) * (formData.ingresos_vr_unit || 0);
+
+  // Calcular el subtotal de gastos
+  const calculateSubtotalGastos = () => {
+    const fieldsToSum = [
+      'costos_personal',
+      'personal_universidad',
+      'honorarios_docentes',
+      'otro_personal',
+      'materiales_sumi',
+      'gastos_alojamiento',
+      'gastos_alimentacion',
+      'gastos_transporte',
+      'equipos_alquiler_compra',
+      'dotacion_participantes',
+      'carpetas',
+      'libretas',
+      'lapiceros',
+      'memorias',
+      'marcadores_papel_otros',
+      'impresos',
+      'labels',
+      'certificados',
+      'escarapelas',
+      'fotocopias',
+      'estacion_cafe',
+      'transporte_mensaje',
+      'refrigerios',
+      'infraestructura_fisica',
+      'gastos_generales',
+      'infraestructura_universitaria',
+      'imprevistos',
+      'costos_administrativos',
+    ];
+
+    return fieldsToSum.reduce((total, key) => {
+      const cantidad = parseFloat(formData[`${key}_cantidad`] || 0);
+      const valorUnitario = parseFloat(formData[`${key}_vr_unit`] || 0);
+      return total + cantidad * valorUnitario;
+    }, 0);
+  };
+
+  const subtotalGastos = calculateSubtotalGastos();
+  const imprevistos = subtotalGastos * 0.03; // 3% de los gastos
+  const totalGastosImprevistos = subtotalGastos + imprevistos;
+
+  // Formatear valores como moneda
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 2,
+    }).format(value || 0);
+  };
+
   return (
     <Table>
       <TableHead>
@@ -25,6 +85,7 @@ function Step2FormSection3({ formData, handleNumberInputChange, totalIngresos, t
               name="ingresos_cantidad"
               value={formData.ingresos_cantidad || ''}
               onChange={handleNumberInputChange}
+              inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
             />
           </TableCell>
           <TableCell align="right">
@@ -33,15 +94,16 @@ function Step2FormSection3({ formData, handleNumberInputChange, totalIngresos, t
               name="ingresos_vr_unit"
               value={formData.ingresos_vr_unit || ''}
               onChange={handleNumberInputChange}
+              inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
             />
           </TableCell>
-          <TableCell align="right">
-            {(formData.ingresos_cantidad || 0) * (formData.ingresos_vr_unit || 0)}
-          </TableCell>
+          <TableCell align="right">{formatCurrency(totalIngresos)}</TableCell>
         </TableRow>
         <TableRow>
           <TableCell colSpan={3} style={{ fontWeight: 'bold' }}>TOTAL INGRESOS</TableCell>
-          <TableCell align="right" style={{ fontWeight: 'bold' }}>{totalIngresos}</TableCell>
+          <TableCell align="right" style={{ fontWeight: 'bold' }}>
+            {formatCurrency(totalIngresos)}
+          </TableCell>
         </TableRow>
 
         {/* GASTOS */}
@@ -84,67 +146,42 @@ function Step2FormSection3({ formData, handleNumberInputChange, totalIngresos, t
             <TableCell align="right">
               <TextField
                 type="number"
-                name={item.key + '_cantidad'}
-                value={formData[item.key + '_cantidad'] || ''}
+                name={`${item.key}_cantidad`}
+                value={formData[`${item.key}_cantidad`] || ''}
                 onChange={handleNumberInputChange}
               />
             </TableCell>
             <TableCell align="right">
               <TextField
                 type="number"
-                name={item.key + '_vr_unit'}
-                value={formData[item.key + '_vr_unit'] || ''}
+                name={`${item.key}_vr_unit`}
+                value={formData[`${item.key}_vr_unit`] || ''}
                 onChange={handleNumberInputChange}
               />
             </TableCell>
             <TableCell align="right">
-              {(formData[item.key + '_cantidad'] || 0) * (formData[item.key + '_vr_unit'] || 0)}
+              {formatCurrency(
+                (formData[`${item.key}_cantidad`] || 0) * (formData[`${item.key}_vr_unit`] || 0)
+              )}
             </TableCell>
           </TableRow>
         ))}
         <TableRow>
           <TableCell colSpan={3} style={{ fontWeight: 'bold' }}>SUB TOTAL GASTOS</TableCell>
-          <TableCell align="right" style={{ fontWeight: 'bold' }}>{totalGastos}</TableCell>
-        </TableRow>
-        <TableRow>
-          <TableCell colSpan={3} style={{ fontWeight: 'bold' }}>Imprevistos (3%)</TableCell>
-          <TableCell align="right" style={{ fontWeight: 'bold' }}>{imprevistos}</TableCell>
-        </TableRow>
-        <TableRow>
-          <TableCell colSpan={3} style={{ fontWeight: 'bold' }}>TOTAL GASTOS + IMPREVISTOS</TableCell>
-          <TableCell align="right" style={{ fontWeight: 'bold' }}>{totalGastosImprevistos}</TableCell>
-        </TableRow>
-        <TableRow>
-          <TableCell colSpan={3} style={{ fontWeight: 'bold' }}>APORTES UNIVALLE</TableCell>
-        </TableRow>
-        <TableRow>
-          <TableCell>Fondo Común (30%)</TableCell>
-          <TableCell align="right">{totalIngresos * 0.3}</TableCell>
-        </TableRow>
-        <TableRow>
-          <TableCell>Facultad o Instituto (5%)</TableCell>
-          <TableCell align="right">{totalIngresos * 0.05}</TableCell>
-        </TableRow>
-        <TableRow>
-          <TableCell>Escuela, Departamento, Área (XX%)</TableCell>
-          <TableCell align="right">
-            <TextField
-              type="number"
-              name="escuela_departamento_porcentaje"
-              value={formData.escuela_departamento_porcentaje || ''}
-              onChange={(e) => {
-                const value = parseFloat(e.target.value) || 0;
-                const valor = totalIngresos * (value / 100);
-                handleInputChange({ target: { name: 'escuela_departamento', value: valor } });
-                handleInputChange({ target: { name: 'escuela_departamento_porcentaje', value } });
-              }}
-            />
+          <TableCell align="right" style={{ fontWeight: 'bold' }}>
+            {formatCurrency(subtotalGastos)}
           </TableCell>
         </TableRow>
         <TableRow>
-          <TableCell colSpan={1} style={{ fontWeight: 'bold' }}>Total Recursos</TableCell>
+          <TableCell colSpan={3} style={{ fontWeight: 'bold' }}>Imprevistos (3%)</TableCell>
           <TableCell align="right" style={{ fontWeight: 'bold' }}>
-            {totalAportesUnivalle}
+            {formatCurrency(imprevistos)}
+          </TableCell>
+        </TableRow>
+        <TableRow>
+          <TableCell colSpan={3} style={{ fontWeight: 'bold' }}>TOTAL GASTOS + IMPREVISTOS</TableCell>
+          <TableCell align="right" style={{ fontWeight: 'bold' }}>
+            {formatCurrency(totalGastosImprevistos)}
           </TableCell>
         </TableRow>
       </TableBody>
