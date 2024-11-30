@@ -15,15 +15,15 @@
   const sectionTitles = [
     'Aprobación - Formulario F-05-MP-05-01-01', 
     'Presupuesto - Formulario F-06-MP-05-01-01', 
-    'Identificación de Mercadeo - Formulario F-07-MP-05-01-01', 
-    'Riesgos Potenciales - Formulario F-08-MP-05-01-01'
+    'Riesgos Potenciales - Formulario F-08-MP-05-01-01',
+    'Identificación de Mercadeo - Formulario F-07-MP-05-01-01'
   ];
   
   const sectionShortTitles = [
     'Aprobación', 
     'Presupuesto', 
-    'Identificación de Mercadeo', 
-    'Riesgos Potenciales'
+    'Riesgos Potenciales',
+    'Identificación de Mercadeo'
   ];  
 
 
@@ -36,17 +36,17 @@
     const navigate = useNavigate();
   
     useEffect(() => {
-      // Asegúrate de que formId se convierte en número correctamente
+      // Convierte formId y formStep a números
       const parsedFormId = parseInt(formId, 10);
       const parsedFormStep = parseInt(formStep, 10);
   
       console.log(`Formulario: ${parsedFormId}, Paso: ${parsedFormStep}`);
   
+      // Validar valores de formId y formStep para evitar errores
       if (!isNaN(parsedFormId) && parsedFormId >= 1 && parsedFormId <= 5 && !isNaN(parsedFormStep)) {
-        setCurrentSection(parsedFormId); // Actualizamos la sección actual con el formulario
-        setCurrentStep(parsedFormStep - 1);  // Actualizamos el paso actual
+        setCurrentSection(parsedFormId);
+        setCurrentStep(parsedFormStep > 0 ? parsedFormStep - 1 : 0); // Decrementar en 1 para ajustar a índice de pasos
       } else {
-        // Si no hay parámetros válidos, inicializa al primer formulario
         setCurrentSection(1);
         setCurrentStep(0);
       }
@@ -283,7 +283,7 @@
       }
     }
   }, [solicitudId, navigate]);
-  
+
 
     // Obtener los parámetros de la URL (formulario y paso)
     // useEffect(() => {
@@ -442,9 +442,9 @@
         case 2:
           return <FormSection3 formId={2} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} />;
         case 3:
-          return <FormSection4 formId={3} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep}/>;
+          return <FormSection5 formId={3} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep}/>;
         case 4:
-          return <FormSection5 formId={4} userData={userData} formData={formData} handleInputChange={handleInputChange} currentStep={currentStep}/>;
+          return <FormSection4 formId={4} userData={userData} formData={formData} handleInputChange={handleInputChange} currentStep={currentStep}/>;
         default:
           return null;
       }

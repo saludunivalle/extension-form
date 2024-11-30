@@ -1,19 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Button, Stepper, Step, StepLabel } from '@mui/material';
+import { Box, Button, Stepper, Step, StepLabel, Typography, Modal } from '@mui/material';
+import { useLocation, useNavigate } from 'react-router-dom';
+import axios from 'axios'; // Importa Axios para realizar la solicitud de guardado
+
 import Step1FormSection4 from './Step1FormSection4';
 import Step2FormSection4 from './Step2FormSection4';
 import Step3FormSection4 from './Step3FormSection4';
 import Step4FormSection4 from './Step4FormSection4';
 import Step5FormSection4 from './Step5FormSection4';
-import axios from 'axios'; // Importa Axios para realizar la solicitud de guardado
-import { useLocation } from 'react-router-dom';
-import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 
-function FormSection4({ formData, handleInputChange, setCurrentSection, userData, currentStep}) {
-  const [activeStep, setActiveStep] = useState(currentStep);  // Usar currentStep como el paso inicial
+function FormSection4({ formData, handleInputChange, userData, currentStep }) {
+  const [activeStep, setActiveStep] = useState(currentStep); // Usar currentStep como el paso inicial
+  const [openModal, setOpenModal] = useState(false); // Estado para el modal
   const id_usuario = userData?.id_usuario;
+  const navigate = useNavigate(); // Cambia useHistory por useNavigate
   const location = useLocation(); // Obtener la ubicación actual
-
 
   const steps = [
     'Actividades de Mercadeo Relacional',
@@ -24,36 +25,10 @@ function FormSection4({ formData, handleInputChange, setCurrentSection, userData
   ];
 
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
-  const [showModal, setShowModal] = useState(false); // Estado para el modal
-
-  // useEffect(() => {
-  //   // Al cargar el componente, revisamos si hay parámetros en la URL (como el paso)
-  //   const searchParams = new URLSearchParams(location.search);
-  //   const paso = parseInt(searchParams.get('paso')) || 0; // Si no hay paso, iniciar en 0
-  //   setActiveStep(paso); // Establecemos el paso actual
-  // }, [location.search]);
-
-  // useEffect(() => {
-  //   const obtenerUltimoId = async () => {
-  //     try {
-  //       const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
-  //         params: { sheetName: 'SOLICITUDES4' }, // Cambia 'SOLICITUDES' según la hoja en la que estés trabajando
-  //       });
-  //       const nuevoId = response.data.lastId + 1;
-  //       setIdSolicitud(nuevoId); // Establece el nuevo id_solicitud
-  //     } catch (error) {
-  //       console.error('Error al obtener el último ID:', error);
-  //     }
-  //   };
-
-  //   if (!idSolicitud) {
-  //     obtenerUltimoId();
-  //   }
-  // }, [idSolicitud]);
 
   const handleNext = async () => {
     const hoja = 4; // Formulario 2 va en SOLICITUDES
-
+  
     const completarValoresConNo = (data) => {
       const completado = {};
       for (let key in data) {
@@ -62,7 +37,6 @@ function FormSection4({ formData, handleInputChange, setCurrentSection, userData
       return completado;
     };
     
-    // Definir los datos específicos según el paso actual
     let pasoData = {};
   
     switch (activeStep) {
@@ -153,34 +127,33 @@ function FormSection4({ formData, handleInputChange, setCurrentSection, userData
     }
   
     const pasoDataCompleto = completarValoresConNo(pasoData);
-    console.log('Datos enviados al backend:', pasoDataCompleto); // Agrega este log para verificar los datos
-
+    console.log('Datos enviados al backend:', pasoDataCompleto);
+  
     try {
       await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-        id_solicitud: idSolicitud, // El ID de la solicitud
-        formData: pasoDataCompleto, // Datos específicos del paso actual
-        paso: activeStep + 1, // Paso actual
-        hoja, // Indica qué hoja se está usando
+        id_solicitud: idSolicitud,
+        formData: pasoDataCompleto,
+        paso: activeStep + 1,
+        hoja,
         userData: {
-          id_usuario, // Enviar el id_usuario
-          name: userData.name, // Enviar el nombre del usuario
+          id_usuario,
+          name: userData.name,
         }
       });
-  
-      // Mover al siguiente paso
       setActiveStep((prevActiveStep) => prevActiveStep + 1);
     } catch (error) {
-      console.error('Error al guardar el progreso:', error);
+      console.error('Error al guardar el progreso:', error.response?.data || error.message);
     }
   };
   
+
   const handleBack = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
   const handleSubmit = async () => {
-    const hoja = 3; // Cambia este valor según la hoja a la que corresponda el formulario
-    
+    const hoja = 4; // Cambia este valor según la hoja a la que corresponda el formulario
+
     const completarValoresConNo = (data) => {
       const completado = {};
       for (let key in data) {
@@ -189,7 +162,6 @@ function FormSection4({ formData, handleInputChange, setCurrentSection, userData
       return completado;
     };
 
-    // Datos del último paso (Paso 5)
     const pasoData = {
       beneficiosTangibles: formData.beneficiosTangibles,
       beneficiosIntangibles: formData.beneficiosIntangibles,
@@ -216,9 +188,8 @@ function FormSection4({ formData, handleInputChange, setCurrentSection, userData
     };
 
     const pasoDataCompleto = completarValoresConNo(pasoData);
-  
+
     try {
-      // Guardar los datos del último paso en Google Sheets
       await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
         id_solicitud: idSolicitud, // El ID único de la solicitud
         formData: pasoDataCompleto, // Datos del último paso (Paso 5)
@@ -229,13 +200,15 @@ function FormSection4({ formData, handleInputChange, setCurrentSection, userData
           name: userData.name, // Enviar el nombre del usuario
         }
       });
-      setShowModal(true); // Abre el modal
-
-      // Después de guardar los datos, cambia de sección
-      //setCurrentSection(5); // Cambia a FormSection (Formulario Aprobación)
+      setOpenModal(true); // Abre el modal
     } catch (error) {
       console.error('Error al guardar los datos del último paso:', error);
     }
+  };
+
+  const handleCloseModal = () => {
+    setOpenModal(false); // Cerrar el modal
+    navigate('/'); // Navegar al inicio
   };
 
   const renderStepContent = (step) => {
@@ -245,7 +218,7 @@ function FormSection4({ formData, handleInputChange, setCurrentSection, userData
       case 1:
         return <Step2FormSection4 formData={formData} handleInputChange={handleInputChange} />;
       case 2:
-        return <Step3FormSection4 formData={formData} handleInputChange={handleInputChange}/>;
+        return <Step3FormSection4 formData={formData} handleInputChange={handleInputChange} />;
       case 3:
         return <Step4FormSection4 formData={formData} handleInputChange={handleInputChange} />;
       case 4:
@@ -295,25 +268,20 @@ function FormSection4({ formData, handleInputChange, setCurrentSection, userData
           Atrás
         </Button>
         <Button variant="contained" color="primary" onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}>
-        {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
+          {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>
-        <Dialog open={showModal} onClose={() => setShowModal(false)}>
-          <DialogTitle>Ha finalizado el formulario Propuesta</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              ¿Desea continuar al siguiente formulario o salir al inicio?
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setCurrentSection(4)} color="primary">
-              Continuar
-            </Button>
-            <Button onClick={() => window.location.href = '/'} color="secondary">
-              Salir
-            </Button>
-          </DialogActions>
-        </Dialog>
       </Box>
+
+      <Modal open={openModal} onClose={handleCloseModal}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <Box sx={{ backgroundColor: 'white', padding: '20px', textAlign: 'center' }}>
+            <Typography variant="h6">Se ha enviado todos los formularios con éxito</Typography>
+            <Button variant="contained" onClick={handleCloseModal} sx={{ marginTop: '10px' }}>
+              Salir al inicio
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
     </Box>
   );
 }

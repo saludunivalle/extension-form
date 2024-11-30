@@ -34,7 +34,7 @@ function Dashboard({ userData }) {
         console.error('Error al obtener solicitudes activas:', error);
       }
     };
-
+  
     const fetchCompletedRequests = async () => {
       try {
         const response = await axios.get('https://siac-extension-server.vercel.app/getCompletedRequests', {
@@ -45,15 +45,23 @@ function Dashboard({ userData }) {
         console.error('Error al obtener solicitudes terminadas:', error);
       }
     };
-
+  
     fetchActiveRequests();
     fetchCompletedRequests();
-  }, [userData.id]);
+  }, [userData.id]);  
 
   const handleContinue = (request) => {
     const { idSolicitud, formulario, paso } = request;
 
-    const formRoute = `/formulario/${formulario}?solicitud=${idSolicitud}&paso=${paso}`;
+    // Restar 1 al paso para asegurarnos de que el usuario llegue al paso correcto
+    const pasoCorrecto = paso > 0 ? paso - 1 : 0; // Asegurarse de no tener un valor menor a 0
+
+    // Actualizamos el localStorage con el id de la solicitud que se va a continuar
+    console.log("Actualizando el id_solicitud en localStorage con:", idSolicitud);
+    localStorage.setItem('id_solicitud', idSolicitud);
+
+    // Navegamos hacia la ruta correcta del formulario
+    const formRoute = `/formulario/${formulario}?solicitud=${idSolicitud}&paso=${pasoCorrecto}`;
     navigate(formRoute);
   };
 

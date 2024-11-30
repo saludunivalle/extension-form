@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Button, Stepper, Step, StepLabel, Typography, Modal } from '@mui/material';
+import { Box, Button, Stepper, Step, StepLabel, Typography, Modal, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom'; // Cambia useHistory por useNavigate
 import axios from 'axios';
 
@@ -10,48 +10,21 @@ import Step3FormSection5 from './Step3FormSection5';
 import Step4FormSection5 from './Step4FormSection5';
 import Step5FormSection5 from './Step5FormSection5';
 
-function FormSection5({ formData, handleInputChange, userData, currentStep }) {
+function FormSection5({ formData, handleInputChange, userData, currentStep, setCurrentSection}) {
   const [activeStep, setActiveStep] = useState(currentStep);  // Usar currentStep como el paso inicial
   const [openModal, setOpenModal] = useState(false); // Estado para controlar el modal
   const id_usuario = userData?.id_usuario;
   const navigate = useNavigate(); // Cambia useHistory por useNavigate
   const location = useLocation(); // Obtener la ubicación actual
-
-
+  const [showModal, setShowModal] = useState(false);
 
   // Step labels
   const steps = ['PROPÓSITO y Comentario', 'Matriz de Riesgos - Diseño', 'Matriz de Riesgos - Locaciones', 'Matriz de Riesgos - Desarrollo', 'Matriz de Riesgos - Cierre y Otros'];
 
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
 
-  // useEffect(() => {
-  //   // Al cargar el componente, revisamos si hay parámetros en la URL (como el paso)
-  //   const searchParams = new URLSearchParams(location.search);
-  //   const paso = parseInt(searchParams.get('paso')) || 0; // Si no hay paso, iniciar en 0
-  //   setActiveStep(paso); // Establecemos el paso actual
-  // }, [location.search]);
-
-  // Obtener el último ID (inicial)
-  // useEffect(() => {
-  //   const obtenerUltimoId = async () => {
-  //     try {
-  //       const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
-  //         params: { sheetName: 'SOLICITUDES5' }, // Cambia 'SOLICITUDES5' según la hoja en la que estés trabajando
-  //       });
-  //       const nuevoId = response.data.lastId + 1;
-  //       setIdSolicitud(nuevoId); // Establece el nuevo id_solicitud
-  //     } catch (error) {
-  //       console.error('Error al obtener el último ID:', error);
-  //     }
-  //   };
-
-  //   if (!idSolicitud) {
-  //     obtenerUltimoId();
-  //   }
-  // }, [idSolicitud]);
-
   const handleNext = async () => {
-    const hoja = 4; // Formulario va en SOLICITUDES5
+    const hoja = 3; // Formulario va en SOLICITUDES5
 
     const completarValoresConNo = (data) => {
       const completado = {};
@@ -139,7 +112,7 @@ function FormSection5({ formData, handleInputChange, userData, currentStep }) {
   };
 
   const handleSubmit = async () => {
-    const hoja = 5; // Cambia este valor según la hoja a la que corresponda el formulario
+    const hoja = 4; // Cambia este valor según la hoja a la que corresponda el formulario
     
     const completarValoresConNo = (data) => {
       const completado = {};
@@ -179,11 +152,6 @@ function FormSection5({ formData, handleInputChange, userData, currentStep }) {
   
   const handleBack = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1); // Reducir el paso en 1
-  };
-
-  const handleCloseModal = () => {
-    setOpenModal(false); // Cerrar el modal
-    navigate('/');   // Usamos navigate en lugar de history.push('/')
   };
 
   // Render step content based on activeStep
@@ -243,22 +211,28 @@ function FormSection5({ formData, handleInputChange, userData, currentStep }) {
       {/* Navigation buttons */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
         <Button disabled={activeStep === 0} onClick={handleBack}>Atrás</Button>
-        <Button variant="contained" color="primary" onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}>
+        <Button variant="contained" color="primary" onClick={activeStep === steps.length - 1 ? () => setShowModal(true) : handleNext}>
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>
       </Box>
 
-      {/* Modal for confirmation */}
-      <Modal open={openModal} onClose={handleCloseModal}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-          <Box sx={{ backgroundColor: 'white', padding: '20px', textAlign: 'center' }}>
-            <Typography variant="h6">Se ha enviado todos los formularios con éxito</Typography>
-            <Button variant="contained" onClick={handleCloseModal} sx={{ marginTop: '10px' }}>
-              Cerrar
+      <Dialog open={showModal} onClose={() => setShowModal(false)}>
+          <DialogTitle>Formulario Completado</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              ¿Desea continuar al siguiente formulario o volver al inicio?
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setCurrentSection(4)} color="primary">
+              Continuar
             </Button>
-          </Box>
-        </Box>
-      </Modal>
+            <Button onClick={() => window.location.href = '/'} color="secondary">
+              Salir
+            </Button>
+          </DialogActions>
+        </Dialog>
+
     </Box>
   );
 }
