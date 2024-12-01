@@ -34,24 +34,35 @@
     const [currentSection, setCurrentSection] = useState(parseInt(formId, 10)); // Sección basada en URL
     const [currentStep, setCurrentStep] = useState(parseInt(formStep, 10)); // Paso basado en URL
     const navigate = useNavigate();
-  
+
     useEffect(() => {
       // Convierte formId y formStep a números
       const parsedFormId = parseInt(formId, 10);
       const parsedFormStep = parseInt(formStep, 10);
-  
+    
       console.log(`Formulario: ${parsedFormId}, Paso: ${parsedFormStep}`);
-  
-      // Validar valores de formId y formStep para evitar errores
-      if (!isNaN(parsedFormId) && parsedFormId >= 1 && parsedFormId <= 5 && !isNaN(parsedFormStep)) {
-        setCurrentSection(parsedFormId);
-        setCurrentStep(parsedFormStep > 0 ? parsedFormStep - 1 : 0); // Decrementar en 1 para ajustar a índice de pasos
-      } else {
+    
+      // Comprobar si la solicitud es nueva (no tiene un id_solicitud asociado en localStorage)
+      const isNewSolicitud = !localStorage.getItem('id_solicitud');
+    
+      if (isNewSolicitud) {
+        // Si es una nueva solicitud, siempre comenzamos desde la primera sección y el primer paso
         setCurrentSection(1);
         setCurrentStep(0);
+      } else {
+        // Validar valores de formId y formStep para evitar errores
+        if (!isNaN(parsedFormId) && parsedFormId >= 1 && parsedFormId <= 5 && !isNaN(parsedFormStep)) {
+          // Ajustar el paso: si el paso viene como 1 (primero), restar 1 para el índice del array
+          setCurrentSection(parsedFormId);
+          setCurrentStep(parsedFormStep > 0 ? parsedFormStep - 1 : 0);
+        } else {
+          // Si no hay un paso válido en la URL, comenzar desde la primera sección y el primer paso
+          setCurrentSection(1);
+          setCurrentStep(0);
+        }
       }
     }, [formId, formStep]);
-
+    
 
     const location = useLocation();
     const isSmallScreen = useMediaQuery('(max-width:600px)');
@@ -118,6 +129,10 @@
       fecha_por_meses: '',
       fecha_inicio: '',
       fecha_final: '',
+      extension_solidaria: '',
+      costo_extension_solidaria: '',
+      personal_externo: '',
+      pieza_grafica: '',
     
       // Hoja SOLICITUDES3
       ingresos_cantidad: '',
@@ -315,6 +330,17 @@
     // }, [location.search]);
     
   
+    const handleFileChange = (e) => {
+      const { name, files } = e.target;
+      const file = files[0];
+      if (file) {
+        setFormData((prevData) => ({
+          ...prevData,
+          [name]: file,
+        }));
+      }
+    };
+    
 
     // Fetch de los datos de escuelas y oficinas
     useEffect(() => {
@@ -438,7 +464,7 @@
     const renderFormSection = () => {
       switch (currentSection) {
         case 1:
-          return <FormSection  formId={1} userData={userData} formData={formData} escuelas={escuelas} departamentos={departamentos} secciones={secciones} programas={programas} oficinas={oficinas} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} />;
+          return <FormSection  formId={1} userData={userData} formData={formData} escuelas={escuelas} departamentos={departamentos} secciones={secciones} programas={programas} oficinas={oficinas} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} handleFileChange={handleFileChange} />;
         case 2:
           return <FormSection3 formId={2} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} />;
         case 3:

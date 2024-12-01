@@ -19,7 +19,8 @@ function FormSection({
   programas, 
   oficinas, 
   userData, 
-  currentStep 
+  currentStep,
+  handleFileChange,
 }) {
   const [activeStep, setActiveStep] = useState(currentStep); // Usar currentStep como el paso inicial
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usar id_solicitud desde el localStorage
@@ -41,137 +42,216 @@ function FormSection({
     'Información Coordinador',
     'Información Adicional',
   ];
-
-  // Manejar paso siguiente
+  
   const handleNext = async () => {
     const hoja = 1; // Cambiar según corresponda al formulario actual
     let pasoData = {};
 
     // Configurar los datos según el paso actual
     switch (activeStep) {
-      case 0:
-        pasoData = {
-          id_solicitud: idSolicitud,
-          fecha_solicitud: formData.fecha_solicitud || '',
-          nombre_actividad: formData.nombre_actividad || '',
-          nombre_solicitante: formData.nombre_solicitante || '',
-          dependencia_tipo: formData.dependencia_tipo || '',
-          nombre_escuela: formData.nombre_escuela || '',
-          nombre_departamento: formData.nombre_departamento || '',
-          nombre_seccion: formData.nombre_seccion || '',
-          nombre_dependencia: formData.nombre_dependencia || '',
+        case 0:
+            pasoData = {
+                id_solicitud: idSolicitud,
+                fecha_solicitud: formData.fecha_solicitud || 'N/A',
+                nombre_actividad: formData.nombre_actividad || 'N/A',
+                nombre_solicitante: formData.nombre_solicitante || 'N/A',
+                dependencia_tipo: formData.dependencia_tipo || 'N/A',
+                nombre_escuela: formData.nombre_escuela || 'N/A',
+                nombre_departamento: formData.nombre_departamento || 'N/A',
+                nombre_seccion: formData.nombre_seccion || 'N/A',
+                nombre_dependencia: formData.nombre_dependencia || 'N/A',
+            };
+            break;
+        case 1:
+            pasoData = {
+                introduccion: formData.introduccion || 'N/A',
+                objetivo_general: formData.objetivo_general || 'N/A',
+                objetivos_especificos: formData.objetivos_especificos || 'N/A',
+                justificacion: formData.justificacion || 'N/A',
+                metodologia: formData.metodologia || 'N/A',
+            };
+            break;
+        case 2:
+            pasoData = {
+                tipo: formData.tipo || 'N/A',
+                otro_tipo: formData.otro_tipo || 'N/A',
+                modalidad: formData.modalidad || 'N/A',
+                horas_trabajo_presencial: formData.horas_trabajo_presencial || 'N/A',
+                horas_sincronicas: formData.horas_sincronicas || 'N/A',
+                total_horas: formData.total_horas || 'N/A',
+                programCont: formData.programCont || 'N/A',
+                dirigidoa: formData.dirigidoa || 'N/A',
+                creditos: formData.creditos || 'N/A',
+                cupo_min: formData.cupo_min || 'N/A',
+                cupo_max: formData.cupo_max || 'N/A',
+            };
+            break;
+        case 3:
+            pasoData = {
+                nombre_coordinador: formData.nombre_coordinador || 'N/A',
+                correo_coordinador: formData.correo_coordinador || 'N/A',
+                tel_coordinador: formData.tel_coordinador || 'N/A',
+                perfil_competencia: formData.perfil_competencia || 'N/A',
+                formas_evaluacion: formData.formas_evaluacion || 'N/A',
+                certificado_solicitado: formData.certificado_solicitado || 'N/A',
+                calificacion_minima: formData.calificacion_minima || 'N/A',
+                razon_no_certificado: formData.razon_no_certificado || 'N/A',
+                valor_inscripcion: formData.valor_inscripcion || 'N/A',
+            };
+            break;
+        case 4:
+            // Evitar convertir la pieza gráfica a Base64, se enviará como FormData
+            pasoData = {
+                becas_convenio: formData.becas_convenio || 'N/A',
+                becas_estudiantes: formData.becas_estudiantes || 'N/A',
+                becas_docentes: formData.becas_docentes || 'N/A',
+                becas_egresados: formData.becas_egresados || 'N/A',
+                becas_funcionarios: formData.becas_funcionarios || 'N/A',
+                becas_otros: formData.becas_otros || 'N/A',
+                periodicidad_oferta: formData.periodicidad_oferta || 'N/A',
+                organizacion_actividad: formData.organizacion_actividad || 'N/A',
+                otro_tipo_act: formData.otro_tipo_act || 'N/A',
+                extension_solidaria: formData.extension_solidaria || 'N/A',
+                costo_extension_solidaria: formData.costo_extension_solidaria || 'N/A',
+                personal_externo: formData.personal_externo || 'N/A',
+            };
+            break;
+        default:
+            break;
+    }
+
+    // Crear el objeto de datos a enviar
+    let dataToSend;
+    if (formData.pieza_grafica) {
+        dataToSend = new FormData();
+        dataToSend.append('id_solicitud', idSolicitud);
+        dataToSend.append('paso', activeStep + 1);
+        dataToSend.append('hoja', hoja);
+        dataToSend.append('id_usuario', userData.id);
+        dataToSend.append('name', userData.name);
+
+        // Añadir los campos de pasoData al FormData
+        Object.keys(pasoData).forEach((key) => {
+            dataToSend.append(key, pasoData[key]);
+        });
+
+        // Añadir pieza gráfica
+        dataToSend.append('pieza_grafica', formData.pieza_grafica);
+    } else {
+        dataToSend = {
+            id_solicitud: idSolicitud,
+            paso: activeStep + 1,
+            hoja: hoja,
+            id_usuario: userData.id,
+            name: userData.name,
+            ...pasoData,
         };
-        break;
-      case 1:
-        pasoData = {
-          introduccion: formData.introduccion,
-          objetivo_general: formData.objetivo_general,
-          objetivos_especificos: formData.objetivos_especificos,
-          justificacion: formData.justificacion,
-          metodologia: formData.metodologia,
-        };
-        break;
-      case 2:
-        pasoData = {
-          tipo: formData.tipo || '',
-          otro_tipo: formData.otro_tipo || '',
-          modalidad: formData.modalidad || '',
-          horas_trabajo_presencial: formData.horas_trabajo_presencial || '',
-          horas_sincronicas: formData.horas_sincronicas || '',
-          total_horas: formData.total_horas || '',
-          programCont: formData.programCont || '',
-          dirigidoa: formData.dirigidoa || '',
-          creditos: formData.creditos || '',
-          cupo_min: formData.cupo_min || '',
-          cupo_max: formData.cupo_max || '',
-        };
-        break;
-      case 3:
-        pasoData = {
-          nombre_coordinador: formData.nombre_coordinador || '',
-          correo_coordinador: formData.correo_coordinador || '',
-          tel_coordinador: formData.tel_coordinador || '',
-          perfil_competencia: formData.perfil_competencia || '',
-          formas_evaluacion: formData.formas_evaluacion || '',
-          certificado_solicitado: formData.certificado_solicitado || '',
-          calificacion_minima: formData.calificacion_minima || '',
-          razon_no_certificado: formData.razon_no_certificado || '',
-          valor_inscripcion: formData.valor_inscripcion || '',
-        };
-        break;
-      case 4:
-        pasoData = {
-          becas_convenio: formData.becas_convenio || '',
-          becas_estudiantes: formData.becas_estudiantes || '',
-          becas_docentes: formData.becas_docentes || '',
-          becas_egresados: formData.becas_egresados || '',
-          becas_funcionarios: formData.becas_funcionarios || '',
-          becas_otros: formData.becas_otros || '',
-          periodicidad_oferta: formData.periodicidad_oferta || '',
-          organizacion_actividad: formData.organizacion_actividad || '',
-          otro_tipo_act: formData.otro_tipo_act || '',
-        };
-        break;
-      default:
-        break;
     }
 
     try {
-      // Guardar los datos del paso actual en el backend
-      await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-        id_solicitud: idSolicitud,
-        formData: pasoData,
-        paso: activeStep + 1,
-        hoja,
-        userData: {
-          id_usuario: userData.id,
-          name: userData.name,
-        },
-      });
+        // Debugging para asegurar los datos enviados
+        console.log("Enviando Datos:", dataToSend);
 
-      // Mover al siguiente paso
-      setActiveStep((prevActiveStep) => prevActiveStep + 1);
+        if (formData.pieza_grafica) {
+            await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+        } else {
+            await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend);
+        }
+
+        // Mover al siguiente paso si todo fue exitoso
+        setActiveStep((prevActiveStep) => prevActiveStep + 1);
     } catch (error) {
-      console.error('Error al guardar el progreso:', error);
+        console.error('Error al guardar el progreso:', error);
+        if (error.response) {
+            console.error('Detalles del error:', error.response.data);
+        }
     }
-  };
+};
 
-  const handleBack = () => {
+const handleBack = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
-  };
+};
 
-  const handleSubmit = async () => {
+const handleSubmit = async () => {
     const hoja = 1; // Cambiar según corresponda al formulario actual
-    const pasoData = {
-      becas_convenio: formData.becas_convenio || '',
-      becas_estudiantes: formData.becas_estudiantes || '',
-      becas_docentes: formData.becas_docentes || '',
-      becas_egresados: formData.becas_egresados || '',
-      becas_funcionarios: formData.becas_funcionarios || '',
-      becas_otros: formData.becas_otros || '',
-      periodicidad_oferta: formData.periodicidad_oferta || '',
-      organizacion_actividad: formData.organizacion_actividad || '',
-      otro_tipo_act: formData.otro_tipo_act || '',
+
+    let pasoData = {
+        becas_convenio: formData.becas_convenio || 'N/A',
+        becas_estudiantes: formData.becas_estudiantes || 'N/A',
+        becas_docentes: formData.becas_docentes || 'N/A',
+        becas_egresados: formData.becas_egresados || 'N/A',
+        becas_funcionarios: formData.becas_funcionarios || 'N/A',
+        becas_otros: formData.becas_otros || 'N/A',
+        periodicidad_oferta: formData.periodicidad_oferta || 'N/A',
+        organizacion_actividad: formData.organizacion_actividad || 'N/A',
+        otro_tipo_act: formData.otro_tipo_act || 'N/A',
+        extension_solidaria: formData.extension_solidaria || 'N/A',
+        costo_extension_solidaria: formData.costo_extension_solidaria || 'N/A',
+        personal_externo: formData.personal_externo || 'N/A',
     };
 
-    try {
-      // Guardar los datos del último paso
-      await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-        id_solicitud: idSolicitud,
-        formData: pasoData,
-        paso: 5,
-        hoja,
-        userData: {
-          id_usuario: userData.id,
-          name: userData.name,
-        },
-      });
+    let dataToSend;
+    if (formData.pieza_grafica) {
+        dataToSend = new FormData();
+        dataToSend.append('id_solicitud', idSolicitud);
+        dataToSend.append('paso', activeStep + 1);
+        dataToSend.append('hoja', hoja);
+        dataToSend.append('id_usuario', userData.id);
+        dataToSend.append('name', userData.name);
 
-      setShowModal(true); // Mostrar modal de finalización
-    } catch (error) {
-      console.error('Error al guardar los datos del último paso:', error);
+        // Añadir los campos de pasoData al FormData
+        Object.keys(pasoData).forEach((key) => {
+            dataToSend.append(key, pasoData[key]);
+        });
+
+        // Añadir pieza gráfica
+        dataToSend.append('pieza_grafica', formData.pieza_grafica);
+    } else {
+        dataToSend = {
+            id_solicitud: idSolicitud,
+            paso: activeStep + 1,
+            hoja: hoja,
+            id_usuario: userData.id,
+            name: userData.name,
+            ...pasoData,
+        };
     }
-  };
+
+    try {
+        // Verificación del ID de usuario antes de continuar
+        if (!userData.id) {
+            console.error("El ID de usuario es indefinido. No se puede proceder.");
+            return;
+        }
+
+        // Debugging para asegurar los datos enviados
+        console.log("Enviando Datos:", dataToSend);
+
+        if (formData.pieza_grafica) {
+            await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+        } else {
+            await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend);
+        }
+
+        // Mostrar modal de finalización si todo fue exitoso
+        setShowModal(true);
+    } catch (error) {
+        console.error('Error al guardar los datos del último paso:', error);
+        if (error.response) {
+            console.error('Detalles del error:', error.response.data);
+        }
+    }
+};
+
+
 
   const renderStepContent = (step) => {
     switch (step) {
@@ -194,7 +274,7 @@ function FormSection({
       case 3:
         return <Step4 formData={formData} handleInputChange={handleInputChange} />;
       case 4:
-        return <Step5 formData={formData} handleInputChange={handleInputChange} />;
+        return <Step5 formData={formData} handleInputChange={handleInputChange} handleFileChange={handleFileChange}/>;
       default:
         return null;
     }

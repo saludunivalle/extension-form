@@ -1,7 +1,8 @@
 import React from 'react';
 import { Grid, TextField, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, Select, InputLabel, MenuItem } from '@mui/material';
 
-function Step5({ formData, handleInputChange }) {
+function Step5({ formData, handleInputChange, handleFileChange }) {
+
   return (
     <Grid container spacing={2}>
       <Grid item xs={12}>
@@ -127,93 +128,6 @@ function Step5({ formData, handleInputChange }) {
         </FormControl>
       </Grid>
               
-      {/* <Grid item xs={12}>
-        <FormControl component="fieldset">
-          <FormLabel component="legend">Fechas en las que se llevará a cabo</FormLabel>
-          <RadioGroup
-            name="fechas_actividad"
-            value={formData.fechas_actividad || ''}
-            onChange={handleInputChange}
-            required
-          >
-            <FormControlLabel value="Oferta periódica" control={<Radio />} label="Oferta periódica" />
-            <FormControlLabel value="Periodo finito - fechas por meses" control={<Radio />} label="Periodo finito - fechas por meses" />
-            <FormControlLabel value="Fecha inicio - Fecha final" control={<Radio />} label="Fecha inicio - Fecha final" />
-          </RadioGroup>
-
-          {formData.fechas_actividad === 'Periodo finito - fechas por meses' && (
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <FormControl fullWidth>
-                  <InputLabel>Seleccionar Meses</InputLabel>
-                  <Select
-                    multiple
-                    name="fecha_por_meses"
-                    value={Array.isArray(formData.fecha_por_meses) ? formData.fecha_por_meses : formData.fecha_por_meses ? formData.fecha_por_meses.split(', ') : []}
-                    onChange={(event) => {
-                      const selectedMonths = Array.from(event.target.value);
-                      handleInputChange({
-                        target: {
-                          name: 'fecha_por_meses',
-                          value: selectedMonths.join(', '),
-                        },
-                      });
-
-                      const totalMonths = selectedMonths.length;
-                      const enableMatrizRiesgo = totalMonths > 2; 
-                      handleInputChange({
-                        target: {
-                          name: 'matriz_riesgo_enabled',
-                          value: enableMatrizRiesgo,
-                        },
-                      });
-                    }}
-                    renderValue={(selected) => selected.join(', ')}
-                  >
-                    {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map((month) => (
-                      <MenuItem key={month} value={month}>
-                        {month}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-            </Grid>
-          )}
-
-          {formData.fechas_actividad === 'Fecha inicio - Fecha final' && (
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <TextField
-                  label="Fecha de Inicio"
-                  type="date"
-                  fullWidth
-                  name="fecha_inicio"
-                  value={formData.fecha_inicio || ''}
-                  onChange={(event) => handleInputChange(event)}
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  label="Fecha Final"
-                  type="date"
-                  fullWidth
-                  name="fecha_final"
-                  value={formData.fecha_final || ''}
-                  onChange={(event) => handleInputChange(event)}
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                />
-              </Grid>
-            </Grid>
-          )}
-        </FormControl>
-      </Grid> */}
-
       <Grid item xs={12}>
         <FormControl component="fieldset">
           <FormLabel component="legend">La organización de la actividad se hará por</FormLabel>
@@ -239,6 +153,58 @@ function Step5({ formData, handleInputChange }) {
             </Box>
           )}
         </FormControl>
+      </Grid>
+      {/* "Es extensión solidaria?" campo */}
+      <Grid item xs={12}>
+        <FormControl component="fieldset">
+          <FormLabel component="legend">¿Es Extensión Solidaria?</FormLabel>
+          <RadioGroup
+            name="extension_solidaria"
+            value={formData.extension_solidaria || ''}
+            onChange={handleInputChange}
+          >
+            <FormControlLabel value="si" control={<Radio />} label="Sí" />
+            <FormControlLabel value="no" control={<Radio />} label="No" />
+          </RadioGroup>
+        </FormControl>
+      </Grid>
+
+      {/* Si es extensión solidaria, preguntar el costo del curso */}
+      {formData.extension_solidaria === 'si' && (
+        <Grid item xs={12}>
+          <TextField
+            label="Si se cobrase el curso, ¿cuánto costaría? ($$$)"
+            fullWidth
+            name="costo_extension_solidaria"
+            type="number"
+            value={formData.costo_extension_solidaria || ''}
+            onChange={handleInputChange}
+            required
+          />
+        </Grid>
+      )}
+
+      {/* "Tiene pieza gráfica?" campo de subida de archivos */}
+      <Grid item xs={12}>
+        <FormLabel component="legend">¿Tiene Pieza Gráfica?</FormLabel>
+        <input
+          type="file"
+          name="pieza_grafica"  // Atributo name agregado para identificar el campo en el backend
+          accept=".png, .jpg, .jpeg, .pdf"
+          onChange={handleFileChange}
+        />
+      </Grid>
+
+      {/* "Personal Externo" campo */}
+      <Grid item xs={12}>
+        <TextField
+          label="Personal Externo"
+          fullWidth
+          name="personal_externo"
+          value={formData.personal_externo || ''}
+          onChange={handleInputChange}
+          placeholder="Detalles del personal externo (opcional)"
+        />
       </Grid>
 
     </Grid>

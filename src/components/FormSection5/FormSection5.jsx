@@ -27,89 +27,87 @@ function FormSection5({ formData, handleInputChange, userData, currentStep, setC
     const hoja = 3; // Formulario va en SOLICITUDES5
 
     const completarValoresConNo = (data) => {
-      const completado = {};
-      for (let key in data) {
-        completado[key] = data[key] === '' || data[key] === null || data[key] === undefined ? 'No' : data[key];
-      }
-      return completado;
+        const completado = {};
+        for (let key in data) {
+            completado[key] = data[key] === '' || data[key] === null || data[key] === undefined ? 'No' : data[key];
+        }
+        return completado;
     };
 
     // Definir los datos específicos según el paso actual
     let pasoData = {};
 
     switch (activeStep) {
-      case 0:
-        pasoData = {
-          proposito: formData.proposito,
-          comentario: formData.comentario,
-          programa: formData.programa,
-          fecha: formData.fecha,
-          elaboradoPor: formData.elaboradoPor,
-        };
-        break;
-      case 1:
-        pasoData = {
-          aplicaDiseno1: formData.aplicaDiseno1,
-          aplicaDiseno2: formData.aplicaDiseno2,
-          aplicaDiseno3: formData.aplicaDiseno3,
-          aplicaDiseno4: formData.aplicaDiseno4,
-        };
-        break;
-      case 2:
-        pasoData = {
-          aplicaLocacion1: formData.aplicaLocacion1,
-          aplicaLocacion2: formData.aplicaLocacion2,
-          aplicaLocacion3: formData.aplicaLocacion3,
-          aplicaLocacion4: formData.aplicaLocacion4,
-          aplicaLocacion5: formData.aplicaLocacion5,
-        };
-        break;
-      case 3:
-        pasoData = {
-          aplicaDesarrollo1: formData.aplicaDesarrollo1,
-          aplicaDesarrollo2: formData.aplicaDesarrollo2,
-          aplicaDesarrollo3: formData.aplicaDesarrollo3,
-          aplicaDesarrollo4: formData.aplicaDesarrollo4,
-          aplicaDesarrollo5: formData.aplicaDesarrollo5,
-          aplicaDesarrollo6: formData.aplicaDesarrollo6,
-          aplicaDesarrollo7: formData.aplicaDesarrollo7,
-          aplicaDesarrollo8: formData.aplicaDesarrollo8,
-          aplicaDesarrollo9: formData.aplicaDesarrollo9,
-          aplicaDesarrollo10: formData.aplicaDesarrollo10,
-          aplicaDesarrollo11: formData.aplicaDesarrollo11,
-        };
-        break;
-      case 4:
-        pasoData = {
-          aplicaCierre1: formData.aplicaCierre1,
-          aplicaCierre2: formData.aplicaCierre2,
-          aplicaCierre3: formData.aplicaCierre3,
-        };
-        break;
-      default:
-        break;
+        case 0:
+            pasoData = {
+                proposito: formData.proposito || 'No',
+                comentario: formData.comentario || 'No',
+                programa: formData.programa || 'No',
+                fecha: formData.fecha || 'No',
+                elaboradoPor: formData.elaboradoPor || 'No',
+            };
+            break;
+        case 1:
+            pasoData = {
+                aplicaDiseno1: formData.aplicaDiseno1 || 'No',
+                aplicaDiseno2: formData.aplicaDiseno2 || 'No',
+                aplicaDiseno3: formData.aplicaDiseno3 || 'No',
+                aplicaDiseno4: formData.aplicaDiseno4 || 'No',
+            };
+            break;
+        case 2:
+            pasoData = {
+                aplicaLocacion1: formData.aplicaLocacion1 || 'No',
+                aplicaLocacion2: formData.aplicaLocacion2 || 'No',
+                aplicaLocacion3: formData.aplicaLocacion3 || 'No',
+                aplicaLocacion4: formData.aplicaLocacion4 || 'No',
+                aplicaLocacion5: formData.aplicaLocacion5 || 'No',
+            };
+            break;
+        case 3:
+            pasoData = {
+                aplicaDesarrollo1: formData.aplicaDesarrollo1 || 'No',
+                aplicaDesarrollo2: formData.aplicaDesarrollo2 || 'No',
+                aplicaDesarrollo3: formData.aplicaDesarrollo3 || 'No',
+                aplicaDesarrollo4: formData.aplicaDesarrollo4 || 'No',
+                aplicaDesarrollo5: formData.aplicaDesarrollo5 || 'No',
+                aplicaDesarrollo6: formData.aplicaDesarrollo6 || 'No',
+                aplicaDesarrollo7: formData.aplicaDesarrollo7 || 'No',
+                aplicaDesarrollo8: formData.aplicaDesarrollo8 || 'No',
+                aplicaDesarrollo9: formData.aplicaDesarrollo9 || 'No',
+                aplicaDesarrollo10: formData.aplicaDesarrollo10 || 'No',
+                aplicaDesarrollo11: formData.aplicaDesarrollo11 || 'No',
+            };
+            break;
+        case 4:
+            pasoData = {
+                aplicaCierre1: formData.aplicaCierre1 || 'No',
+                aplicaCierre2: formData.aplicaCierre2 || 'No',
+                aplicaCierre3: formData.aplicaCierre3 || 'No',
+            };
+            break;
+        default:
+            break;
     }
 
     const pasoDataCompleto = completarValoresConNo(pasoData);
 
     try {
-      await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-        id_solicitud: idSolicitud,
-        formData: pasoDataCompleto,
-        paso: activeStep + 1,
-        hoja,
-        userData: {
-          id_usuario,
-          name: userData.name,
-        }
-      });
+        await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+            id_solicitud: idSolicitud,
+            ...pasoDataCompleto, // Desestructurar pasoDataCompleto para que cada campo sea una clave separada
+            paso: activeStep + 1,
+            hoja,
+            id_usuario: userData.id_usuario, // Asegurar que se pase directamente id_usuario
+            name: userData.name,
+        });
 
-      // Mover al siguiente paso
-      setActiveStep((prevActiveStep) => prevActiveStep + 1);
+        // Mover al siguiente paso
+        setActiveStep((prevActiveStep) => prevActiveStep + 1);
     } catch (error) {
-      console.error('Error al guardar el progreso:', error);
+        console.error('Error al guardar el progreso:', error.response?.data || error.message);
     }
-  };
+};
 
   const handleSubmit = async () => {
     const hoja = 4; // Cambia este valor según la hoja a la que corresponda el formulario
