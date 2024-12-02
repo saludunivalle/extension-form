@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Stepper, Step, StepLabel, Button, Box } from '@mui/material';
+import { Stepper, Step, StepLabel, Button, Box, CircularProgress } from '@mui/material';
 import Step1 from './Step1'; // Importamos los componentes de cada paso
 import Step2 from './Step2';
 import Step3 from './Step3';
@@ -25,6 +25,7 @@ function FormSection({
   const [activeStep, setActiveStep] = useState(currentStep); // Usar currentStep como el paso inicial
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usar id_solicitud desde el localStorage
   const [showModal, setShowModal] = useState(false); // Estado para el modal de finalización
+  const [isLoading, setIsLoading] = useState(false); // Estado para manejar el loading del botón
   const navigate = useNavigate();
 
 
@@ -44,6 +45,7 @@ function FormSection({
   ];
   
   const handleNext = async () => {
+    setIsLoading(true); // Iniciar el loading
     const hoja = 1; // Cambiar según corresponda al formulario actual
     let pasoData = {};
 
@@ -136,7 +138,7 @@ function FormSection({
         });
 
         // Añadir pieza gráfica
-        dataToSend.append('pieza_grafica', formData.pieza_grafica);
+        dataToSend.append('pieza_grafica', formData.pieza_grafica || 'N/A');
     } else {
         dataToSend = {
             id_solicitud: idSolicitud,
@@ -144,7 +146,7 @@ function FormSection({
             hoja: hoja,
             id_usuario: userData.id,
             name: userData.name,
-            ...pasoData,
+            ...pasoData + 'N/A',
         };
     }
 
@@ -163,6 +165,7 @@ function FormSection({
         }
 
         // Mover al siguiente paso si todo fue exitoso
+        setIsLoading(false); // Finalizar el loading
         setActiveStep((prevActiveStep) => prevActiveStep + 1);
     } catch (error) {
         console.error('Error al guardar el progreso:', error);
@@ -177,6 +180,7 @@ const handleBack = () => {
 };
 
 const handleSubmit = async () => {
+  setIsLoading(true); // Finalizar el loading
     const hoja = 1; // Cambiar según corresponda al formulario actual
 
     let pasoData = {
@@ -209,7 +213,7 @@ const handleSubmit = async () => {
         });
 
         // Añadir pieza gráfica
-        dataToSend.append('pieza_grafica', formData.pieza_grafica);
+        dataToSend.append('pieza_grafica', formData.pieza_grafica || 'N/A');
     } else {
         dataToSend = {
             id_solicitud: idSolicitud,
@@ -217,7 +221,7 @@ const handleSubmit = async () => {
             hoja: hoja,
             id_usuario: userData.id,
             name: userData.name,
-            ...pasoData,
+            ...pasoData + 'N/A',
         };
     }
 
@@ -242,6 +246,7 @@ const handleSubmit = async () => {
         }
 
         // Mostrar modal de finalización si todo fue exitoso
+        setIsLoading(false); // Finalizar el loading
         setShowModal(true);
     } catch (error) {
         console.error('Error al guardar los datos del último paso:', error);
@@ -323,6 +328,8 @@ const handleSubmit = async () => {
           variant="contained"
           color="primary"
           onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
+          disabled={isLoading} // Deshabilitar el botón si está cargando
+          startIcon={isLoading ? <CircularProgress size={20} /> : null} // Mostrar un CircularProgress si está cargando
         >
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Button, Stepper, Step, StepLabel, Typography } from '@mui/material';
+import { Box, Button, Stepper, Step, StepLabel, Typography, CircularProgress} from '@mui/material';
 import Step1FormSection3 from './Step1FormSection3';
 import Step2FormSection3 from './Step2FormSection3';
 import Step3FormSection3 from './Step3FormSection3';
@@ -13,6 +13,7 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
   const id_usuario = userData?.id_usuario;
   const location = useLocation();
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); 
+  const [isLoading, setIsLoading] = useState(false); // Estado para manejar el loading del botón
   const [showModal, setShowModal] = useState(false);
 
 
@@ -26,6 +27,7 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
 
   // Manejo del paso "Siguiente"
   const handleNext = async () => {
+    setIsLoading(true); // Iniciar el loading
     const hoja = 2; // Formulario 3 va en SOLICITUDES3
     console.log("Datos del formulario antes de enviar:", formData); 
     
@@ -186,6 +188,7 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
         await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend);
         
         // Mover al siguiente paso si todo fue exitoso
+        setIsLoading(false); // Finalizar el loading
         setActiveStep((prevActiveStep) => prevActiveStep + 1);
     } catch (error) {
         console.error('Error al guardar el progreso:', error);
@@ -281,7 +284,7 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
         <Button disabled={activeStep === 0} onClick={handleBack}>
           Atrás
         </Button>
-        <Button variant="contained" color="primary" onClick={activeStep === steps.length - 1 ? () => setShowModal(true) : handleNext}>
+        <Button variant="contained" color="primary" onClick={activeStep === steps.length - 1 ? () => setShowModal(true) : handleNext} disabled={isLoading} startIcon={isLoading ? <CircularProgress size={20} /> : null}>
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>
         <Dialog open={showModal} onClose={() => setShowModal(false)}>

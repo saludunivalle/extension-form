@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Button, Stepper, Step, StepLabel, Typography, Modal } from '@mui/material';
+import { Box, Button, Stepper, Step, StepLabel, Typography, Modal, CircularProgress } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios'; // Importa Axios para realizar la solicitud de guardado
 
@@ -15,6 +15,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
   const id_usuario = userData?.id_usuario;
   const navigate = useNavigate(); // Cambia useHistory por useNavigate
   const location = useLocation(); // Obtener la ubicación actual
+  const [isLoading, setIsLoading] = useState(false); // Estado para manejar el loading del botón
 
   const steps = [
     'Actividades de Mercadeo Relacional',
@@ -27,6 +28,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
 
   const handleNext = async () => {
+    setIsLoading(true); // Finalizar el loading
     const hoja = 4; // Formulario 2 va en SOLICITUDES
 
     const completarValoresConNo = (data) => {
@@ -137,6 +139,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
             id_usuario: userData.id_usuario,
             name: userData.name,
         });
+        setIsLoading(false); // Finalizar el loading
         setActiveStep((prevActiveStep) => prevActiveStep + 1);
     } catch (error) {
         console.error('Error al guardar el progreso:', error.response?.data || error.message);
@@ -148,6 +151,8 @@ const handleBack = () => {
 };
 
 const handleSubmit = async () => {
+  setIsLoading(true); // Finalizar el loading
+
     const hoja = 4; // Cambia este valor según la hoja a la que corresponda el formulario
 
     const completarValoresConNo = (data) => {
@@ -194,6 +199,7 @@ const handleSubmit = async () => {
             id_usuario: userData.id_usuario, // Enviar el id_usuario
             name: userData.name, // Enviar el nombre del usuario
         });
+        setIsLoading(false); // Finalizar el loading
         setOpenModal(true); // Abre el modal
     } catch (error) {
         console.error('Error al guardar los datos del último paso:', error);
@@ -263,7 +269,7 @@ const handleSubmit = async () => {
         <Button disabled={activeStep === 0} onClick={handleBack}>
           Atrás
         </Button>
-        <Button variant="contained" color="primary" onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}>
+        <Button variant="contained" color="primary" onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}disabled={isLoading} startIcon={isLoading ? <CircularProgress size={20} /> : null}>
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>
       </Box>

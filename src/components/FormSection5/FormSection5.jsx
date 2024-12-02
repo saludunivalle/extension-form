@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Button, Stepper, Step, StepLabel, Typography, Modal, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
+import { Box, Button, Stepper, Step, StepLabel, CircularProgress, Typography, Modal, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom'; // Cambia useHistory por useNavigate
 import axios from 'axios';
 
@@ -16,6 +16,7 @@ function FormSection5({ formData, handleInputChange, userData, currentStep, setC
   const id_usuario = userData?.id_usuario;
   const navigate = useNavigate(); // Cambia useHistory por useNavigate
   const location = useLocation(); // Obtener la ubicación actual
+  const [isLoading, setIsLoading] = useState(false); // Estado para manejar el loading del botón
   const [showModal, setShowModal] = useState(false);
 
   // Step labels
@@ -24,6 +25,7 @@ function FormSection5({ formData, handleInputChange, userData, currentStep, setC
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
 
   const handleNext = async () => {
+    setIsLoading(true); // Iniciar el loading
     const hoja = 3; // Formulario va en SOLICITUDES5
 
     const completarValoresConNo = (data) => {
@@ -103,6 +105,7 @@ function FormSection5({ formData, handleInputChange, userData, currentStep, setC
         });
 
         // Mover al siguiente paso
+        setIsLoading(false); // Iniciar el loading
         setActiveStep((prevActiveStep) => prevActiveStep + 1);
     } catch (error) {
         console.error('Error al guardar el progreso:', error.response?.data || error.message);
@@ -110,6 +113,8 @@ function FormSection5({ formData, handleInputChange, userData, currentStep, setC
 };
 
   const handleSubmit = async () => {
+    setIsLoading(true); // Iniciar el loading
+
     const hoja = 4; // Cambia este valor según la hoja a la que corresponda el formulario
     
     const completarValoresConNo = (data) => {
@@ -142,6 +147,8 @@ function FormSection5({ formData, handleInputChange, userData, currentStep, setC
       });
 
       // Abrir el modal de confirmación
+      setIsLoading(false); // Iniciar el loading
+
       setOpenModal(true);
     } catch (error) {
       console.error('Error al guardar los datos del último paso:', error);
@@ -209,7 +216,7 @@ function FormSection5({ formData, handleInputChange, userData, currentStep, setC
       {/* Navigation buttons */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
         <Button disabled={activeStep === 0} onClick={handleBack}>Atrás</Button>
-        <Button variant="contained" color="primary" onClick={activeStep === steps.length - 1 ? () => setShowModal(true) : handleNext}>
+        <Button variant="contained" color="primary" onClick={activeStep === steps.length - 1 ? () => setShowModal(true) : handleNext} disabled={isLoading} startIcon={isLoading ? <CircularProgress size={20} /> : null} >
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>
       </Box>
