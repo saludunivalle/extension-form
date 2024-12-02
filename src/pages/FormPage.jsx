@@ -299,36 +299,6 @@
     }
   }, [solicitudId, navigate]);
 
-
-    // Obtener los parámetros de la URL (formulario y paso)
-    // useEffect(() => {
-    //   const searchParams = new URLSearchParams(location.search);
-    //   const formNumber = searchParams.get('formulario'); // Este debe devolver un string, no un número directamente
-    //   const formPaso = searchParams.get('paso'); // Este debe devolver un string
-    
-    //   console.log(`Formulario: ${formNumber}, Paso: ${formPaso}`);
-    
-    //   // Verificamos que formNumber y formPaso existan y que formNumber esté dentro del rango esperado (1-5)
-    //   if (formNumber && formPaso && !isNaN(formNumber) && !isNaN(formPaso)) {
-    //     const parsedFormNumber = parseInt(formNumber, 10);
-    //     const parsedFormPaso = parseInt(formPaso, 10);
-    
-    //     // Validamos que el número de formulario sea entre 1 y 5
-    //     if (parsedFormNumber >= 1 && parsedFormNumber <= 5) {
-    //       setCurrentSection(parsedFormNumber); // Actualizamos la sección actual con el formulario
-    //       setCurrentStep(parsedFormPaso - 1);  // Actualizamos el paso actual (restamos 1 porque los pasos están basados en 0)
-    //     } else {
-    //       // Si el formulario está fuera de los valores esperados, se inicializa a 1
-    //       setCurrentSection(1);
-    //       setCurrentStep(0);
-    //     }
-    //   } else {
-    //     // Si no hay parámetros válidos, mostrar un formulario predeterminado (por ejemplo, el primero)
-    //     setCurrentSection(1);
-    //     setCurrentStep(0);
-    //   }
-    // }, [location.search]);
-    
   
     const handleFileChange = (e) => {
       const { name, files } = e.target;
