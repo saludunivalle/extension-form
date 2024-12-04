@@ -113,7 +113,14 @@ function Dashboard({ userData }) {
     <ThemeProvider theme={theme}>
       <div style={{ padding: '20px', marginTop: '130px' }}>
         <Typography variant="h5">Bienvenido, {userData.name}</Typography>
-
+        <Button
+          variant="contained"
+          color="primary"
+          style={{ marginTop: '20px' }}
+          onClick={handleCreateNewRequest}
+        >
+          Crear Nueva Solicitud
+        </Button>
         <Typography variant="h6" style={{ marginTop: '20px' }}>
           Solicitudes Activas:
         </Typography>
@@ -172,15 +179,7 @@ function Dashboard({ userData }) {
             </ListItem>
           ))}
         </List>
-
-        <Button
-          variant="contained"
-          color="primary"
-          style={{ marginTop: '20px' }}
-          onClick={handleCreateNewRequest}
-        >
-          Crear Nueva Solicitud
-        </Button>
+        
       </div>
     </ThemeProvider>
   );
