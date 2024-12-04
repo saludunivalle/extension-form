@@ -4,7 +4,6 @@ import { Table, TableBody, TableCell, TableHead, TableRow, TextField } from '@mu
 function Step2FormSection3({
   formData,
   handleNumberInputChange,
-  handleInputChange,
 }) {
   // Calcular dinámicamente el total de ingresos
   const totalIngresos = (formData.ingresos_cantidad || 0) * (formData.ingresos_vr_unit || 0);
@@ -68,8 +67,8 @@ function Step2FormSection3({
         <TableRow>
           <TableCell>CONCEPTO</TableCell>
           <TableCell align="right">CANTIDAD</TableCell>
-          <TableCell align="right">VALOR UNITARIO</TableCell>
-          <TableCell align="right">VALOR TOTAL</TableCell>
+          <TableCell align="right">VALOR UNITARIO (COP)</TableCell>
+          <TableCell align="right">VALOR TOTAL (COP)</TableCell>
         </TableRow>
       </TableHead>
       <TableBody>
@@ -95,6 +94,9 @@ function Step2FormSection3({
               value={formData.ingresos_vr_unit || ''}
               onChange={handleNumberInputChange}
               inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+              InputProps={{
+                startAdornment: '$', // Añadir símbolo de pesos al input
+              }}
             />
           </TableCell>
           <TableCell align="right">{formatCurrency(totalIngresos)}</TableCell>
@@ -112,7 +114,7 @@ function Step2FormSection3({
         </TableRow>
         {[
           { label: '1. Costos de Personal', key: 'costos_personal' },
-          { label: '1.1.Personal Nombrado de la Universidad (Max 70%)', key: 'personal_universidad' },
+          { label: '1.1. Personal Nombrado de la Universidad (Max 70%)', key: 'personal_universidad' },
           { label: '1.2. Honorarios Docentes Externos (Horas)', key: 'honorarios_docentes' },
           { label: '1.3. Otro Personal - Subcontratos', key: 'otro_personal' },
           { label: '2. Materiales y Suministros', key: 'materiales_sumi' },
@@ -149,6 +151,7 @@ function Step2FormSection3({
                 name={`${item.key}_cantidad`}
                 value={formData[`${item.key}_cantidad`] || ''}
                 onChange={handleNumberInputChange}
+                inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
               />
             </TableCell>
             <TableCell align="right">
@@ -157,6 +160,10 @@ function Step2FormSection3({
                 name={`${item.key}_vr_unit`}
                 value={formData[`${item.key}_vr_unit`] || ''}
                 onChange={handleNumberInputChange}
+                inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                InputProps={{
+                  startAdornment: '$', // Añadir símbolo de pesos al input
+                }}
               />
             </TableCell>
             <TableCell align="right">
