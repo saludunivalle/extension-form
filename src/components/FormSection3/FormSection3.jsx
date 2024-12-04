@@ -37,7 +37,7 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
         case 0:
             pasoData = {
                 nombre_actividad: formData.nombre_actividad || '',
-                fecha: formData.fecha || '',
+                fecha_solicitud: formData.fecha_solicitud || '',
             };
             break;
         case 1:

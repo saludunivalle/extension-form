@@ -45,218 +45,218 @@ function FormSection({
   ];
   
   const handleNext = async () => {
-    setIsLoading(true); // Iniciar el loading
-    const hoja = 1; // Cambiar según corresponda al formulario actual
-    let pasoData = {};
+      setIsLoading(true); // Iniciar el loading
+      const hoja = 1; // Cambiar según corresponda al formulario actual
+      let pasoData = {};
 
-    // Configurar los datos según el paso actual
-    switch (activeStep) {
-        case 0:
-            pasoData = {
-                id_solicitud: idSolicitud,
-                fecha_solicitud: formData.fecha_solicitud || 'N/A',
-                nombre_actividad: formData.nombre_actividad || 'N/A',
-                nombre_solicitante: formData.nombre_solicitante || 'N/A',
-                dependencia_tipo: formData.dependencia_tipo || 'N/A',
-                nombre_escuela: formData.nombre_escuela || 'N/A',
-                nombre_departamento: formData.nombre_departamento || 'N/A',
-                nombre_seccion: formData.nombre_seccion || 'N/A',
-                nombre_dependencia: formData.nombre_dependencia || 'N/A',
-            };
-            break;
-        case 1:
-            pasoData = {
-                introduccion: formData.introduccion || 'N/A',
-                objetivo_general: formData.objetivo_general || 'N/A',
-                objetivos_especificos: formData.objetivos_especificos || 'N/A',
-                justificacion: formData.justificacion || 'N/A',
-                metodologia: formData.metodologia || 'N/A',
-            };
-            break;
-        case 2:
-            pasoData = {
-                tipo: formData.tipo || 'N/A',
-                otro_tipo: formData.otro_tipo || 'N/A',
-                modalidad: formData.modalidad || 'N/A',
-                horas_trabajo_presencial: formData.horas_trabajo_presencial || 'N/A',
-                horas_sincronicas: formData.horas_sincronicas || 'N/A',
-                total_horas: formData.total_horas || 'N/A',
-                programCont: formData.programCont || 'N/A',
-                dirigidoa: formData.dirigidoa || 'N/A',
-                creditos: formData.creditos || 'N/A',
-                cupo_min: formData.cupo_min || 'N/A',
-                cupo_max: formData.cupo_max || 'N/A',
-            };
-            break;
-        case 3:
-            pasoData = {
-                nombre_coordinador: formData.nombre_coordinador || 'N/A',
-                correo_coordinador: formData.correo_coordinador || 'N/A',
-                tel_coordinador: formData.tel_coordinador || 'N/A',
-                perfil_competencia: formData.perfil_competencia || 'N/A',
-                formas_evaluacion: formData.formas_evaluacion || 'N/A',
-                certificado_solicitado: formData.certificado_solicitado || 'N/A',
-                calificacion_minima: formData.calificacion_minima || 'N/A',
-                razon_no_certificado: formData.razon_no_certificado || 'N/A',
-                valor_inscripcion: formData.valor_inscripcion || 'N/A',
-            };
-            break;
-        case 4:
-            // Evitar convertir la pieza gráfica a Base64, se enviará como FormData
-            pasoData = {
-                becas_convenio: formData.becas_convenio || 'N/A',
-                becas_estudiantes: formData.becas_estudiantes || 'N/A',
-                becas_docentes: formData.becas_docentes || 'N/A',
-                becas_egresados: formData.becas_egresados || 'N/A',
-                becas_funcionarios: formData.becas_funcionarios || 'N/A',
-                becas_otros: formData.becas_otros || 'N/A',
-                periodicidad_oferta: formData.periodicidad_oferta || 'N/A',
-                organizacion_actividad: formData.organizacion_actividad || 'N/A',
-                otro_tipo_act: formData.otro_tipo_act || 'N/A',
-                extension_solidaria: formData.extension_solidaria || 'N/A',
-                costo_extension_solidaria: formData.costo_extension_solidaria || 'N/A',
-                personal_externo: formData.personal_externo || 'N/A',
-            };
-            break;
-        default:
-            break;
-    }
+      // Configurar los datos según el paso actual
+      switch (activeStep) {
+          case 0:
+              pasoData = {
+                  id_solicitud: idSolicitud,
+                  fecha_solicitud: formData.fecha_solicitud || 'N/A',
+                  nombre_actividad: formData.nombre_actividad || 'N/A',
+                  nombre_solicitante: formData.nombre_solicitante || 'N/A',
+                  dependencia_tipo: formData.dependencia_tipo || 'N/A',
+                  nombre_escuela: formData.nombre_escuela || 'N/A',
+                  nombre_departamento: formData.nombre_departamento || 'N/A',
+                  nombre_seccion: formData.nombre_seccion || 'N/A',
+                  nombre_dependencia: formData.nombre_dependencia || 'N/A',
+              };
+              break;
+          case 1:
+              pasoData = {
+                  introduccion: formData.introduccion || 'N/A',
+                  objetivo_general: formData.objetivo_general || 'N/A',
+                  objetivos_especificos: formData.objetivos_especificos || 'N/A',
+                  justificacion: formData.justificacion || 'N/A',
+                  metodologia: formData.metodologia || 'N/A',
+              };
+              break;
+          case 2:
+              pasoData = {
+                  tipo: formData.tipo || 'N/A',
+                  otro_tipo: formData.otro_tipo || 'N/A',
+                  modalidad: formData.modalidad || 'N/A',
+                  horas_trabajo_presencial: formData.horas_trabajo_presencial || 'N/A',
+                  horas_sincronicas: formData.horas_sincronicas || 'N/A',
+                  total_horas: formData.total_horas || 'N/A',
+                  programCont: formData.programCont || 'N/A',
+                  dirigidoa: formData.dirigidoa || 'N/A',
+                  creditos: formData.creditos || 'N/A',
+                  cupo_min: formData.cupo_min || 'N/A',
+                  cupo_max: formData.cupo_max || 'N/A',
+              };
+              break;
+          case 3:
+              pasoData = {
+                  nombre_coordinador: formData.nombre_coordinador || 'N/A',
+                  correo_coordinador: formData.correo_coordinador || 'N/A',
+                  tel_coordinador: formData.tel_coordinador || 'N/A',
+                  perfil_competencia: formData.perfil_competencia || 'N/A',
+                  formas_evaluacion: formData.formas_evaluacion || 'N/A',
+                  certificado_solicitado: formData.certificado_solicitado || 'N/A',
+                  calificacion_minima: formData.calificacion_minima || 'N/A',
+                  razon_no_certificado: formData.razon_no_certificado || 'N/A',
+                  valor_inscripcion: formData.valor_inscripcion || 'N/A',
+              };
+              break;
+          case 4:
+              pasoData = {
+                  becas_convenio: formData.becas_convenio || 'N/A',
+                  becas_estudiantes: formData.becas_estudiantes || 'N/A',
+                  becas_docentes: formData.becas_docentes || 'N/A',
+                  becas_egresados: formData.becas_egresados || 'N/A',
+                  becas_funcionarios: formData.becas_funcionarios || 'N/A',
+                  becas_otros: formData.becas_otros || 'N/A',
+                  periodicidad_oferta: formData.periodicidad_oferta || 'N/A',
+                  organizacion_actividad: formData.organizacion_actividad || 'N/A',
+                  otro_tipo_act: formData.otro_tipo_act || 'N/A',
+                  extension_solidaria: formData.extension_solidaria || 'N/A',
+                  costo_extension_solidaria: formData.costo_extension_solidaria || 'N/A',
+                  personal_externo: formData.personal_externo || 'N/A',
+              };
+              break;
+          default:
+              break;
+      }
 
-    // Crear el objeto de datos a enviar
-    let dataToSend;
-    if (formData.pieza_grafica) {
-        dataToSend = new FormData();
-        dataToSend.append('id_solicitud', idSolicitud);
-        dataToSend.append('paso', activeStep + 1);
-        dataToSend.append('hoja', hoja);
-        dataToSend.append('id_usuario', userData.id);
-        dataToSend.append('name', userData.name);
+      // Crear el objeto de datos a enviar
+      let dataToSend;
 
-        // Añadir los campos de pasoData al FormData
-        Object.keys(pasoData).forEach((key) => {
-            dataToSend.append(key, pasoData[key]);
-        });
+      // Solo en el último paso se incluirá la pieza gráfica
+      if (formData.pieza_grafica && activeStep === 4) {
+          dataToSend = new FormData();
+          dataToSend.append('id_solicitud', idSolicitud);
+          dataToSend.append('paso', activeStep + 1);
+          dataToSend.append('hoja', hoja);
+          dataToSend.append('id_usuario', userData.id);
+          dataToSend.append('name', userData.name);
 
-        // Añadir pieza gráfica
-        dataToSend.append('pieza_grafica', formData.pieza_grafica || 'N/A');
-    } else {
-        dataToSend = {
-            id_solicitud: idSolicitud,
-            paso: activeStep + 1,
-            hoja: hoja,
-            id_usuario: userData.id,
-            name: userData.name,
-            ...pasoData + 'N/A',
-        };
-    }
+          // Añadir los campos de pasoData al FormData
+          Object.keys(pasoData).forEach((key) => {
+              dataToSend.append(key, pasoData[key]);
+          });
 
-    try {
-        // Debugging para asegurar los datos enviados
-        console.log("Enviando Datos:", dataToSend);
+          // Añadir pieza gráfica
+          dataToSend.append('pieza_grafica', formData.pieza_grafica);
+      } else {
+          // Si no hay pieza gráfica o no es el último paso, envía los datos como JSON
+          dataToSend = {
+              id_solicitud: idSolicitud,
+              paso: activeStep + 1,
+              hoja: hoja,
+              id_usuario: userData.id,
+              name: userData.name,
+              ...pasoData,
+          };
+      }
 
-        if (formData.pieza_grafica) {
-            await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
-        } else {
-            await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend);
-        }
+      try {
+          // Debugging para asegurar los datos enviados
+          console.log("Enviando Datos:", dataToSend);
 
-        // Mover al siguiente paso si todo fue exitoso
-        setIsLoading(false); // Finalizar el loading
-        setActiveStep((prevActiveStep) => prevActiveStep + 1);
-    } catch (error) {
-        console.error('Error al guardar el progreso:', error);
-        if (error.response) {
-            console.error('Detalles del error:', error.response.data);
-        }
-    }
-};
+          if (formData.pieza_grafica && activeStep === 4) {
+              await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend, {
+                  headers: {
+                      'Content-Type': 'multipart/form-data',
+                  },
+              });
+          } else {
+              await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend);
+          }
 
-const handleBack = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep - 1);
-};
+          // Mover al siguiente paso si todo fue exitoso
+          setIsLoading(false); // Finalizar el loading
+          setActiveStep((prevActiveStep) => prevActiveStep + 1);
+      } catch (error) {
+          console.error('Error al guardar el progreso:', error);
+          if (error.response) {
+              console.error('Detalles del error:', error.response.data);
+          }
+      }
+  };
 
-const handleSubmit = async () => {
-  setIsLoading(true); // Finalizar el loading
-    const hoja = 1; // Cambiar según corresponda al formulario actual
+  const handleBack = () => {
+      setActiveStep((prevActiveStep) => prevActiveStep - 1);
+  };
 
-    let pasoData = {
-        becas_convenio: formData.becas_convenio || 'N/A',
-        becas_estudiantes: formData.becas_estudiantes || 'N/A',
-        becas_docentes: formData.becas_docentes || 'N/A',
-        becas_egresados: formData.becas_egresados || 'N/A',
-        becas_funcionarios: formData.becas_funcionarios || 'N/A',
-        becas_otros: formData.becas_otros || 'N/A',
-        periodicidad_oferta: formData.periodicidad_oferta || 'N/A',
-        organizacion_actividad: formData.organizacion_actividad || 'N/A',
-        otro_tipo_act: formData.otro_tipo_act || 'N/A',
-        extension_solidaria: formData.extension_solidaria || 'N/A',
-        costo_extension_solidaria: formData.costo_extension_solidaria || 'N/A',
-        personal_externo: formData.personal_externo || 'N/A',
-    };
+  const handleSubmit = async () => {
+    setIsLoading(true); // Finalizar el loading
+      const hoja = 1; // Cambiar según corresponda al formulario actual
 
-    let dataToSend;
-    if (formData.pieza_grafica) {
-        dataToSend = new FormData();
-        dataToSend.append('id_solicitud', idSolicitud);
-        dataToSend.append('paso', activeStep + 1);
-        dataToSend.append('hoja', hoja);
-        dataToSend.append('id_usuario', userData.id);
-        dataToSend.append('name', userData.name);
+      let pasoData = {
+          becas_convenio: formData.becas_convenio || 'N/A',
+          becas_estudiantes: formData.becas_estudiantes || 'N/A',
+          becas_docentes: formData.becas_docentes || 'N/A',
+          becas_egresados: formData.becas_egresados || 'N/A',
+          becas_funcionarios: formData.becas_funcionarios || 'N/A',
+          becas_otros: formData.becas_otros || 'N/A',
+          periodicidad_oferta: formData.periodicidad_oferta || 'N/A',
+          organizacion_actividad: formData.organizacion_actividad || 'N/A',
+          otro_tipo_act: formData.otro_tipo_act || 'N/A',
+          extension_solidaria: formData.extension_solidaria || 'N/A',
+          costo_extension_solidaria: formData.costo_extension_solidaria || 'N/A',
+          personal_externo: formData.personal_externo || 'N/A',
+      };
 
-        // Añadir los campos de pasoData al FormData
-        Object.keys(pasoData).forEach((key) => {
-            dataToSend.append(key, pasoData[key]);
-        });
+      let dataToSend;
+      if (formData.pieza_grafica) {
+          dataToSend = new FormData();
+          dataToSend.append('id_solicitud', idSolicitud);
+          dataToSend.append('paso', activeStep + 1);
+          dataToSend.append('hoja', hoja);
+          dataToSend.append('id_usuario', userData.id);
+          dataToSend.append('name', userData.name);
 
-        // Añadir pieza gráfica
-        dataToSend.append('pieza_grafica', formData.pieza_grafica || 'N/A');
-    } else {
-        dataToSend = {
-            id_solicitud: idSolicitud,
-            paso: activeStep + 1,
-            hoja: hoja,
-            id_usuario: userData.id,
-            name: userData.name,
-            ...pasoData + 'N/A',
-        };
-    }
+          // Añadir los campos de pasoData al FormData
+          Object.keys(pasoData).forEach((key) => {
+              dataToSend.append(key, pasoData[key]);
+          });
 
-    try {
-        // Verificación del ID de usuario antes de continuar
-        if (!userData.id) {
-            console.error("El ID de usuario es indefinido. No se puede proceder.");
-            return;
-        }
+          // Añadir pieza gráfica
+          dataToSend.append('pieza_grafica', formData.pieza_grafica || 'N/A');
+      } else {
+          dataToSend = {
+              id_solicitud: idSolicitud,
+              paso: activeStep + 1,
+              hoja: hoja,
+              id_usuario: userData.id,
+              name: userData.name,
+              ...pasoData + 'N/A',
+          };
+      }
 
-        // Debugging para asegurar los datos enviados
-        console.log("Enviando Datos:", dataToSend);
+      try {
+          // Verificación del ID de usuario antes de continuar
+          if (!userData.id) {
+              console.error("El ID de usuario es indefinido. No se puede proceder.");
+              return;
+          }
 
-        if (formData.pieza_grafica) {
-            await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
-        } else {
-            await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend);
-        }
+          // Debugging para asegurar los datos enviados
+          console.log("Enviando Datos:", dataToSend);
 
-        // Mostrar modal de finalización si todo fue exitoso
-        setIsLoading(false); // Finalizar el loading
-        setShowModal(true);
-    } catch (error) {
-        console.error('Error al guardar los datos del último paso:', error);
-        if (error.response) {
-            console.error('Detalles del error:', error.response.data);
-        }
-    }
-};
+          if (formData.pieza_grafica) {
+              await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend, {
+                  headers: {
+                      'Content-Type': 'multipart/form-data',
+                  },
+              });
+          } else {
+              await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend);
+          }
 
-
+          // Mostrar modal de finalización si todo fue exitoso
+          setIsLoading(false); // Finalizar el loading
+          setShowModal(true);
+      } catch (error) {
+          console.error('Error al guardar los datos del último paso:', error);
+          if (error.response) {
+              console.error('Detalles del error:', error.response.data);
+          }
+      }
+  };
 
   const renderStepContent = (step) => {
     switch (step) {

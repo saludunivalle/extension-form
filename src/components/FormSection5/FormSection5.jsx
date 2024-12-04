@@ -45,8 +45,8 @@ function FormSection5({ formData, handleInputChange, userData, currentStep, setC
                 proposito: formData.proposito || 'No',
                 comentario: formData.comentario || 'No',
                 programa: formData.programa || 'No',
-                fecha: formData.fecha || 'No',
-                elaboradoPor: formData.elaboradoPor || 'No',
+                fecha_solicitud: formData.fecha_solicitud || 'No',
+                nombre_solicitante: formData.nombre_solicitante || 'No',
             };
             break;
         case 1:

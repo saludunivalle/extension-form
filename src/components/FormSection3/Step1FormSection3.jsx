@@ -19,8 +19,8 @@ function Step1FormSection3({ formData, handleInputChange }) {
           label="Fecha"
           type="date"
           fullWidth
-          name="fecha"
-          value={formData.fecha || ''}
+          name="fecha_solicitud"
+          value={formData.fecha_solicitud || ''}
           onChange={handleInputChange}
           InputLabelProps={{
             shrink: true,

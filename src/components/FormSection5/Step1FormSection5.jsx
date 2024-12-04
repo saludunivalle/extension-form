@@ -13,11 +13,22 @@ function Step1FormSection5({ formData, handleInputChange }) {
       <Typography variant="h6" gutterBottom>PROGRAMA</Typography>
       <TextField label="Programa" name="programa" value={formData.programa || ''} onChange={handleInputChange} fullWidth margin="normal" />
       
-      <Typography variant="h6" gutterBottom>FECHA</Typography>
-      <TextField label="Fecha" name="fecha" value={formData.fecha || ''} onChange={handleInputChange} fullWidth margin="normal" />
+      <TextField
+          label="Fecha"
+          type="date"
+          fullWidth
+          name="fecha_solicitud"
+          value={formData.fecha_solicitud || ''}
+          onChange={handleInputChange}
+          InputLabelProps={{
+            shrink: true,
+          }}
+          required
+          sx={{ marginTop: 2, marginBottom: 2 }}
+      />
 
       <Typography variant="h6" gutterBottom>ELABORADO POR</Typography>
-      <TextField label="Elaborado por" name="elaboradoPor" value={formData.elaboradoPor || ''} onChange={handleInputChange} fullWidth margin="normal" />
+      <TextField label="Elaborado por" name="nombre_solicitante" value={formData.nombre_solicitante || ''} onChange={handleInputChange} fullWidth margin="normal" />
     </Box>
   );
 }
