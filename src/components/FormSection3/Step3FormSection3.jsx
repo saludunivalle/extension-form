@@ -5,10 +5,13 @@ function Step3FormSection3({ formData, handleInputChange }) {
   // Calcular dinámicamente los totales según los datos en formData
   const totalIngresos = (formData.ingresos_cantidad || 0) * (formData.ingresos_vr_unit || 0);
 
-  const fondoComun = totalIngresos * 0.3; // 30% del total de ingresos
+  // Porcentaje para el fondo común (ajustable por el usuario)
+  const fondoComunPorcentaje = formData.fondo_comun_porcentaje || 30;
+
+  // Cálculo del fondo común, facultad y escuela/departamento
+  const fondoComun = (fondoComunPorcentaje / 100) * totalIngresos;
   const facultadInstituto = totalIngresos * 0.05; // 5% del total de ingresos
-  const escuelaDepartamento =
-    ((formData.escuela_departamento_porcentaje || 0) / 100) * totalIngresos; // XX% dinámico
+  const escuelaDepartamento = ((formData.escuela_departamento_porcentaje || 0) / 100) * totalIngresos;
 
   // Suma total de los aportes
   const totalAportesUnivalle = fondoComun + facultadInstituto + escuelaDepartamento;
@@ -35,7 +38,28 @@ function Step3FormSection3({ formData, handleInputChange }) {
           <TableBody>
             {/* Fondo Común */}
             <TableRow>
-              <TableCell>Fondo Común (30%)</TableCell>
+              <TableCell>
+                Fondo Común (
+                <TextField
+                  type="number"
+                  name="fondo_comun_porcentaje"
+                  value={fondoComunPorcentaje}
+                  onChange={(e) => {
+                    let value = parseFloat(e.target.value) || 0;
+                    if (value < 1) value = 1; // Limitar mínimo a 1%
+                    if (value > 100) value = 100; // Limitar máximo a 100%
+                    handleInputChange({ target: { name: 'fondo_comun_porcentaje', value } });
+                  }}
+                  inputProps={{
+                    inputMode: 'numeric',
+                    pattern: '[0-9]*',
+                    min: 1,
+                    max: 100,
+                    style: { width: '50px', height: '30px', fontSize: '14px', padding: '5px' },
+                  }}
+                />
+                %)
+              </TableCell>
               <TableCell align="right">{formatCurrency(fondoComun)}</TableCell>
             </TableRow>
 
@@ -47,21 +71,29 @@ function Step3FormSection3({ formData, handleInputChange }) {
 
             {/* Escuela/Departamento */}
             <TableRow>
-              <TableCell>Escuela, Departamento, Área (XX%)</TableCell>
-              <TableCell align="right">
+              <TableCell>
+                Escuela, Departamento, Área (
                 <TextField
                   type="number"
                   name="escuela_departamento_porcentaje"
                   value={formData.escuela_departamento_porcentaje || ''}
                   onChange={(e) => {
-                    const value = parseFloat(e.target.value) || 0;
-                    const valor = totalIngresos * (value / 100); // Calcular según porcentaje ingresado
-                    handleInputChange({ target: { name: 'escuela_departamento', value: valor } });
+                    let value = parseFloat(e.target.value) || 0;
+                    if (value < 0) value = 0; // Limitar mínimo a 0%
+                    if (value > 100) value = 100; // Limitar máximo a 100%
                     handleInputChange({ target: { name: 'escuela_departamento_porcentaje', value } });
                   }}
-                  inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+                  inputProps={{
+                    inputMode: 'numeric',
+                    pattern: '[0-9]*',
+                    min: 0,
+                    max: 100,
+                    style: { width: '50px', height: '30px', fontSize: '14px', padding: '5px' },
+                  }}
                 />
+                %)
               </TableCell>
+              <TableCell align="right">{formatCurrency(escuelaDepartamento)}</TableCell>
             </TableRow>
 
             {/* Total Aportes */}
