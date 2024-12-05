@@ -25,10 +25,11 @@ function Step1FormSection5({ formData, handleInputChange }) {
           }}
           required
           sx={{ marginTop: 2, marginBottom: 2 }}
+          disabled
       />
 
       <Typography variant="h6" gutterBottom>ELABORADO POR</Typography>
-      <TextField label="Elaborado por" name="nombre_solicitante" value={formData.nombre_solicitante || ''} onChange={handleInputChange} fullWidth margin="normal" />
+      <TextField disabled label="Elaborado por" name="nombre_solicitante" value={formData.nombre_solicitante || ''} onChange={handleInputChange} fullWidth margin="normal" />
     </Box>
   );
 }

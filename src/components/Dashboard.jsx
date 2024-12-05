@@ -86,14 +86,23 @@ function Dashboard({ userData }) {
   const handleGenerateFormReport = async (request, formNumber) => {
     try {
       const { idSolicitud } = request;
-
+  
+      console.log("idSolicitud recibido:", idSolicitud);
+      console.log("formNumber recibido:", formNumber);
+  
+      if (!idSolicitud || !formNumber) {
+        console.error("Los parámetros solicitudId o formNumber no están definidos");
+        alert("No se puede generar el informe porque falta información.");
+        return;
+      }
+  
       const response = await axios.post('https://siac-extension-server.vercel.app/generateReport', {
         solicitudId: idSolicitud,
         formNumber,
       });
-
+  
       const { link } = response.data;
-
+  
       if (link) {
         alert(`Informe generado exitosamente para el formulario ${formNumber}`);
         window.open(link, '_blank');
@@ -103,11 +112,20 @@ function Dashboard({ userData }) {
       alert('Hubo un problema al generar el informe.');
     }
   };
+  
 
   const isButtonEnabled = (request, formNumber) => {
-    // Habilitar todos los botones hasta el formulario actual
+    // Si la solicitud está terminada, todos los botones deben estar habilitados
+    const isCompleted = completedRequests.some((completed) => completed.idSolicitud === request.idSolicitud);
+    
+    // Habilita todos los botones para solicitudes terminadas
+    if (isCompleted) {
+      return true;
+    }
+  
+    // Habilitar solo hasta el formulario actual para solicitudes activas
     return formNumber <= request.formulario;
-  };
+  };  
 
   return (
     <ThemeProvider theme={theme}>
@@ -166,11 +184,10 @@ function Dashboard({ userData }) {
               <div style={{ display: 'flex', gap: '10px' }}>
                 {[1, 2, 3, 4].map((buttonNumber) => (
                   <Button
-                    key={buttonNumber}
+                    key={`${request.idSolicitud}-${buttonNumber}`} // Combinar idSolicitud y buttonNumber
                     variant="contained"
-                    color={isButtonEnabled(request, buttonNumber) ? 'primary' : 'default'}
-                    onClick={() => isButtonEnabled(request, buttonNumber) && handleGenerateFormReport(request, buttonNumber)}
-                    disabled={!isButtonEnabled(request, buttonNumber)}
+                    color="primary"
+                    onClick={() => handleGenerateFormReport(request, buttonNumber)}
                   >
                     {buttonNumber}
                   </Button>
@@ -179,7 +196,7 @@ function Dashboard({ userData }) {
             </ListItem>
           ))}
         </List>
-        
+
       </div>
     </ThemeProvider>
   );

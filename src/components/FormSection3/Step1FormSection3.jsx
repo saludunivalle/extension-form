@@ -12,6 +12,7 @@ function Step1FormSection3({ formData, handleInputChange }) {
           value={formData.nombre_actividad || ''}
           onChange={handleInputChange}
           required
+          disabled
         />
       </Grid>
       <Grid item xs={12}>
@@ -26,6 +27,7 @@ function Step1FormSection3({ formData, handleInputChange }) {
             shrink: true,
           }}
           required
+          disabled
         />
       </Grid>
     </Grid>
