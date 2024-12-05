@@ -39,7 +39,7 @@ function App() {
           path="/form"
           element={
             isLogged ? (
-              <Layout>
+              <Layout userData={userInfo}>
                 <FormPage userData={userInfo} />
               </Layout>
             ) : (
@@ -51,7 +51,7 @@ function App() {
           path="/results"
           element={
             isLogged ? (
-              <Layout>
+              <Layout userData={userInfo}>
                 <ResultsPage userData={userInfo} />
               </Layout>
             ) : (
@@ -63,7 +63,7 @@ function App() {
           path="/formulario/:formId"
           element={
             isLogged ? (
-              <Layout>
+              <Layout userData={userInfo}>
                 <FormPage userData={userInfo} />
               </Layout>
             ) : (
