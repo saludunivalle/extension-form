@@ -38,7 +38,7 @@ function Step3FormSection3({ formData, handleInputChange }) {
           <TableBody>
             {/* Fondo Común */}
             <TableRow>
-              <TableCell>
+              <TableCell sx={{display:'flex', flexDirection:'row',alignItems:'center'}}>
                 Fondo Común (
                 <TextField
                   type="number"
@@ -55,7 +55,7 @@ function Step3FormSection3({ formData, handleInputChange }) {
                     pattern: '[0-9]*',
                     min: 1,
                     max: 100,
-                    style: { width: '50px', height: '30px', fontSize: '14px', padding: '5px' },
+                    style: { width: '50px', height: '30px', fontSize: '14px', padding: '5px'},
                   }}
                 />
                 %)
@@ -71,7 +71,7 @@ function Step3FormSection3({ formData, handleInputChange }) {
 
             {/* Escuela/Departamento */}
             <TableRow>
-              <TableCell>
+              <TableCell sx={{display:'flex', flexDirection:'row',alignItems:'center'}}>
                 Escuela, Departamento, Área (
                 <TextField
                   type="number"
