@@ -222,10 +222,10 @@ function FormSection5({ formData, handleInputChange, userData, currentStep, setC
       </Box>
 
       <Dialog open={showModal} onClose={() => setShowModal(false)}>
-          <DialogTitle>Formulario Completado</DialogTitle>
+          <DialogTitle>Formulario Riesgos Potenciales</DialogTitle>
           <DialogContent>
             <DialogContentText>
-              ¿Desea continuar al siguiente formulario o volver al inicio?
+             Los datos del Formulario Riesgos Potenciales han sido guardados, ¿Desea continuar con el siguiente formulario?
             </DialogContentText>
           </DialogContent>
           <DialogActions>

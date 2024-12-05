@@ -288,10 +288,10 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>
         <Dialog open={showModal} onClose={() => setShowModal(false)}>
-          <DialogTitle>Formulario Completado</DialogTitle>
+          <DialogTitle>Formulario Presupuesto Completado</DialogTitle>
           <DialogContent>
             <DialogContentText>
-              ¿Desea continuar al siguiente formulario o volver al inicio?
+             Los datos del Formulario Presupuesto han sido guardados, ¿Desea continuar con el siguiente formulario?
             </DialogContentText>
           </DialogContent>
           <DialogActions>

@@ -336,10 +336,10 @@ function FormSection({
       </Box>
 
       <Dialog open={showModal} onClose={() => setShowModal(false)}>
-        <DialogTitle>Formulario Finalizado</DialogTitle>
+        <DialogTitle>Formulario Aprobación Finalizado</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Sus datos han sido guardados correctamente.
+            Los datos del Formulario Aprobación han sido guardados, ¿Desea continuar con el siguiente formulario?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
