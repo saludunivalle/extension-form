@@ -1,5 +1,6 @@
 import React from 'react';
-import { Table, TableBody, TableCell, TableHead, TableRow, TextField } from '@mui/material';
+import { Table, TableBody, TableCell, TableHead, TableRow, TextField, InputAdornment } from '@mui/material';
+import { NumericFormat } from 'react-number-format';
 
 function Step2FormSection3({
   formData,
@@ -88,15 +89,21 @@ function Step2FormSection3({
             />
           </TableCell>
           <TableCell align="right">
-            <TextField
-              type="number"
-              name="ingresos_vr_unit"
+            <NumericFormat
+              customInput={TextField}
+              thousandSeparator="."
+              decimalSeparator="," 
+              prefix="$ "
               value={formData.ingresos_vr_unit || ''}
-              onChange={handleNumberInputChange}
-              inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
-              InputProps={{
-                startAdornment: '$', // Añadir símbolo de pesos al input
+              onValueChange={(values) => {
+                handleNumberInputChange({
+                  target: {
+                    name: 'ingresos_vr_unit',
+                    value: values.value,
+                  },
+                });
               }}
+              inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
             />
           </TableCell>
           <TableCell align="right">{formatCurrency(totalIngresos)}</TableCell>
@@ -155,15 +162,21 @@ function Step2FormSection3({
               />
             </TableCell>
             <TableCell align="right">
-              <TextField
-                type="number"
-                name={`${item.key}_vr_unit`}
+              <NumericFormat
+                customInput={TextField}
+                thousandSeparator="."
+                decimalSeparator="," 
+                prefix="$ "
                 value={formData[`${item.key}_vr_unit`] || ''}
-                onChange={handleNumberInputChange}
-                inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
-                InputProps={{
-                  startAdornment: '$', // Añadir símbolo de pesos al input
+                onValueChange={(values) => {
+                  handleNumberInputChange({
+                    target: {
+                      name: `${item.key}_vr_unit`,
+                      value: values.value,
+                    },
+                  });
                 }}
+                inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
               />
             </TableCell>
             <TableCell align="right">
