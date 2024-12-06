@@ -189,80 +189,59 @@ function FormSection({
   
   const handleSubmit = async () => {
     setIsLoading(true); // Finalizar el loading
-      const hoja = 1; // Cambiar según corresponda al formulario actual
+    const hoja = 1;
 
-      let pasoData = {
-          becas_convenio: formData.becas_convenio || 'N/A',
-          becas_estudiantes: formData.becas_estudiantes || 'N/A',
-          becas_docentes: formData.becas_docentes || 'N/A',
-          becas_egresados: formData.becas_egresados || 'N/A',
-          becas_funcionarios: formData.becas_funcionarios || 'N/A',
-          becas_otros: formData.becas_otros || 'N/A',
-          periodicidad_oferta: formData.periodicidad_oferta || 'N/A',
-          organizacion_actividad: formData.organizacion_actividad || 'N/A',
-          otro_tipo_act: formData.otro_tipo_act || 'N/A',
-          extension_solidaria: formData.extension_solidaria || 'N/A',
-          costo_extension_solidaria: formData.costo_extension_solidaria || 'N/A',
-          personal_externo: formData.personal_externo || 'N/A',
-      };
+    let pasoData = {
+        becas_convenio: formData.becas_convenio || 'N/A',
+        becas_estudiantes: formData.becas_estudiantes || 'N/A',
+        becas_docentes: formData.becas_docentes || 'N/A',
+        becas_egresados: formData.becas_egresados || 'N/A',
+        becas_funcionarios: formData.becas_funcionarios || 'N/A',
+        becas_otros: formData.becas_otros || 'N/A',
+        periodicidad_oferta: formData.periodicidad_oferta || 'N/A',
+        organizacion_actividad: formData.organizacion_actividad || 'N/A',
+        otro_tipo_act: formData.otro_tipo_act || 'N/A',
+        extension_solidaria: formData.extension_solidaria || 'N/A',
+        costo_extension_solidaria: formData.costo_extension_solidaria || 'N/A',
+        personal_externo: formData.personal_externo || 'N/A',
+    };
 
-      let dataToSend;
-      if (formData.pieza_grafica) {
-          dataToSend = new FormData();
-          dataToSend.append('id_solicitud', idSolicitud);
-          dataToSend.append('paso', activeStep + 1);
-          dataToSend.append('hoja', hoja);
-          dataToSend.append('id_usuario', userData.id);
-          dataToSend.append('name', userData.name);
+    let dataToSend = new FormData();
+    dataToSend.append('id_solicitud', idSolicitud);
+    dataToSend.append('paso', activeStep + 1);
+    dataToSend.append('hoja', hoja);
+    dataToSend.append('id_usuario', userData.id);
+    dataToSend.append('name', userData.name);
 
-          // Añadir los campos de pasoData al FormData
-          Object.keys(pasoData).forEach((key) => {
-              dataToSend.append(key, pasoData[key]);
-          });
+    // Añadir los campos de pasoData al FormData, evitando duplicados
+    Object.keys(pasoData).forEach((key) => {
+        if (pasoData[key] !== undefined && pasoData[key] !== null) {
+            dataToSend.append(key, pasoData[key]);
+        }
+    });
 
-          // Añadir pieza gráfica
-          dataToSend.append('pieza_grafica', formData.pieza_grafica || 'N/A');
-      } else {
-          dataToSend = {
-              id_solicitud: idSolicitud,
-              paso: activeStep + 1,
-              hoja: hoja,
-              id_usuario: userData.id,
-              name: userData.name,
-              ...pasoData + 'N/A',
-          };
-      }
+    // Añadir pieza gráfica como "N/A" si no está disponible
+    dataToSend.append('pieza_grafica', formData.pieza_grafica ? formData.pieza_grafica : 'N/A');
 
-      try {
-          // Verificación del ID de usuario antes de continuar
-          if (!userData.id) {
-              console.error("El ID de usuario es indefinido. No se puede proceder.");
-              return;
-          }
+    try {
+        console.log("Enviando Datos:", dataToSend);
 
-          // Debugging para asegurar los datos enviados
-          console.log("Enviando Datos:", dataToSend);
+        await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
 
-          if (formData.pieza_grafica) {
-              await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend, {
-                  headers: {
-                      'Content-Type': 'multipart/form-data',
-                  },
-              });
-          } else {
-              await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend);
-          }
-
-          // Mostrar modal de finalización si todo fue exitoso
-          setIsLoading(false); // Finalizar el loading
-          setShowModal(true);
-      } catch (error) {
-          console.error('Error al guardar los datos del último paso:', error);
-          if (error.response) {
-              console.error('Detalles del error:', error.response.data);
-          }
-      }
-  };
+        // Mostrar modal de finalización si todo fue exitoso
+        setIsLoading(false); // Finalizar el loading
+        setShowModal(true);
+    } catch (error) {
+        console.error('Error al guardar los datos del último paso:', error);
+        if (error.response) {
+            console.error('Detalles del error:', error.response.data);
+        }
+    }
+};
 
   const renderStepContent = (step) => {
     switch (step) {
