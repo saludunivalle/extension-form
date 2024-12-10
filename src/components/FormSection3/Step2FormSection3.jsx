@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableRow, TextField, InputAdornment } from '@mui/material';
 import { NumericFormat } from 'react-number-format';
 
 function Step2FormSection3({
   formData,
   handleNumberInputChange,
+  updateTotalGastos // Nueva función callback para enviar el total al componente padre
 }) {
   // Calcular dinámicamente el total de ingresos
   const totalIngresos = (formData.ingresos_cantidad || 0) * (formData.ingresos_vr_unit || 0);
@@ -52,6 +53,11 @@ function Step2FormSection3({
   const subtotalGastos = calculateSubtotalGastos();
   const imprevistos = subtotalGastos * 0.03; // 3% de los gastos
   const totalGastosImprevistos = subtotalGastos + imprevistos;
+
+  // Llama a la función callback cada vez que se calcule el total
+  useEffect(() => {
+    updateTotalGastos(totalGastosImprevistos);
+  }, [totalGastosImprevistos, updateTotalGastos]);
 
   // Formatear valores como moneda
   const formatCurrency = (value) => {

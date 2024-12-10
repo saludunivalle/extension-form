@@ -48,7 +48,7 @@ function Step3FormSection3({ formData, handleInputChange, totalGastos}) {
             <TableRow>
               <TableCell style={{ fontWeight: 'bold' }}>Total Gastos</TableCell>
               <TableCell align="right" style={{ fontWeight: 'bold' }}>
-                {formatCurrency(formData.totalGastos || 0)} {/* Usa el campo correspondiente a los gastos */}
+                {formatCurrency(totalGastos)} {/* Usa el campo correspondiente a los gastos */}
               </TableCell>
             </TableRow>
             {/* Fondo Común */}

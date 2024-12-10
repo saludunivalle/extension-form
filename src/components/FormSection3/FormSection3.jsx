@@ -19,6 +19,12 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
 
   const steps = ['Datos Generales', 'Ingresos y Gastos', 'Resumen Financiero'];
 
+  const [totalGastos, setTotalGastos] = useState(0);
+
+  const handleUpdateTotalGastos = (total) => {
+    setTotalGastos(total); // Actualiza el total de gastos cuando se reciba
+  };
+
   // Verificar que estamos recibiendo el `formData` y el `userData`
   useEffect(() => {
     console.log('Formulario data recibido: ', formData);
@@ -245,9 +251,9 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
       case 0:
         return <Step1FormSection3 formData={formData} handleInputChange={handleInputChange} />;
       case 1:
-        return <Step2FormSection3 formData={formData} handleNumberInputChange={handleInputChange} handleInputChange={handleInputChange} totalIngresos={formData.total_ingresos || 0} totalGastos={formData.total_gastos || 0} />;
+        return <Step2FormSection3 formData={formData} handleNumberInputChange={handleInputChange} handleInputChange={handleInputChange} totalIngresos={formData.total_ingresos || 0} totalGastos={formData.total_gastos || 0} updateTotalGastos={handleUpdateTotalGastos}/>;
       case 2:
-        return <Step3FormSection3 formData={formData} handleInputChange={handleInputChange} totalIngresos={formData.total_ingresos || 0} totalGastos={formData.total_gastos || 0} totalAportesUnivalle={totalAportesUnivalle || 0} />;
+        return <Step3FormSection3 formData={formData} handleInputChange={handleInputChange} totalIngresos={formData.total_ingresos || 0}  totalAportesUnivalle={totalAportesUnivalle || 0} totalGastos={totalGastos} />;
       default:
         return null;
     }
