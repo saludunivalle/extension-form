@@ -1,7 +1,7 @@
 import React from 'react';
 import { Grid, Table, TableBody, TableCell, TableHead, TableRow, TextField } from '@mui/material';
 
-function Step3FormSection3({ formData, handleInputChange }) {
+function Step3FormSection3({ formData, handleInputChange, totalGastos}) {
   // Calcular dinámicamente los totales según los datos en formData
   const totalIngresos = (formData.ingresos_cantidad || 0) * (formData.ingresos_vr_unit || 0);
 
@@ -36,6 +36,21 @@ function Step3FormSection3({ formData, handleInputChange }) {
             </TableRow>
           </TableHead>
           <TableBody>
+             {/* Total Ingresos */}
+            <TableRow>
+              <TableCell style={{ fontWeight: 'bold' }}>Total Ingresos</TableCell>
+              <TableCell align="right" style={{ fontWeight: 'bold' }}>
+                {formatCurrency(totalIngresos)}
+              </TableCell>
+            </TableRow>
+
+            {/* Total Gastos */}
+            <TableRow>
+              <TableCell style={{ fontWeight: 'bold' }}>Total Gastos</TableCell>
+              <TableCell align="right" style={{ fontWeight: 'bold' }}>
+                {formatCurrency(formData.totalGastos || 0)} {/* Usa el campo correspondiente a los gastos */}
+              </TableCell>
+            </TableRow>
             {/* Fondo Común */}
             <TableRow>
               <TableCell sx={{display:'flex', flexDirection:'row',alignItems:'center'}}>
