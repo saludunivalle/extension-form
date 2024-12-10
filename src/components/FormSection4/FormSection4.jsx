@@ -16,6 +16,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
   const navigate = useNavigate(); // Cambia useHistory por useNavigate
   const location = useLocation(); // Obtener la ubicación actual
   const [isLoading, setIsLoading] = useState(false); // Estado para manejar el loading del botón
+  const [completedSteps, setCompletedSteps] = useState([]);
 
   const steps = [
     'Actividades de Mercadeo Relacional',
@@ -140,6 +141,13 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
             name: userData.name,
         });
         setIsLoading(false); // Finalizar el loading
+        setCompletedSteps((prevCompleted) => {
+          const newCompleted = [...prevCompleted];
+          if (!newCompleted.includes(activeStep)) {
+            newCompleted.push(activeStep);
+          }
+          return newCompleted;
+        });
         setActiveStep((prevActiveStep) => prevActiveStep + 1);
     } catch (error) {
         console.error('Error al guardar el progreso:', error.response?.data || error.message);
@@ -232,34 +240,34 @@ const handleSubmit = async () => {
 
   return (
     <Box>
-      <Stepper activeStep={activeStep} sx={{
-        '& .MuiStepLabel-label': {
-          color: '#4F4F4F', // Color estándar para los labels no activos
-          fontWeight: 'normal', // Peso normal para los labels no activos
-          fontSize: '14px', // Tamaño estándar para los no activos
-        },
-        '& .MuiStepLabel-label.Mui-active': {
-          color: '#0056b3', // Azul intenso para el texto del paso activo
-          fontWeight: 'bold', // Negrilla para el texto activo
-          fontSize: '16px', // Tamaño más grande para el texto activo
-        },
-        '& .MuiStepIcon-root': {
-          fontSize: '24px', // Tamaño estándar para los íconos no activos
-          color: '#4F4F4F', // Color estándar para los íconos no activos
-        },
-        '& .MuiStepIcon-root.Mui-active': {
-          fontSize: '30px', // Tamaño más grande para íconos activos
-          color: '#0056b3', // Azul intenso para los íconos activos
-        },
-        '& .MuiStepIcon-root.Mui-completed': {
-          fontSize: '24px', // Tamaño estándar para íconos completados
-          color: '#1976d2', // Azul para los íconos completados (el mismo color que el chulito)
-        },
-      }}>
-        {steps.map((label, index) => (
-          <Step key={index} sx={{ marginBottom: '20px' }}>
-            <StepLabel>{label}</StepLabel>
-          </Step>
+      <Stepper
+        activeStep={activeStep}
+        sx={{
+          '& .MuiStepIcon-root': {
+            fontSize: '24px',
+            color: '#4F4F4F', // Color por defecto
+          },
+          '& .MuiStepIcon-root.Mui-active': {
+            fontSize: '30px',
+            color: '#0056b3', // Azul para el paso activo
+          },
+          '& .MuiStepIcon-root.Mui-completed': {
+            fontSize: '24px',
+            color: '#1976d2', // Azul para pasos completados
+          },
+        }}
+      >
+      {steps.map((label, index) => (
+        <Step key={index} sx={{marginBottom:'20px'}}>      
+              <StepLabel
+                onClick={() => handleStepClick(index)}
+                sx={{
+                  cursor: completedSteps.includes(index) || index === activeStep ? 'pointer' : 'default',
+                }}
+              >
+                {label}
+              </StepLabel>
+            </Step>
         ))}
       </Stepper>
 
