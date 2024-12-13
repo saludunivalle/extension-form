@@ -52,18 +52,26 @@ function Dashboard({ userData }) {
 
   const handleContinue = (request) => {
     const { idSolicitud, formulario, paso } = request;
-
-    // Restar 1 al paso para asegurarnos de que el usuario llegue al paso correcto
-    const pasoCorrecto = paso > 0 ? paso - 1 : 0; // Asegurarse de no tener un valor menor a 0
-
-    // Actualizamos el localStorage con el id de la solicitud que se va a continuar
-    console.log("Actualizando el id_solicitud en localStorage con:", idSolicitud);
+  
+    // Validar formulario y paso
+    if (formulario < 1 || formulario > 4) {
+      console.error('Formulario inválido:', formulario);
+      alert('El número de formulario no es válido.');
+      return;
+    }
+    if (paso < 0) {
+      console.error('Paso inválido:', paso);
+      alert('El paso del formulario no es válido.');
+      return;
+    }
+  
+    const pasoCorrecto = paso > 0 ? paso - 1 : 0;
     localStorage.setItem('id_solicitud', idSolicitud);
-
-    // Navegamos hacia la ruta correcta del formulario
+  
     const formRoute = `/formulario/${formulario}?solicitud=${idSolicitud}&paso=${pasoCorrecto}`;
     navigate(formRoute);
   };
+  
 
   const handleCreateNewRequest = async () => {
     try {

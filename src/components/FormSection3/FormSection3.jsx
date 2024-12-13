@@ -31,8 +31,26 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
     console.log('Datos del usuario: ', userData);
   }, [formData, userData]);
 
+  useEffect(() => {
+    if (currentStep < 0 || currentStep >= steps.length) {
+      console.warn('Paso inicial fuera de rango. Reiniciando al primer paso.');
+      setActiveStep(0);
+    } else {
+      setActiveStep(currentStep);
+    }
+  }, [currentStep, steps.length]);
+
+  useEffect(() => {
+    if (!idSolicitud || isNaN(parseInt(idSolicitud, 10))) {
+      alert('No se encontró un ID válido para esta solicitud. Por favor, vuelve al dashboard.');
+      window.location.href = '/';
+    }
+  }, [idSolicitud]);
+  
+  
   // Manejo del paso "Siguiente"
   const handleNext = async () => {
+    if (activeStep < steps.length - 1) {
     setIsLoading(true); // Iniciar el loading
     const hoja = 2; // Formulario 3 va en SOLICITUDES3
     console.log("Datos del formulario antes de enviar:", formData); 
@@ -195,7 +213,6 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
         
         // Mover al siguiente paso si todo fue exitoso
         setIsLoading(false); // Finalizar el loading
-        setIsLoading(false); // Finalizar el loading
         setCompletedSteps((prevCompleted) => {
           const newCompleted = [...prevCompleted];
           if (!newCompleted.includes(activeStep)) {
@@ -210,10 +227,13 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
             console.error('Detalles del error:', error.response.data);
         }
     }
+  }
 };
 
   const handleBack = () => {
-      setActiveStep((prevActiveStep) => prevActiveStep - 1);
+    if (activeStep > 0) {
+      setActiveStep((prev) => prev - 1);
+    }
   };
 
   const handleSubmit = async () => {
@@ -260,8 +280,8 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
   };
 
   const handleStepClick = (stepIndex) => {
-    if (completedSteps.includes(stepIndex) || stepIndex === activeStep) {
-      setActiveStep(stepIndex); // Permite cambiar solo a pasos completados o el actual
+    if (stepIndex >= 0 && stepIndex < steps.length) {
+      setActiveStep(stepIndex);
     }
   };
   

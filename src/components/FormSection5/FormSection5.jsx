@@ -25,98 +25,116 @@ function FormSection5({ formData, handleInputChange, userData, currentStep, setC
 
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
 
-  const handleNext = async () => {
-    setIsLoading(true); // Iniciar el loading
-    const hoja = 3; // Formulario va en SOLICITUDES5
-
-    const completarValoresConNo = (data) => {
-        const completado = {};
-        for (let key in data) {
-            completado[key] = data[key] === '' || data[key] === null || data[key] === undefined ? 'No' : data[key];
-        }
-        return completado;
-    };
-
-    // Definir los datos específicos según el paso actual
-    let pasoData = {};
-
-    switch (activeStep) {
-        case 0:
-            pasoData = {
-                proposito: formData.proposito || 'No',
-                comentario: formData.comentario || 'No',
-                programa: formData.programa || 'No',
-                fecha_solicitud: formData.fecha_solicitud || 'No',
-                nombre_solicitante: formData.nombre_solicitante || 'No',
-            };
-            break;
-        case 1:
-            pasoData = {
-                aplicaDiseno1: formData.aplicaDiseno1 || 'No',
-                aplicaDiseno2: formData.aplicaDiseno2 || 'No',
-                aplicaDiseno3: formData.aplicaDiseno3 || 'No',
-                aplicaDiseno4: formData.aplicaDiseno4 || 'No',
-            };
-            break;
-        case 2:
-            pasoData = {
-                aplicaLocacion1: formData.aplicaLocacion1 || 'No',
-                aplicaLocacion2: formData.aplicaLocacion2 || 'No',
-                aplicaLocacion3: formData.aplicaLocacion3 || 'No',
-                aplicaLocacion4: formData.aplicaLocacion4 || 'No',
-                aplicaLocacion5: formData.aplicaLocacion5 || 'No',
-            };
-            break;
-        case 3:
-            pasoData = {
-                aplicaDesarrollo1: formData.aplicaDesarrollo1 || 'No',
-                aplicaDesarrollo2: formData.aplicaDesarrollo2 || 'No',
-                aplicaDesarrollo3: formData.aplicaDesarrollo3 || 'No',
-                aplicaDesarrollo4: formData.aplicaDesarrollo4 || 'No',
-                aplicaDesarrollo5: formData.aplicaDesarrollo5 || 'No',
-                aplicaDesarrollo6: formData.aplicaDesarrollo6 || 'No',
-                aplicaDesarrollo7: formData.aplicaDesarrollo7 || 'No',
-                aplicaDesarrollo8: formData.aplicaDesarrollo8 || 'No',
-                aplicaDesarrollo9: formData.aplicaDesarrollo9 || 'No',
-                aplicaDesarrollo10: formData.aplicaDesarrollo10 || 'No',
-                aplicaDesarrollo11: formData.aplicaDesarrollo11 || 'No',
-            };
-            break;
-        case 4:
-            pasoData = {
-                aplicaCierre1: formData.aplicaCierre1 || 'No',
-                aplicaCierre2: formData.aplicaCierre2 || 'No',
-                aplicaCierre3: formData.aplicaCierre3 || 'No',
-            };
-            break;
-        default:
-            break;
+  useEffect(() => {
+    if (!idSolicitud) {
+      alert('No se encontró un ID válido para esta solicitud. Por favor, vuelve al dashboard.');
+      navigate('/');
     }
+  }, [idSolicitud]);
+  
+  useEffect(() => {
+    if (currentStep < 0 || currentStep >= steps.length) {
+      setActiveStep(0);
+    } else {
+      setActiveStep(currentStep);
+    }
+  }, [currentStep, steps.length]);
 
-    const pasoDataCompleto = completarValoresConNo(pasoData);
+  
+  const handleNext = async () => {
+    if (activeStep < steps.length - 1) {
+      setIsLoading(true); // Iniciar el loading
+      const hoja = 3; // Formulario va en SOLICITUDES5
 
-    try {
-        await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-            id_solicitud: idSolicitud,
-            ...pasoDataCompleto, // Desestructurar pasoDataCompleto para que cada campo sea una clave separada
-            paso: activeStep + 1,
-            hoja,
-            id_usuario: userData.id_usuario, // Asegurar que se pase directamente id_usuario
-            name: userData.name,
-        });
-
-        // Mover al siguiente paso
-        setIsLoading(false); // Iniciar el loading
-        setCompletedSteps((prevCompleted) => {
-          const newCompleted = [...prevCompleted];
-          if (!newCompleted.includes(activeStep)) {
-            newCompleted.push(activeStep);
+      const completarValoresConNo = (data) => {
+          const completado = {};
+          for (let key in data) {
+              completado[key] = data[key] === '' || data[key] === null || data[key] === undefined ? 'No' : data[key];
           }
-          return newCompleted;
-        });
-        setActiveStep((prevActiveStep) => prevActiveStep + 1);
-    } catch (error) {
-        console.error('Error al guardar el progreso:', error.response?.data || error.message);
+          return completado;
+      };
+
+      // Definir los datos específicos según el paso actual
+      let pasoData = {};
+
+      switch (activeStep) {
+          case 0:
+              pasoData = {
+                  proposito: formData.proposito || 'No',
+                  comentario: formData.comentario || 'No',
+                  programa: formData.programa || 'No',
+                  fecha_solicitud: formData.fecha_solicitud || 'No',
+                  nombre_solicitante: formData.nombre_solicitante || 'No',
+              };
+              break;
+          case 1:
+              pasoData = {
+                  aplicaDiseno1: formData.aplicaDiseno1 || 'No',
+                  aplicaDiseno2: formData.aplicaDiseno2 || 'No',
+                  aplicaDiseno3: formData.aplicaDiseno3 || 'No',
+                  aplicaDiseno4: formData.aplicaDiseno4 || 'No',
+              };
+              break;
+          case 2:
+              pasoData = {
+                  aplicaLocacion1: formData.aplicaLocacion1 || 'No',
+                  aplicaLocacion2: formData.aplicaLocacion2 || 'No',
+                  aplicaLocacion3: formData.aplicaLocacion3 || 'No',
+                  aplicaLocacion4: formData.aplicaLocacion4 || 'No',
+                  aplicaLocacion5: formData.aplicaLocacion5 || 'No',
+              };
+              break;
+          case 3:
+              pasoData = {
+                  aplicaDesarrollo1: formData.aplicaDesarrollo1 || 'No',
+                  aplicaDesarrollo2: formData.aplicaDesarrollo2 || 'No',
+                  aplicaDesarrollo3: formData.aplicaDesarrollo3 || 'No',
+                  aplicaDesarrollo4: formData.aplicaDesarrollo4 || 'No',
+                  aplicaDesarrollo5: formData.aplicaDesarrollo5 || 'No',
+                  aplicaDesarrollo6: formData.aplicaDesarrollo6 || 'No',
+                  aplicaDesarrollo7: formData.aplicaDesarrollo7 || 'No',
+                  aplicaDesarrollo8: formData.aplicaDesarrollo8 || 'No',
+                  aplicaDesarrollo9: formData.aplicaDesarrollo9 || 'No',
+                  aplicaDesarrollo10: formData.aplicaDesarrollo10 || 'No',
+                  aplicaDesarrollo11: formData.aplicaDesarrollo11 || 'No',
+              };
+              break;
+          case 4:
+              pasoData = {
+                  aplicaCierre1: formData.aplicaCierre1 || 'No',
+                  aplicaCierre2: formData.aplicaCierre2 || 'No',
+                  aplicaCierre3: formData.aplicaCierre3 || 'No',
+              };
+              break;
+          default:
+              break;
+      }
+
+      const pasoDataCompleto = completarValoresConNo(pasoData);
+
+      try {
+          await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+              id_solicitud: idSolicitud,
+              ...pasoDataCompleto, // Desestructurar pasoDataCompleto para que cada campo sea una clave separada
+              paso: activeStep + 1,
+              hoja,
+              id_usuario: userData.id_usuario, // Asegurar que se pase directamente id_usuario
+              name: userData.name,
+          });
+
+          // Mover al siguiente paso
+          setIsLoading(false); // Iniciar el loading
+          setCompletedSteps((prevCompleted) => {
+            const newCompleted = [...prevCompleted];
+            if (!newCompleted.includes(activeStep)) {
+              newCompleted.push(activeStep);
+            }
+            return newCompleted;
+          });
+          setActiveStep((prevActiveStep) => prevActiveStep + 1);
+      } catch (error) {
+          console.error('Error al guardar el progreso:', error.response?.data || error.message);
+      }
     }
 };
 
@@ -164,7 +182,9 @@ function FormSection5({ formData, handleInputChange, userData, currentStep, setC
   };
   
   const handleBack = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep - 1); // Reducir el paso en 1
+    if (activeStep > 0) {
+      setActiveStep((prev) => prev - 1);
+    }
   };
 
   // Render step content based on activeStep
@@ -186,8 +206,8 @@ function FormSection5({ formData, handleInputChange, userData, currentStep, setC
   };
 
   const handleStepClick = (stepIndex) => {
-    if (completedSteps.includes(stepIndex) || stepIndex === activeStep) {
-      setActiveStep(stepIndex); // Permite cambiar solo a pasos completados o el actual
+    if (stepIndex >= 0 && stepIndex < steps.length && (completedSteps.includes(stepIndex) || stepIndex === activeStep)) {
+      setActiveStep(stepIndex);
     }
   };
   

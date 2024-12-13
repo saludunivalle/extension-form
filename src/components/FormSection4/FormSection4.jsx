@@ -28,193 +28,229 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
 
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
 
+  useEffect(() => {
+    if (currentStep < 0 || currentStep >= steps.length) {
+      console.warn('Paso inicial fuera de rango. Reiniciando al primer paso.');
+      setActiveStep(0);
+    } else {
+      setActiveStep(currentStep);
+    }
+  }, [currentStep, steps.length]);
+  
+  useEffect(() => {
+    if (!idSolicitud || isNaN(parseInt(idSolicitud, 10))) {
+      alert('No se encontró un ID válido para esta solicitud. Por favor, vuelve al dashboard.');
+      navigate('/');
+    }
+  }, [idSolicitud]);
+  
+  useEffect(() => {
+    if (currentStep < 0 || currentStep >= steps.length) {
+      console.warn('Paso inicial fuera de rango. Reiniciando al primer paso.');
+      setActiveStep(0);
+    } else {
+      setActiveStep(currentStep);
+    }
+  }, [currentStep, steps.length]);
+  
+
   const handleNext = async () => {
-    setIsLoading(true); // Finalizar el loading
-    const hoja = 4; // Formulario 2 va en SOLICITUDES
+    if (activeStep < steps.length - 1) {
+      setIsLoading(true); // Finalizar el loading
+      const hoja = 4; // Formulario 2 va en SOLICITUDES
 
-    const completarValoresConNo = (data) => {
-        const completado = {};
-        for (let key in data) {
-            completado[key] = data[key] === '' || data[key] === null || data[key] === undefined ? 'No' : data[key];
-        }
-        return completado;
-    };
-    
-    let pasoData = {};
-
-    switch (activeStep) {
-        case 0:
-            pasoData = {
-                descripcionPrograma: formData.descripcionPrograma || 'No',
-                identificacionNecesidades: formData.identificacionNecesidades || 'No',
-            };
-            break;
-        case 1:
-            pasoData = {
-                atributosBasicos: formData.atributosBasicos || 'No',
-                atributosDiferenciadores: formData.atributosDiferenciadores || 'No',
-                competencia: formData.competencia || 'No',
-                programa: formData.programa || 'No',
-                programasSimilares: formData.programasSimilares || 'No',
-                estrategiasCompetencia: formData.estrategiasCompetencia || 'No',
-            };
-            break;
-        case 2:
-            pasoData = {
-                personasInteresChecked: formData.personasInteresChecked || 'No',
-                personasMatriculadasChecked: formData.personasMatriculadasChecked || 'No',
-                otroInteres: formData.otroInteres || 'No',
-                innovacion: formData.innovacion || 'No',
-                solicitudExterno: formData.solicitudExterno || 'No',
-                interesSondeo: formData.interesSondeo || 'No',
-                otroMercadeo: formData.otroMercadeo || 'No',
-                llamadas: formData.llamadas || 'No',
-                encuestas: formData.encuestas || 'No',
-                webinar: formData.webinar || 'No',
-                pautas_redes: formData.pautas_redes || 'No',
-                otroEstrategias: formData.otroEstrategias || 'No',
-                preregistroFisico: formData.preregistroFisico || 'No',
-                preregistroGoogle: formData.preregistroGoogle || 'No',
-                preregistroOtro: formData.preregistroOtro || 'No',
-            };
-            break;
-        case 3:
-            pasoData = {
-                gremios: formData.gremios || 'No',
-                sectores_empresariales: formData.sectores_empresariales || 'No',
-                politicas_publicas: formData.politicas_publicas || 'No',
-                otros_mesas_trabajo: formData.otros_mesas_trabajo || 'No',
-                focusGroup: formData.focusGroup || 'No',
-                desayunosTrabajo: formData.desayunosTrabajo || 'No',
-                almuerzosTrabajo: formData.almuerzosTrabajo || 'No',
-                openHouse: formData.openHouse || 'No',
-                ferias_colegios: formData.ferias_colegios || 'No',
-                ferias_empresarial: formData.ferias_empresarial || 'No',
-                otros_mercadeo: formData.otros_mercadeo || 'No',
-                valorEconomico: formData.valorEconomico || 'No',
-                modalidadPresencial: formData.modalidadPresencial || 'No',
-                modalidadVirtual: formData.modalidadVirtual || 'No',
-                modalidadSemipresencial: formData.modalidadSemipresencial || 'No',
-                traslados_docente: formData.traslados_docente || 'No',
-                modalidad_asistida_tecnologia: formData.modalidad_asistida_tecnologia || 'No',
-            };
-            break;
-        case 4:
-            pasoData = {
-                beneficiosTangibles: formData.beneficiosTangibles || 'No',
-                beneficiosIntangibles: formData.beneficiosIntangibles || 'No',
-                particulares: formData.particulares || 'No',
-                colegios: formData.colegios || 'No',
-                empresas: formData.empresas || 'No',
-                egresados: formData.egresados || 'No',
-                colaboradores: formData.colaboradores || 'No',
-                otros_publicos_potenciales: formData.otros_publicos_potenciales || 'No',
-                tendenciasActuales: formData.tendenciasActuales || 'No',
-                dofaDebilidades: formData.dofaDebilidades || 'No',
-                dofaOportunidades: formData.dofaOportunidades || 'No',
-                dofaFortalezas: formData.dofaFortalezas || 'No',
-                dofaAmenazas: formData.dofaAmenazas || 'No',
-                paginaWeb: formData.paginaWeb || 'No',
-                facebook: formData.facebook || 'No',
-                instagram: formData.instagram || 'No',
-                linkedin: formData.linkedin || 'No',
-                correo: formData.correo || 'No',
-                prensa: formData.prensa || 'No',
-                boletin: formData.boletin || 'No',
-                llamadas_redes: formData.llamadas_redes || 'No',
-                otro_canal: formData.otro_canal || 'No',
-            };
-            break;
-        default:
-            break;
-    }
-
-    const pasoDataCompleto = completarValoresConNo(pasoData);
-
-    try {
-        await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-            id_solicitud: idSolicitud,
-            ...pasoDataCompleto,
-            paso: activeStep + 1,
-            hoja,
-            id_usuario: userData.id_usuario,
-            name: userData.name,
-        });
-        setIsLoading(false); // Finalizar el loading
-        setCompletedSteps((prevCompleted) => {
-          const newCompleted = [...prevCompleted];
-          if (!newCompleted.includes(activeStep)) {
-            newCompleted.push(activeStep);
+      const completarValoresConNo = (data) => {
+          const completado = {};
+          for (let key in data) {
+              completado[key] = data[key] === '' || data[key] === null || data[key] === undefined ? 'No' : data[key];
           }
-          return newCompleted;
-        });
-        setActiveStep((prevActiveStep) => prevActiveStep + 1);
-    } catch (error) {
-        console.error('Error al guardar el progreso:', error.response?.data || error.message);
+          return completado;
+      };
+      
+      let pasoData = {};
+
+      switch (activeStep) {
+          case 0:
+              pasoData = {
+                  descripcionPrograma: formData.descripcionPrograma || 'No',
+                  identificacionNecesidades: formData.identificacionNecesidades || 'No',
+              };
+              break;
+          case 1:
+              pasoData = {
+                  atributosBasicos: formData.atributosBasicos || 'No',
+                  atributosDiferenciadores: formData.atributosDiferenciadores || 'No',
+                  competencia: formData.competencia || 'No',
+                  programa: formData.programa || 'No',
+                  programasSimilares: formData.programasSimilares || 'No',
+                  estrategiasCompetencia: formData.estrategiasCompetencia || 'No',
+              };
+              break;
+          case 2:
+              pasoData = {
+                  personasInteresChecked: formData.personasInteresChecked || 'No',
+                  personasMatriculadasChecked: formData.personasMatriculadasChecked || 'No',
+                  otroInteres: formData.otroInteres || 'No',
+                  innovacion: formData.innovacion || 'No',
+                  solicitudExterno: formData.solicitudExterno || 'No',
+                  interesSondeo: formData.interesSondeo || 'No',
+                  otroMercadeo: formData.otroMercadeo || 'No',
+                  llamadas: formData.llamadas || 'No',
+                  encuestas: formData.encuestas || 'No',
+                  webinar: formData.webinar || 'No',
+                  pautas_redes: formData.pautas_redes || 'No',
+                  otroEstrategias: formData.otroEstrategias || 'No',
+                  preregistroFisico: formData.preregistroFisico || 'No',
+                  preregistroGoogle: formData.preregistroGoogle || 'No',
+                  preregistroOtro: formData.preregistroOtro || 'No',
+              };
+              break;
+          case 3:
+              pasoData = {
+                  gremios: formData.gremios || 'No',
+                  sectores_empresariales: formData.sectores_empresariales || 'No',
+                  politicas_publicas: formData.politicas_publicas || 'No',
+                  otros_mesas_trabajo: formData.otros_mesas_trabajo || 'No',
+                  focusGroup: formData.focusGroup || 'No',
+                  desayunosTrabajo: formData.desayunosTrabajo || 'No',
+                  almuerzosTrabajo: formData.almuerzosTrabajo || 'No',
+                  openHouse: formData.openHouse || 'No',
+                  ferias_colegios: formData.ferias_colegios || 'No',
+                  ferias_empresarial: formData.ferias_empresarial || 'No',
+                  otros_mercadeo: formData.otros_mercadeo || 'No',
+                  valorEconomico: formData.valorEconomico || 'No',
+                  modalidadPresencial: formData.modalidadPresencial || 'No',
+                  modalidadVirtual: formData.modalidadVirtual || 'No',
+                  modalidadSemipresencial: formData.modalidadSemipresencial || 'No',
+                  traslados_docente: formData.traslados_docente || 'No',
+                  modalidad_asistida_tecnologia: formData.modalidad_asistida_tecnologia || 'No',
+              };
+              break;
+          case 4:
+              pasoData = {
+                  beneficiosTangibles: formData.beneficiosTangibles || 'No',
+                  beneficiosIntangibles: formData.beneficiosIntangibles || 'No',
+                  particulares: formData.particulares || 'No',
+                  colegios: formData.colegios || 'No',
+                  empresas: formData.empresas || 'No',
+                  egresados: formData.egresados || 'No',
+                  colaboradores: formData.colaboradores || 'No',
+                  otros_publicos_potenciales: formData.otros_publicos_potenciales || 'No',
+                  tendenciasActuales: formData.tendenciasActuales || 'No',
+                  dofaDebilidades: formData.dofaDebilidades || 'No',
+                  dofaOportunidades: formData.dofaOportunidades || 'No',
+                  dofaFortalezas: formData.dofaFortalezas || 'No',
+                  dofaAmenazas: formData.dofaAmenazas || 'No',
+                  paginaWeb: formData.paginaWeb || 'No',
+                  facebook: formData.facebook || 'No',
+                  instagram: formData.instagram || 'No',
+                  linkedin: formData.linkedin || 'No',
+                  correo: formData.correo || 'No',
+                  prensa: formData.prensa || 'No',
+                  boletin: formData.boletin || 'No',
+                  llamadas_redes: formData.llamadas_redes || 'No',
+                  otro_canal: formData.otro_canal || 'No',
+              };
+              break;
+          default:
+              break;
+      }
+
+      const pasoDataCompleto = completarValoresConNo(pasoData);
+
+      try {
+          await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+              id_solicitud: idSolicitud,
+              ...pasoDataCompleto,
+              paso: activeStep + 1,
+              hoja,
+              id_usuario: userData.id_usuario,
+              name: userData.name,
+          });
+          setIsLoading(false); // Finalizar el loading
+          setCompletedSteps((prevCompleted) => {
+            const newCompleted = [...prevCompleted];
+            if (!newCompleted.includes(activeStep)) {
+              newCompleted.push(activeStep);
+            }
+            return newCompleted;
+          });
+          setCompletedSteps((prevCompleted) => [...prevCompleted, activeStep]);
+          setActiveStep((prevActiveStep) => prevActiveStep + 1);
+      } catch (error) {
+          console.error('Error al guardar el progreso:', error.response?.data || error.message);
+      }
     }
 };
 
-const handleBack = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep - 1);
-};
-
-const handleSubmit = async () => {
-  setIsLoading(true); // Finalizar el loading
-
-    const hoja = 4; // Cambia este valor según la hoja a la que corresponda el formulario
-
-    const completarValoresConNo = (data) => {
-        const completado = {};
-        for (let key in data) {
-            completado[key] = data[key] === '' || data[key] === null || data[key] === undefined ? 'No' : data[key];
-        }
-        return completado;
-    };
-
-    const pasoData = {
-        beneficiosTangibles: formData.beneficiosTangibles || 'No',
-        beneficiosIntangibles: formData.beneficiosIntangibles || 'No',
-        particulares: formData.particulares || 'No',
-        colegios: formData.colegios || 'No',
-        empresas: formData.empresas || 'No',
-        egresados: formData.egresados || 'No',
-        colaboradores: formData.colaboradores || 'No',
-        otros_publicos_potenciales: formData.otros_publicos_potenciales || 'No',
-        tendenciasActuales: formData.tendenciasActuales || 'No',
-        dofaDebilidades: formData.dofaDebilidades || 'No',
-        dofaOportunidades: formData.dofaOportunidades || 'No',
-        dofaFortalezas: formData.dofaFortalezas || 'No',
-        dofaAmenazas: formData.dofaAmenazas || 'No',
-        paginaWeb: formData.paginaWeb || 'No',
-        facebook: formData.facebook || 'No',
-        instagram: formData.instagram || 'No',
-        linkedin: formData.linkedin || 'No',
-        correo: formData.correo || 'No',
-        prensa: formData.prensa || 'No',
-        boletin: formData.boletin || 'No',
-        llamadas: formData.llamadas || 'No',
-        otro_canal: formData.otro_canal || 'No',
-    };
-
-    const pasoDataCompleto = completarValoresConNo(pasoData);
-
-    try {
-        await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-            id_solicitud: idSolicitud, // El ID único de la solicitud
-            ...pasoDataCompleto, // Datos del último paso (Paso 5)
-            paso: 5, // El número del último paso
-            hoja, // Indica qué hoja se está usando
-            id_usuario: userData.id_usuario, // Enviar el id_usuario
-            name: userData.name, // Enviar el nombre del usuario
-        });
-        setIsLoading(false); // Finalizar el loading
-        setOpenModal(true); // Abre el modal
-    } catch (error) {
-        console.error('Error al guardar los datos del último paso:', error);
+  const handleBack = () => {
+    if (activeStep > 0) {
+      setActiveStep((prev) => prev - 1);
     }
-};
+  };
 
+  const handleSubmit = async () => {
+    setIsLoading(true); // Finalizar el loading
 
+      const hoja = 4; // Cambia este valor según la hoja a la que corresponda el formulario
+
+      const completarValoresConNo = (data) => {
+          const completado = {};
+          for (let key in data) {
+              completado[key] = data[key] === '' || data[key] === null || data[key] === undefined ? 'No' : data[key];
+          }
+          return completado;
+      };
+
+      const pasoData = {
+          beneficiosTangibles: formData.beneficiosTangibles || 'No',
+          beneficiosIntangibles: formData.beneficiosIntangibles || 'No',
+          particulares: formData.particulares || 'No',
+          colegios: formData.colegios || 'No',
+          empresas: formData.empresas || 'No',
+          egresados: formData.egresados || 'No',
+          colaboradores: formData.colaboradores || 'No',
+          otros_publicos_potenciales: formData.otros_publicos_potenciales || 'No',
+          tendenciasActuales: formData.tendenciasActuales || 'No',
+          dofaDebilidades: formData.dofaDebilidades || 'No',
+          dofaOportunidades: formData.dofaOportunidades || 'No',
+          dofaFortalezas: formData.dofaFortalezas || 'No',
+          dofaAmenazas: formData.dofaAmenazas || 'No',
+          paginaWeb: formData.paginaWeb || 'No',
+          facebook: formData.facebook || 'No',
+          instagram: formData.instagram || 'No',
+          linkedin: formData.linkedin || 'No',
+          correo: formData.correo || 'No',
+          prensa: formData.prensa || 'No',
+          boletin: formData.boletin || 'No',
+          llamadas: formData.llamadas || 'No',
+          otro_canal: formData.otro_canal || 'No',
+      };
+
+      const pasoDataCompleto = completarValoresConNo(pasoData);
+
+      try {
+          await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+              id_solicitud: idSolicitud, // El ID único de la solicitud
+              ...pasoDataCompleto, // Datos del último paso (Paso 5)
+              paso: 5, // El número del último paso
+              hoja, // Indica qué hoja se está usando
+              id_usuario: userData.id_usuario, // Enviar el id_usuario
+              name: userData.name, // Enviar el nombre del usuario
+          });
+          setIsLoading(false); // Finalizar el loading
+          setOpenModal(true); // Abre el modal
+      } catch (error) {
+          console.error('Error al guardar los datos del último paso:', error);
+      }
+  };
+
+  const handleStepClick = (stepIndex) => {
+    if (stepIndex >= 0 && stepIndex < steps.length && (completedSteps.includes(stepIndex) || stepIndex === activeStep)) {
+      setActiveStep(stepIndex);
+    }
+  };
+  
 
   const handleCloseModal = () => {
     setOpenModal(false); // Cerrar el modal

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Stepper, Step, StepLabel, Box, useMediaQuery } from '@mui/material';
 import { styled } from '@mui/system';
+import CheckIcon from '@mui/icons-material/Check'; // Icono para los pasos completados
 
 // Componente personalizado para el ícono del paso
 const CustomStepIconRoot = styled('div')(({ ownerState }) => ({
@@ -10,47 +11,57 @@ const CustomStepIconRoot = styled('div')(({ ownerState }) => ({
   width: 36,
   height: 36,
   borderRadius: '50%',
-  backgroundColor: ownerState.active
-    ? '#0056b3' // Fondo azul para el paso activo
-    : ownerState.completed
+  backgroundColor: ownerState.completed
     ? '#0056b3' // Fondo azul para los pasos completados
+    : ownerState.active
+    ? '#0056b3' // Fondo azul para el paso activo
     : '#E0E0E0', // Fondo gris si no está activo ni completado
-  color: ownerState.active || ownerState.completed
+  color: ownerState.completed || ownerState.active
     ? '#ffffff' // Letra blanca si es activo o completado
     : '#4F4F4F', // Letra gris oscuro si no está activo ni completado
   fontSize: 18,
 }));
 
-// Componente personalizado para el ícono del paso
-const CustomStepIcon = (props) => {
-  const { active, completed, className } = props;
+const CustomStepIcon = ({ active, completed, index }) => (
+  <CustomStepIconRoot ownerState={{ active, completed }}>
+    {completed ? <CheckIcon /> : index + 1}
+  </CustomStepIconRoot>
+);
 
-  return (
-    <CustomStepIconRoot ownerState={{ active, completed }} className={className}>
-      {completed ? <span>&#10003;</span> : props.icon}
-    </CustomStepIconRoot>
-  );
-};
-
-const FormStepper = ({ activeStep, steps, setCurrentSection, highestStepReached }) => {
+const FormStepper = ({ activeStep, steps, setCurrentSection }) => {
+  const [completedSteps, setCompletedSteps] = useState([]);
+  const [highestStepReached, setHighestStepReached] = useState(activeStep);
   const isSmallScreen = useMediaQuery('(max-width:600px)');
 
-  // Actualiza la función para solo permitir navegación hasta el último paso alcanzado.
+  // Actualizar pasos completados y el paso más alto alcanzado
+  useEffect(() => {
+    setCompletedSteps((prev) => {
+      if (!prev.includes(activeStep)) {
+        return [...prev, activeStep];
+      }
+      return prev;
+    });
+
+    setHighestStepReached((prev) => Math.max(prev, activeStep));
+  }, [activeStep]);
+
   const handleStepClick = (index) => {
     if (index <= highestStepReached) {
-      setCurrentSection(index + 1);
+      setCurrentSection(index + 1); // Permitir navegación solo hasta el paso más alto alcanzado
     }
   };
 
   return (
-    <Box sx={{
-      width: '100%',
-      marginBottom: isSmallScreen ? '20px' : '0',
-      paddingRight: '20px',
-      display: 'flex',
-      flexDirection: 'row',
-      justifyContent: 'center',
-    }}>
+    <Box
+      sx={{
+        width: '100%',
+        marginBottom: isSmallScreen ? '20px' : '0',
+        paddingRight: '20px',
+        display: 'flex',
+        flexDirection: 'row',
+        justifyContent: 'center',
+      }}
+    >
       <Stepper
         activeStep={activeStep}
         orientation={isSmallScreen ? 'horizontal' : 'horizontal'}
@@ -67,8 +78,7 @@ const FormStepper = ({ activeStep, steps, setCurrentSection, highestStepReached 
             padding: '5px 10px',
           },
           '& .MuiStep-root': {
-            cursor: 'pointer', // Permitir clic para todos los pasos, pero controlarlo en el evento de clic
-            pointerEvents: 'auto',
+            cursor: 'pointer',
           },
           '& .MuiStep-root.Mui-active': {
             '& .MuiStepIcon-root': {
@@ -80,14 +90,17 @@ const FormStepper = ({ activeStep, steps, setCurrentSection, highestStepReached 
         }}
       >
         {steps.map((label, index) => (
-          <Step key={label} onClick={() => handleStepClick(index)}>
-            <StepLabel StepIconComponent={(props) => (
-              <CustomStepIcon 
-                {...props} 
-                active={index === activeStep} 
-                completed={index < activeStep || index <= highestStepReached} // Todos los pasos previos al actual o alcanzados son completados
-              />
-            )}>
+          <Step key={index} onClick={() => handleStepClick(index)}>
+            <StepLabel
+              StepIconComponent={(props) => (
+                <CustomStepIcon
+                  {...props}
+                  index={index}
+                  active={index === activeStep}
+                  completed={completedSteps.includes(index)}
+                />
+              )}
+            >
               {label}
             </StepLabel>
           </Step>

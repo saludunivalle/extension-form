@@ -36,32 +36,40 @@
     const navigate = useNavigate();
 
     useEffect(() => {
-      // Convierte formId y formStep a números
       const parsedFormId = parseInt(formId, 10);
       const parsedFormStep = parseInt(formStep, 10);
     
-      console.log(`Formulario: ${parsedFormId}, Paso: ${parsedFormStep}`);
+      // Validar que los valores estén dentro de los rangos permitidos
+      const isFormIdValid = !isNaN(parsedFormId) && parsedFormId >= 1 && parsedFormId <= sectionTitles.length;
+      const isFormStepValid = !isNaN(parsedFormStep) && parsedFormStep >= 0;
     
-      // Comprobar si la solicitud es nueva (no tiene un id_solicitud asociado en localStorage)
-      const isNewSolicitud = !localStorage.getItem('id_solicitud');
-    
-      if (isNewSolicitud) {
-        // Si es una nueva solicitud, siempre comenzamos desde la primera sección y el primer paso
+      if (!localStorage.getItem('id_solicitud')) {
+        // Nueva solicitud: comienza desde el primer formulario y paso
         setCurrentSection(1);
         setCurrentStep(0);
+      } else if (isFormIdValid && isFormStepValid) {
+        setCurrentSection(parsedFormId);
+        setCurrentStep(parsedFormStep); // Usa el paso proporcionado si es válido
       } else {
-        // Validar valores de formId y formStep para evitar errores
-        if (!isNaN(parsedFormId) && parsedFormId >= 1 && parsedFormId <= 5 && !isNaN(parsedFormStep)) {
-          // Ajustar el paso: si el paso viene como 1 (primero), restar 1 para el índice del array
-          setCurrentSection(parsedFormId);
-          setCurrentStep(parsedFormStep > 0 ? parsedFormStep - 1 : 0);
-        } else {
-          // Si no hay un paso válido en la URL, comenzar desde la primera sección y el primer paso
-          setCurrentSection(1);
-          setCurrentStep(0);
-        }
+        // Valores no válidos: vuelve al primer formulario y paso
+        setCurrentSection(1);
+        setCurrentStep(0);
       }
     }, [formId, formStep]);
+    
+    useEffect(() => {
+      const maxSteps = {
+        1: 5, // Ejemplo: Formulario 1 tiene 5 pasos
+        2: 3, // Formulario 2 tiene 3 pasos
+        3: 4, // Formulario 3 tiene 4 pasos
+        4: 2, // Formulario 4 tiene 2 pasos
+      };
+    
+      const currentMaxSteps = maxSteps[currentSection] || 0;
+      if (currentStep >= currentMaxSteps) {
+        setCurrentStep(0); // Reinicia al primer paso si el actual no es válido
+      }
+    }, [currentSection, currentStep]);
     
 
     const location = useLocation();
