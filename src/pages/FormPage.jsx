@@ -34,6 +34,8 @@
     const [currentSection, setCurrentSection] = useState(parseInt(formId, 10)); // Sección basada en URL
     const [currentStep, setCurrentStep] = useState(parseInt(formStep, 10)); // Paso basado en URL
     const navigate = useNavigate();
+    const [programasFiltrados, setProgramasFiltrados] = useState([]);
+
 
     useEffect(() => {
       const parsedFormId = parseInt(formId, 10);
@@ -318,7 +320,7 @@
         }));
       }
     };
-    
+   
 
     // Fetch de los datos de escuelas y oficinas
     useEffect(() => {
@@ -347,16 +349,8 @@
               .map(item => item.Departamento || "General")
           ),
         ];
+        console.log('Departamentos para la escuela seleccionada:', departamentosFiltrados);
         setDepartamentos(departamentosFiltrados);
-
-        if (departamentosFiltrados.length === 0) {
-          setFormData(prevFormData => ({
-            ...prevFormData,
-            nombre_departamento: '',
-            nombre_seccion: '',
-            nombre_dependencia: '',
-          }));
-        }
       } else {
         setDepartamentos([]);
       }
@@ -375,30 +369,29 @@
               .map(item => item.Sección || "General")
           ),
         ];
+        console.log('Secciones para el departamento seleccionado:', seccionesFiltradas);
         setSecciones(seccionesFiltradas);
+      } else {
+        setSecciones([]);
       }
     }, [formData.nombre_departamento, formData.nombre_escuela, programas]);
-
+    
     useEffect(() => {
       if (formData.nombre_seccion) {
-        const programasFiltrados = programas.filter(
+        const programasRelacionados = programas.filter(
           item =>
             item.Escuela === formData.nombre_escuela &&
             (item.Departamento === formData.nombre_departamento || (!item.Departamento && formData.nombre_departamento === "General")) &&
             (item.Sección === formData.nombre_seccion || (!item.Sección && formData.nombre_seccion === "General"))
         );
-
-        setProgramas(programasFiltrados);
-
-        if (!formData.nombre_dependencia && programasFiltrados.length > 0) {
-          setFormData(prevFormData => ({
-            ...prevFormData,
-            nombre_dependencia: programasFiltrados[0].Programa || "General",
-          }));
-        }
+    
+        console.log('Programas filtrados para la sección seleccionada:', programasRelacionados);
+        setProgramasFiltrados(programasRelacionados);
+      } else {
+        setProgramasFiltrados([]);
       }
     }, [formData.nombre_seccion, formData.nombre_departamento, formData.nombre_escuela, programas]);
-
+    
     const handleInputChange = (event) => {
       const { name, value, files } = event.target;
 
@@ -442,7 +435,7 @@
     const renderFormSection = () => {
       switch (currentSection) {
         case 1:
-          return <FormSection  formId={1} userData={userData} formData={formData} escuelas={escuelas} departamentos={departamentos} secciones={secciones} programas={programas} oficinas={oficinas} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} handleFileChange={handleFileChange} />;
+          return <FormSection  formId={1} userData={userData} formData={formData} escuelas={escuelas} departamentos={departamentos} secciones={secciones} oficinas={oficinas} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange}   programas={programasFiltrados} currentStep={currentStep} handleFileChange={handleFileChange} />;
         case 2:
           return <FormSection3 formId={2} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} />;
         case 3:

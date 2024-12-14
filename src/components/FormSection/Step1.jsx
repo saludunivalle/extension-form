@@ -125,18 +125,11 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
                 onChange={handleInputChange}
               >
                 <MenuItem value="">Sin Seleccionar</MenuItem>
-                {programas
-                  .filter((programa, index, self) => 
-                    programa && 
-                    programa.Programa && 
-                    self.findIndex(p => p.Programa === programa.Programa) === index
-                  ) 
-                  .map((programa, index) => (
-                    <MenuItem key={index} value={programa.Programa}>
-                      {programa.Programa}
-                    </MenuItem>
+                {programas.map((programa, index) => (
+                  <MenuItem key={index} value={programa.Programa}>
+                    {programa.Programa}
+                  </MenuItem>
                 ))}
-                <MenuItem value="General">General</MenuItem>
               </TextField>
             </Grid>
           )}
