@@ -22,32 +22,27 @@ const CustomStepIconRoot = styled('div')(({ ownerState }) => ({
   fontSize: 18,
 }));
 
+// Componente personalizado para el ícono de cada paso
 const CustomStepIcon = ({ active, completed, index }) => (
   <CustomStepIconRoot ownerState={{ active, completed }}>
     {completed ? <CheckIcon /> : index + 1}
   </CustomStepIconRoot>
 );
 
-const FormStepper = ({ activeStep, steps, setCurrentSection }) => {
-  const [completedSteps, setCompletedSteps] = useState([]);
-  const [highestStepReached, setHighestStepReached] = useState(activeStep);
-  const isSmallScreen = useMediaQuery('(max-width:600px)');
+const FormStepper = ({ activeStep, steps, setCurrentSection, completedSteps = [] }) => {
+  const [highestStepReached, setHighestStepReached] = useState(activeStep); // Mantener el paso más alto alcanzado
+  const isSmallScreen = useMediaQuery('(max-width:600px)'); // Responsividad para pantallas pequeñas
 
-  // Actualizar pasos completados y el paso más alto alcanzado
+  // Actualizar el paso más alto alcanzado
   useEffect(() => {
-    setCompletedSteps((prev) => {
-      if (!prev.includes(activeStep)) {
-        return [...prev, activeStep];
-      }
-      return prev;
-    });
-
     setHighestStepReached((prev) => Math.max(prev, activeStep));
   }, [activeStep]);
 
+  // Manejar clics en los pasos
   const handleStepClick = (index) => {
     if (index <= highestStepReached) {
-      setCurrentSection(index + 1); // Permitir navegación solo hasta el paso más alto alcanzado
+      // Permitir navegación solo hasta el paso más alto alcanzado
+      setCurrentSection(index + 1); // Cambiar a la sección correspondiente (basado en índice + 1)
     }
   };
 
@@ -63,29 +58,22 @@ const FormStepper = ({ activeStep, steps, setCurrentSection }) => {
       }}
     >
       <Stepper
-        activeStep={activeStep}
-        orientation={isSmallScreen ? 'horizontal' : 'horizontal'}
+        activeStep={activeStep} // Paso actual
+        orientation="horizontal"
         sx={{
           '& .MuiStepLabel-label': {
-            color: '#4F4F4F',
+            color: '#4F4F4F', // Color gris por defecto
             fontWeight: 'normal',
           },
           '& .MuiStepLabel-label.Mui-active': {
-            color: '#FFFFFF',
+            color: '#FFFFFF', // Color blanco para el paso activo
             fontWeight: 'bold',
-            backgroundColor: '#0056b3',
+            backgroundColor: '#0056b3', // Fondo azul para el paso activo
             borderRadius: '10px',
             padding: '5px 10px',
           },
           '& .MuiStep-root': {
-            cursor: 'pointer',
-          },
-          '& .MuiStep-root.Mui-active': {
-            '& .MuiStepIcon-root': {
-              color: '#ffffff',
-              backgroundColor: '#0056b3',
-              borderRadius: '50%',
-            },
+            cursor: 'pointer', // Hacer los pasos interactivos
           },
         }}
       >
@@ -96,8 +84,8 @@ const FormStepper = ({ activeStep, steps, setCurrentSection }) => {
                 <CustomStepIcon
                   {...props}
                   index={index}
-                  active={index === activeStep}
-                  completed={completedSteps.includes(index)}
+                  active={index === activeStep} // Marcar activo el paso actual
+                  completed={completedSteps.includes(index) || index <= highestStepReached} // Completado si está en la lista o alcanzado
                 />
               )}
             >

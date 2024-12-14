@@ -454,6 +454,10 @@
       }
     };
 
+    const calculateCompletedSteps = () => {
+      return Array.from({ length: currentSection - 1 }, (_, i) => i); 
+    };
+
     return (
       <Container sx={{
         marginTop: isSmallScreen ? '130px' : '130px',
@@ -463,7 +467,7 @@
       }}>
 
         {/* Agrega el FormStepper al layout */}
-        <FormStepper activeStep={currentSection - 1} steps={sectionShortTitles} setCurrentSection={handleSectionChange} highestStepReached={highestStepReached} />
+        <FormStepper activeStep={currentSection - 1} steps={sectionShortTitles} setCurrentSection={handleSectionChange} highestStepReached={highestStepReached} completedSteps={calculateCompletedSteps()} />
         {/* Contenido del formulario */}
         <Typography variant={isSmallScreen ? 'h5' : 'h4'} gutterBottom sx={{fontWeight: 'bold'}}>
           {sectionTitles[currentSection - 1]}
