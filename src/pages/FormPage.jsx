@@ -349,13 +349,20 @@
               .map(item => item.Departamento || "General")
           ),
         ];
-        console.log('Departamentos para la escuela seleccionada:', departamentosFiltrados);
+    
+        if (departamentosFiltrados.length === 1 && departamentosFiltrados[0] === "General") {
+          setFormData((prevFormData) => ({
+            ...prevFormData,
+            nombre_departamento: "General",
+          }));
+        }
+    
         setDepartamentos(departamentosFiltrados);
       } else {
         setDepartamentos([]);
       }
     }, [formData.nombre_escuela, programas]);
-
+  
     useEffect(() => {
       if (formData.nombre_departamento) {
         const seccionesFiltradas = [
@@ -369,12 +376,20 @@
               .map(item => item.Sección || "General")
           ),
         ];
-        console.log('Secciones para el departamento seleccionado:', seccionesFiltradas);
+    
+        if (seccionesFiltradas.length === 1 && seccionesFiltradas[0] === "General") {
+          setFormData((prevFormData) => ({
+            ...prevFormData,
+            nombre_seccion: "General",
+          }));
+        }
+    
         setSecciones(seccionesFiltradas);
       } else {
         setSecciones([]);
       }
     }, [formData.nombre_departamento, formData.nombre_escuela, programas]);
+    
     
     useEffect(() => {
       if (formData.nombre_seccion) {
@@ -394,32 +409,28 @@
     
     const handleInputChange = (event) => {
       const { name, value, files } = event.target;
-
+    
       setFormData((prevFormData) => {
         let updatedFormData = { ...prevFormData, [name]: files ? files[0] : value };
-
+    
         if (name === 'nombre_escuela') {
           updatedFormData.nombre_departamento = '';
           updatedFormData.nombre_seccion = '';
           updatedFormData.nombre_dependencia = '';
         }
-
+    
         if (name === 'nombre_departamento') {
           updatedFormData.nombre_seccion = '';
           updatedFormData.nombre_dependencia = '';
         }
-
+    
         if (name === 'nombre_seccion') {
           updatedFormData.nombre_dependencia = '';
         }
-
-        if (!updatedFormData.nombre_dependencia || updatedFormData.nombre_dependencia === "General") {
-          updatedFormData.nombre_dependencia = updatedFormData.nombre_escuela;
-        }
-
+    
         return updatedFormData;
       });
-    };
+    };    
 
     const handleSectionChange = (newSection) => {
       setCurrentSection(newSection);

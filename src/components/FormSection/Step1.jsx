@@ -83,6 +83,7 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
                 name="nombre_departamento"
                 value={formData.nombre_departamento || ''}
                 onChange={handleInputChange}
+                disabled={departamentos.length === 1 && departamentos[0] === "General"} // Deshabilitar si solo tiene "General"
               >
                 <MenuItem value="">Sin Seleccionar</MenuItem>
                 {departamentos.map((departamento, index) => (
@@ -103,6 +104,7 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
                 name="nombre_seccion"
                 value={formData.nombre_seccion || ''}
                 onChange={handleInputChange}
+                disabled={secciones.length === 1 && secciones[0] === "General"} // Deshabilitar si solo tiene "General"
               >
                 <MenuItem value="">Sin Seleccionar</MenuItem>
                 {secciones.map((seccion, index) => (
@@ -116,21 +118,22 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
 
           {formData.nombre_seccion && (
             <Grid item xs={12}>
-              <TextField
-                select
-                label="Programa"
-                fullWidth
-                name="nombre_dependencia"
-                value={formData.nombre_dependencia || ''}
-                onChange={handleInputChange}
-              >
-                <MenuItem value="">Sin Seleccionar</MenuItem>
-                {programas.map((programa, index) => (
-                  <MenuItem key={index} value={programa.Programa}>
-                    {programa.Programa}
-                  </MenuItem>
-                ))}
-              </TextField>
+            <TextField
+              select
+              label="Programa Académico"
+              fullWidth
+              name="nombre_dependencia"
+              value={formData.nombre_dependencia || ''}
+              onChange={handleInputChange}
+            >
+              <MenuItem value="">Sin Seleccionar</MenuItem>
+              {programas.map((programa, index) => (
+                <MenuItem key={index} value={programa.Programa}>
+                  {programa.Programa}
+                </MenuItem>
+              ))}
+              <MenuItem value="General">General</MenuItem> {/* Agregar opción General */}
+            </TextField>
             </Grid>
           )}
         </>
