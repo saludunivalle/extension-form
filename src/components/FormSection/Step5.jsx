@@ -1,5 +1,5 @@
 import React from 'react';
-import { Grid, TextField, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, Select, InputLabel, MenuItem } from '@mui/material';
+import { Grid, TextField, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, Select, InputLabel, MenuItem, Box } from '@mui/material';
 
 function Step5({ formData, handleInputChange, handleFileChange }) {
 
@@ -129,10 +129,10 @@ function Step5({ formData, handleInputChange, handleFileChange }) {
       </Grid>
               
       <Grid item xs={12}>
-        <FormControl component="fieldset">
+      <FormControl component="fieldset">
           <FormLabel component="legend">La organización de la actividad se hará por</FormLabel>
           <RadioGroup
-            name="Organizacion_actividad"
+            name="organizacion_actividad"
             value={formData.organizacion_actividad || ''}
             onChange={handleInputChange}
             required
@@ -141,7 +141,7 @@ function Step5({ formData, handleInputChange, handleFileChange }) {
             <FormControlLabel value="unidad_acad" control={<Radio />} label="Unidad Académica" />
             <FormControlLabel value="otro_act" control={<Radio />} label="Otro" />
           </RadioGroup>
-          {formData.tipo === "otro_act" && (
+          {formData.organizacion_actividad === "otro_act" && (
             <Box sx={{ marginTop: 2 }}>
               <TextField
                 label="¿Cuál?"
