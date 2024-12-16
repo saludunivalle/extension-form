@@ -7,6 +7,33 @@ import axios from 'axios';
 import { useLocation } from 'react-router-dom';
 import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 
+import CheckIcon from '@mui/icons-material/Check'; // Importa el ícono del check
+  import { styled } from '@mui/system';
+
+  const CustomStepIconRoot = styled('div')(({ ownerState }) => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: '50%', // Hacerlo redondo
+    backgroundColor: ownerState.completed
+      ? '#0056b3' // Fondo azul para pasos completados
+      : ownerState.active
+      ? '#0056b3' // Fondo azul para el paso activo
+      : '#E0E0E0', // Fondo gris para los pasos inactivos
+    color: ownerState.completed || ownerState.active ? '#FFFFFF' : '#4F4F4F', // Texto blanco si es activo/completado
+    fontWeight: 'bold',
+  }));
+  
+  // Componente del ícono del paso
+  const CustomStepIcon = ({ active, completed, icon }) => (
+    <CustomStepIconRoot ownerState={{ active, completed }}>
+      {completed ? <CheckIcon /> : icon}
+    </CustomStepIconRoot>
+  );
+  
+
 function FormSection3({ formData, handleInputChange, setCurrentSection, userData, totalAportesUnivalle, currentStep }) {
   
   const [activeStep, setActiveStep] = useState(currentStep);  // Inicializar con el paso actual
@@ -34,12 +61,11 @@ function FormSection3({ formData, handleInputChange, setCurrentSection, userData
 
   useEffect(() => {
     if (currentStep < 0 || currentStep >= steps.length) {
-      console.warn('Paso inicial fuera de rango. Reiniciando al primer paso.');
-      setActiveStep(0);
+      setActiveStep(0); // Reiniciar al paso 0 si el valor es inválido
     } else {
       setActiveStep(currentStep);
     }
-  }, [currentStep, steps.length]);
+  }, [currentStep, steps.length]);  
 
   useEffect(() => {
     if (!idSolicitud || isNaN(parseInt(idSolicitud, 10))) {

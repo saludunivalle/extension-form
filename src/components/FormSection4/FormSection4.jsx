@@ -9,6 +9,33 @@ import Step3FormSection4 from './Step3FormSection4';
 import Step4FormSection4 from './Step4FormSection4';
 import Step5FormSection4 from './Step5FormSection4';
 
+import CheckIcon from '@mui/icons-material/Check'; // Importa el ícono del check
+  import { styled } from '@mui/system';
+
+  const CustomStepIconRoot = styled('div')(({ ownerState }) => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: '50%', // Hacerlo redondo
+    backgroundColor: ownerState.completed
+      ? '#0056b3' // Fondo azul para pasos completados
+      : ownerState.active
+      ? '#0056b3' // Fondo azul para el paso activo
+      : '#E0E0E0', // Fondo gris para los pasos inactivos
+    color: ownerState.completed || ownerState.active ? '#FFFFFF' : '#4F4F4F', // Texto blanco si es activo/completado
+    fontWeight: 'bold',
+  }));
+  
+  // Componente del ícono del paso
+  const CustomStepIcon = ({ active, completed, icon }) => (
+    <CustomStepIconRoot ownerState={{ active, completed }}>
+      {completed ? <CheckIcon /> : icon}
+    </CustomStepIconRoot>
+  );
+  
+
 function FormSection4({ formData, handleInputChange, userData, currentStep }) {
   const [activeStep, setActiveStep] = useState(currentStep); // Usar currentStep como el paso inicial
   const [openModal, setOpenModal] = useState(false); // Estado para el modal

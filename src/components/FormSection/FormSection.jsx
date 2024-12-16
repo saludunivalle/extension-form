@@ -34,8 +34,6 @@
     </CustomStepIconRoot>
   );
   
-  
-
   function FormSection({ 
     formData, 
     handleInputChange, 
@@ -78,6 +76,15 @@
         setActiveStep(0);
       }
     }, [activeStep, steps.length]);
+    
+    useEffect(() => {
+      if (currentStep < 0 || currentStep >= steps.length) {
+        setActiveStep(0); // Reiniciar al paso 0 si el valor es inválido
+      } else {
+        setActiveStep(currentStep);
+      }
+    }, [currentStep, steps.length]);
+
     
     const handleNext = async () => {
       if (activeStep < steps.length - 1) {

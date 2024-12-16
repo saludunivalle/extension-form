@@ -32,7 +32,9 @@
     const { formId } = useParams(); // Extraemos formId directamente desde los parámetros de la URL
     const formStep = searchParams.get('paso') || 0; // Obtener el paso
     const [currentSection, setCurrentSection] = useState(parseInt(formId, 10)); // Sección basada en URL
-    const [currentStep, setCurrentStep] = useState(parseInt(formStep, 10)); // Paso basado en URL
+    const [currentStep, setCurrentStep] = useState(
+      !isNaN(formStep) && formStep >= 0 ? formStep : 0
+    );
     const navigate = useNavigate();
     const [programasFiltrados, setProgramasFiltrados] = useState([]);
 

@@ -10,6 +10,33 @@ import Step3FormSection5 from './Step3FormSection5';
 import Step4FormSection5 from './Step4FormSection5';
 import Step5FormSection5 from './Step5FormSection5';
 
+import CheckIcon from '@mui/icons-material/Check'; // Importa el ícono del check
+  import { styled } from '@mui/system';
+
+  const CustomStepIconRoot = styled('div')(({ ownerState }) => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: '50%', // Hacerlo redondo
+    backgroundColor: ownerState.completed
+      ? '#0056b3' // Fondo azul para pasos completados
+      : ownerState.active
+      ? '#0056b3' // Fondo azul para el paso activo
+      : '#E0E0E0', // Fondo gris para los pasos inactivos
+    color: ownerState.completed || ownerState.active ? '#FFFFFF' : '#4F4F4F', // Texto blanco si es activo/completado
+    fontWeight: 'bold',
+  }));
+  
+  // Componente del ícono del paso
+  const CustomStepIcon = ({ active, completed, icon }) => (
+    <CustomStepIconRoot ownerState={{ active, completed }}>
+      {completed ? <CheckIcon /> : icon}
+    </CustomStepIconRoot>
+  );
+    
+
 function FormSection5({ formData, handleInputChange, userData, currentStep, setCurrentSection}) {
   const [activeStep, setActiveStep] = useState(currentStep);  // Usar currentStep como el paso inicial
   const [openModal, setOpenModal] = useState(false); // Estado para controlar el modal
@@ -35,12 +62,11 @@ function FormSection5({ formData, handleInputChange, userData, currentStep, setC
   
   useEffect(() => {
     if (currentStep < 0 || currentStep >= steps.length) {
-      setActiveStep(0);
+      setActiveStep(0); // Reiniciar al paso 0 si el valor es inválido
     } else {
       setActiveStep(currentStep);
     }
   }, [currentStep, steps.length]);
-
   
   const handleNext = async () => {
     if (activeStep < steps.length - 1) {
