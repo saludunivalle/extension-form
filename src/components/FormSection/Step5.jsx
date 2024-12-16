@@ -1,7 +1,7 @@
 import React from 'react';
 import { Grid, TextField, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, Select, InputLabel, MenuItem, Box  } from '@mui/material';
 
-function Step5({ formData, handleInputChange, handleFileChange }) {
+function Step5({ formData, handleInputChange, handleFileChange, errors}) {
 
   return (
     <Grid container spacing={2}>
@@ -20,6 +20,8 @@ function Step5({ formData, handleInputChange, handleFileChange }) {
               onChange={handleInputChange}
               placeholder="0"
               required
+              error={!!errors.becas_convenio}
+              helperText={errors.becas_convenio}
             />
           </Grid>
           <Grid item xs={2}>
@@ -32,6 +34,8 @@ function Step5({ formData, handleInputChange, handleFileChange }) {
               onChange={handleInputChange}
               //inputProps={{ min: "0" }} 
               required
+              error={!!errors.becas_estudiantes}
+              helperText={errors.becas_estudiantes}
               placeholder="0"
             />
           </Grid>
@@ -46,6 +50,8 @@ function Step5({ formData, handleInputChange, handleFileChange }) {
               //inputProps={{ min: "0" }}
               placeholder="0"
               required
+              error={!!errors.becas_docentes}
+              helperText={errors.becas_docentes}
             />
           </Grid>
           <Grid item xs={2}>
@@ -59,6 +65,8 @@ function Step5({ formData, handleInputChange, handleFileChange }) {
               //inputProps={{ min: "0" }} 
               placeholder="0"
               required
+              error={!!errors.becas_egresados}
+              helperText={errors.becas_egresados}
             />
           </Grid>
           <Grid item xs={2}>
@@ -72,6 +80,8 @@ function Step5({ formData, handleInputChange, handleFileChange }) {
               //inputProps={{ min: "0" }} 
               placeholder="0"
               required
+              error={!!errors.becas_funcionarios}
+              helperText={errors.becas_funcionarios}
             />
           </Grid>
           <Grid item xs={2}>
@@ -85,6 +95,8 @@ function Step5({ formData, handleInputChange, handleFileChange }) {
               //inputProps={{ min: "0" }} 
               placeholder="0"
               required
+              error={!!errors.becas_otros}
+              helperText={errors.becas_otros}
             />
           </Grid>
           <Grid item xs={2}>
@@ -105,7 +117,6 @@ function Step5({ formData, handleInputChange, handleFileChange }) {
               InputProps={{
                 readOnly: true,
               }}
-              required
             />
           </Grid>
         </Grid>
@@ -120,6 +131,8 @@ function Step5({ formData, handleInputChange, handleFileChange }) {
             value={formData.periodicidad_oferta || ''}
             onChange={handleInputChange}
             required
+            error={!!errors.periodicidad_oferta}
+            helperText={errors.periodicidad_oferta}
           >
             <FormControlLabel value="anual" control={<Radio />} label="Anual" />
             <FormControlLabel value="semestral" control={<Radio />} label="Semestral" />
@@ -136,6 +149,8 @@ function Step5({ formData, handleInputChange, handleFileChange }) {
             value={formData.organizacion_actividad || ''}
             onChange={handleInputChange}
             required
+            error={!!errors.organizacion_actividad}
+            helperText={errors.organizacion_actividad}
           >
             <FormControlLabel value="ofi_ext" control={<Radio />} label="Oficina de Extensión" />
             <FormControlLabel value="unidad_acad" control={<Radio />} label="Unidad Académica" />
@@ -179,7 +194,6 @@ function Step5({ formData, handleInputChange, handleFileChange }) {
             type="number"
             value={formData.costo_extension_solidaria || ''}
             onChange={handleInputChange}
-            required
           />
         </Grid>
       )}
@@ -205,6 +219,8 @@ function Step5({ formData, handleInputChange, handleFileChange }) {
           onChange={handleInputChange}
           placeholder="Detalles del personal externo (opcional)"
           required
+          error={!!errors.personal_externo}
+          helperText={errors.personal_externo}
         />
       </Grid>
 

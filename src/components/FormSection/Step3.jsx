@@ -1,7 +1,7 @@
 import React from 'react';
 import { FormControl, FormControlLabel, FormLabel, Grid, Radio, RadioGroup, TextField, Typography  } from '@mui/material';
 
-function Step3({ formData, handleInputChange  }) {
+function Step3({ formData, handleInputChange, errors  }) {
   return (
     <Grid container spacing={2}>
             <Grid item xs={12}>
@@ -107,6 +107,8 @@ function Step3({ formData, handleInputChange  }) {
                     value={formData.programCont}
                     onChange={handleInputChange}
                     required
+                    error={!!errors.programCont}
+                    helperText={errors.programCont}
                     />
                 </Grid>
 
@@ -118,6 +120,8 @@ function Step3({ formData, handleInputChange  }) {
                     value={formData.dirigidoa}
                     onChange={handleInputChange}
                     required
+                    error={!!errors.dirigidoa}
+                    helperText={errors.dirigidoa}
                     />
                 </Grid>
 
@@ -127,8 +131,16 @@ function Step3({ formData, handleInputChange  }) {
                     fullWidth
                     name="creditos"
                     value={formData.creditos}
-                    onChange={handleInputChange}
+                    type="number" 
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (/^\d*$/.test(value)) {
+                        handleInputChange(e);
+                      }
+                    }}      
                     required
+                    error={!!errors.creditos}
+                    helperText={errors.creditos}
                     />
                 </Grid>
         </Grid>
@@ -141,8 +153,16 @@ function Step3({ formData, handleInputChange  }) {
           fullWidth
           name="cupo_min"
           value={formData.cupo_min}
-          onChange={handleInputChange}
           required
+          error={!!errors.cupo_min}
+          helperText={errors.cupo_min}
+          type="number" 
+          onChange={(e) => {
+            const value = e.target.value;
+            if (/^\d*$/.test(value)) {
+              handleInputChange(e);
+            }
+          }}
         />
       </Grid>
 
@@ -152,9 +172,15 @@ function Step3({ formData, handleInputChange  }) {
           fullWidth
           name="cupo_max"
           value={formData.cupo_max}
-          onChange={handleInputChange}
-          helperText="Este valor no incluye las becas"
+          type="number" 
+          onChange={(e) => {
+            const value = e.target.value;
+            if (/^\d*$/.test(value)) {
+              handleInputChange(e);
+            }
+          }}          helperText="Este valor no incluye las becas"
           required
+          error={!!errors.cupo_max}
         />
       </Grid>
     </Grid>

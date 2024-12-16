@@ -56,6 +56,48 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
 
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
 
+  const [errors, setErrors] = useState({});
+
+  const validateStep = () => {
+    const stepErrors = {};
+  
+    if (activeStep === 0) {
+      // Validaciones para Step1FormSection4
+      if (!formData.descripcionPrograma) {
+        stepErrors.descripcionPrograma = "Este campo es obligatorio";
+      }
+      if (!formData.identificacionNecesidades) {
+        stepErrors.identificacionNecesidades = "Este campo es obligatorio";
+      }
+    } else if (activeStep === 1) {
+      // Validaciones para Step2FormSection4
+      if (!formData.atributosBasicos) {
+        stepErrors.atributosBasicos = "Este campo es obligatorio";
+      }
+      if (!formData.atributosDiferenciadores) {
+        stepErrors.atributosDiferenciadores = "Este campo es obligatorio";
+      }
+      if (!formData.competencia) {
+        stepErrors.competencia = "Este campo es obligatorio";
+      }
+      if (!formData.programa) {
+        stepErrors.programa = "Este campo es obligatorio";
+      }
+      if (!formData.programasSimilares) {
+        stepErrors.programasSimilares = "Este campo es obligatorio";
+      }
+      if (!formData.estrategiasCompetencia) {
+        stepErrors.estrategiasCompetencia = "Este campo es obligatorio";
+      }
+    }
+  
+    // Actualiza los errores en el estado
+    setErrors(stepErrors);
+  
+    // Retorna true si no hay errores
+    return Object.keys(stepErrors).length === 0;
+  };
+  
   useEffect(() => {
     if (currentStep < 0 || currentStep >= steps.length) {
       console.warn('Paso inicial fuera de rango. Reiniciando al primer paso.');
@@ -83,6 +125,10 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
   
 
   const handleNext = async () => {
+    if (!validateStep()) {
+      console.log("Errores en los campos: ", errors); // Opcional: Depuración
+      return; // Detén el avance si hay errores
+    }
     if (activeStep < steps.length - 1) {
       setIsLoading(true); // Finalizar el loading
       const hoja = 4; // Formulario 2 va en SOLICITUDES
@@ -290,9 +336,9 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
   const renderStepContent = (step) => {
     switch (step) {
       case 0:
-        return <Step1FormSection4 formData={formData} handleInputChange={handleInputChange} />;
+        return <Step1FormSection4 formData={formData} handleInputChange={handleInputChange} errors={errors}/>;
       case 1:
-        return <Step2FormSection4 formData={formData} handleInputChange={handleInputChange} />;
+        return <Step2FormSection4 formData={formData} handleInputChange={handleInputChange} errors={errors}/>;
       case 2:
         return <Step3FormSection4 formData={formData} handleInputChange={handleInputChange} />;
       case 3:

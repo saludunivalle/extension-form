@@ -1,6 +1,6 @@
 import { TextField, Box, Typography, Grid } from '@mui/material';
 
-function Step2FormSection4({ formData, handleInputChange }) {
+function Step2FormSection4({ formData, handleInputChange, errors }) {
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
@@ -17,6 +17,9 @@ function Step2FormSection4({ formData, handleInputChange }) {
             margin="normal"
             multiline
             rows={4}
+            required
+            error={!!errors.atributosBasicos}
+            helperText={errors.atributosBasicos}
           />
         </Grid>
         <Grid item xs={6}>
@@ -29,6 +32,9 @@ function Step2FormSection4({ formData, handleInputChange }) {
             margin="normal"
             multiline
             rows={4}
+            required
+            error={!!errors.atributosDiferenciadores}
+            helperText={errors.atributosDiferenciadores}
           />
         </Grid>
       </Grid>
@@ -46,6 +52,9 @@ function Step2FormSection4({ formData, handleInputChange }) {
             margin="normal"
             multiline
             rows={4}
+            required
+            error={!!errors.competencia}
+            helperText={errors.competencia}
           />
         </Grid>
         <Grid item xs={6}>
@@ -58,6 +67,9 @@ function Step2FormSection4({ formData, handleInputChange }) {
             margin="normal"
             multiline
             rows={4}
+            required
+            error={!!errors.programa}
+            helperText={errors.programa}
           />
         </Grid>
       </Grid>
@@ -74,6 +86,9 @@ function Step2FormSection4({ formData, handleInputChange }) {
         margin="normal"
         multiline
         rows={4}
+        required
+        error={!!errors.programasSimilares}
+        helperText={errors.programasSimilares}
       />
 
       <Typography variant="h6" gutterBottom>
@@ -88,6 +103,9 @@ function Step2FormSection4({ formData, handleInputChange }) {
         margin="normal"
         multiline
         rows={4}
+        required
+        error={!!errors.estrategiasCompetencia}
+        helperText={errors.estrategiasCompetencia}
       />
     </Box>
   );

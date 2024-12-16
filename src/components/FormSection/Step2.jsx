@@ -1,7 +1,7 @@
 import React from 'react';
 import { Grid, TextField, Box, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, Tooltip } from '@mui/material';
 
-function Step2({ formData, handleInputChange }) {
+function Step2({ formData, handleInputChange, errors }) {
   return (
     <Grid container spacing={2}>
       <Grid item xs={12}>
@@ -15,6 +15,8 @@ function Step2({ formData, handleInputChange }) {
             value={formData.introduccion || ''}
             onChange={handleInputChange}
             required
+            error={!!errors.introduccion}
+            helperText={errors.introduccion}
           />
         </Tooltip>
       </Grid>
@@ -29,6 +31,8 @@ function Step2({ formData, handleInputChange }) {
             value={formData.objetivo_general || ''}
             onChange={handleInputChange}
             required
+            error={!!errors.objetivo_general}
+            helperText={errors.objetivo_general}
           />
         </Tooltip>
       </Grid>
@@ -43,6 +47,8 @@ function Step2({ formData, handleInputChange }) {
             value={formData.objetivos_especificos || ''}
             onChange={handleInputChange}
             required
+            error={!!errors.objetivos_especificos}
+            helperText={errors.objetivos_especificos}
           />
         </Tooltip>
       </Grid>
@@ -57,6 +63,8 @@ function Step2({ formData, handleInputChange }) {
           value={formData.justificacion || ''}
           onChange={handleInputChange}
           required
+          error={!!errors.justificacion}
+          helperText={errors.justificacion}
         />
       </Tooltip>
       </Grid>
@@ -72,6 +80,8 @@ function Step2({ formData, handleInputChange }) {
           value={formData.metodologia || ''}
           onChange={handleInputChange}
           required
+          error={!!errors.metodologia}
+          helperText={errors.metodologia}
         />
         </Tooltip>
       </Grid>

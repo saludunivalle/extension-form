@@ -1,6 +1,6 @@
 import { TextField, Box, Typography } from '@mui/material';
 
-function Step1FormSection4({ formData, handleInputChange }) {
+function Step1FormSection4({ formData, handleInputChange, errors }) {
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
@@ -15,6 +15,9 @@ function Step1FormSection4({ formData, handleInputChange }) {
         margin="normal"
         multiline
         rows={4}
+        required
+        error={!!errors.descripcionPrograma}
+        helperText={errors.descripcionPrograma}
       />
 
       <Typography variant="h6" gutterBottom>
@@ -29,6 +32,9 @@ function Step1FormSection4({ formData, handleInputChange }) {
         margin="normal"
         multiline
         rows={4}
+        required
+        error={!!errors.identificacionNecesidades}
+        helperText={errors.identificacionNecesidades}
       />
     </Box>
   );

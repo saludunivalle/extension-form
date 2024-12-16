@@ -54,6 +54,58 @@
     const navigate = useNavigate();
     const [completedSteps, setCompletedSteps] = useState([]);
     const [highestStepReached, setHighestStepReached] = useState(0); // Máximo paso alcanzado
+    const [errors, setErrors] = useState({});
+
+    const validateStep = () => {
+      const stepErrors = {};
+    
+      if (activeStep === 0) {
+        if (!formData.fecha_solicitud) stepErrors.fecha_solicitud = "Este campo es obligatorio";
+        if (!formData.nombre_actividad) stepErrors.nombre_actividad = "Este campo es obligatorio";
+        if (!formData.nombre_solicitante) stepErrors.nombre_solicitante = "Este campo es obligatorio";
+        if (formData.dependencia_tipo === "Escuelas" && !formData.nombre_escuela) {
+          stepErrors.nombre_escuela = "Debe seleccionar una escuela";
+        }
+      } else if (activeStep === 1) {
+        if (!formData.introduccion) stepErrors.introduccion = "Este campo es obligatorio";
+        if (!formData.objetivo_general) stepErrors.objetivo_general = "Este campo es obligatorio";
+        if (!formData.objetivos_especificos) stepErrors.objetivos_especificos = "Este campo es obligatorio";
+        if (!formData.justificacion) stepErrors.justificacion = "Este campo es obligatorio";
+        if (!formData.metodologia) stepErrors.metodologia = "Este campo es obligatorio";
+      } else if (activeStep === 2) {
+        if (!formData.tipo) stepErrors.tipo = "Debe seleccionar un tipo";
+        if (!formData.modalidad) stepErrors.modalidad = "Debe seleccionar una modalidad";
+        if (!formData.programCont) stepErrors.programCont = "Este campo es obligatorio";
+        if (!formData.dirigidoa) stepErrors.dirigidoa = "Este campo es obligatorio";
+        if (!formData.creditos) stepErrors.creditos = "Este campo es obligatorio";
+        if (!formData.cupo_min) stepErrors.cupo_min = "Este campo es obligatorio";
+        if (!formData.cupo_max) stepErrors.cupo_max = "Este campo es obligatorio";
+      } else if (activeStep === 3) {
+        if (!formData.nombre_coordinador) stepErrors.nombre_coordinador = "Este campo es obligatorio";
+        if (!formData.correo_coordinador) stepErrors.correo_coordinador = "Este campo es obligatorio";
+        if (!formData.tel_coordinador) stepErrors.tel_coordinador = "Este campo es obligatorio";
+        if (!formData.perfil_competencia) stepErrors.perfil_competencia = "Este campo es obligatorio";
+        if (!formData.formas_evaluacion) stepErrors.formas_evaluacion = "Este campo es obligatorio";
+        if (!formData.certificado_solicitado) stepErrors.certificado_solicitado = "Debe seleccionar una opción";
+        if (!formData.valor_inscripcion) stepErrors.valor_inscripcion = "Este campo es obligatorio";
+      } else if (activeStep === 4) {
+        if (!formData.becas_convenio) stepErrors.becas_convenio = "Este campo es obligatorio";
+        if (!formData.becas_estudiantes) stepErrors.becas_estudiantes = "Este campo es obligatorio";
+        if (!formData.becas_docentes) stepErrors.becas_docentes = "Este campo es obligatorio";
+        if (!formData.becas_egresados) stepErrors.becas_egresados = "Este campo es obligatorio";
+        if (!formData.becas_funcionarios) stepErrors.becas_funcionarios = "Este campo es obligatorio";
+        if (!formData.becas_otros) stepErrors.becas_otros = "Este campo es obligatorio";
+        if (!formData.periodicidad_oferta) stepErrors.periodicidad_oferta = "Debe seleccionar una periodicidad";
+        if (!formData.organizacion_actividad) stepErrors.organizacion_actividad = "Debe seleccionar una opción";
+        if (formData.extension_solidaria === "si" && !formData.costo_extension_solidaria) {
+          stepErrors.costo_extension_solidaria = "Este campo es obligatorio";
+        }
+        if (!formData.personal_externo) stepErrors.personal_externo = "Este campo es obligatorio";
+      }
+    
+      setErrors(stepErrors);
+      return Object.keys(stepErrors).length === 0; // Retorna true si no hay errores
+    };    
 
     useEffect(() => {
       if (!idSolicitud) {
@@ -87,6 +139,10 @@
 
     
     const handleNext = async () => {
+      if (!validateStep()) {
+        console.log("Errores en los campos: ", errors); // Opcional: Depuración
+        return; // Detén el avance si hay errores
+      }
       if (activeStep < steps.length - 1) {
         setIsLoading(true); // Iniciar el loading
         const hoja = 1; // Cambiar según corresponda al formulario actual
@@ -318,16 +374,17 @@
               secciones={secciones}
               programas={programas}
               oficinas={oficinas}
+              errors={errors}
             />
           );
         case 1:
-          return <Step2 formData={formData} handleInputChange={handleInputChange} />;
+          return <Step2 formData={formData} handleInputChange={handleInputChange} errors={errors} />;
         case 2:
-          return <Step3 formData={formData} handleInputChange={handleInputChange} />;
+          return <Step3 formData={formData} handleInputChange={handleInputChange} errors={errors}/>;
         case 3:
-          return <Step4 formData={formData} handleInputChange={handleInputChange} />;
+          return <Step4 formData={formData} handleInputChange={handleInputChange} errors={errors}/>;
         case 4:
-          return <Step5 formData={formData} handleInputChange={handleInputChange} handleFileChange={handleFileChange}/>;
+          return <Step5 formData={formData} handleInputChange={handleInputChange} handleFileChange={handleFileChange} errors={errors} />;
         default:
           return null;
       }
@@ -381,7 +438,7 @@
           ))}
         </Stepper>
 
-        {renderStepContent(activeStep)}
+        {renderStepContent(activeStep, errors)}
 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', marginBottom: '20px' }}>
           <Button disabled={activeStep === 0} onClick={handleBack}>

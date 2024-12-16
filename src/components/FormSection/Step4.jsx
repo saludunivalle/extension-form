@@ -1,7 +1,7 @@
 import React from 'react';
 import { Grid, TextField, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel } from '@mui/material';
 
-function Step4({ formData, handleInputChange }) {
+function Step4({ formData, handleInputChange, errors }) {
   return (
     <Grid container spacing={2}>
       <Grid item xs={12}>
@@ -14,27 +14,54 @@ function Step4({ formData, handleInputChange }) {
               value={formData.nombre_coordinador}
               onChange={handleInputChange}
               required
+              error={!!errors.nombre_coordinador}
+              helperText={errors.nombre_coordinador}
+              
             />
           </Grid>
           <Grid item xs={4}>
-            <TextField
+          <TextField
               label="Correo del Coordinador"
               fullWidth
               name="correo_coordinador"
               value={formData.correo_coordinador}
-              onChange={handleInputChange}
+              onChange={(e) => {
+                const value = e.target.value;
+                handleInputChange(e); // Actualiza el estado global del formulario
+                // Validación en tiempo real
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                errors.correo_coordinador =
+                  emailRegex.test(value) ? "" : "Ingrese un correo válido";
+              }}
               required
+              error={!!errors.correo_coordinador}
+              helperText={errors.correo_coordinador}
             />
+
           </Grid>
           <Grid item xs={4}>
-            <TextField
+          <TextField
               label="Teléfono/Celular del Coordinador"
               fullWidth
               name="tel_coordinador"
               value={formData.tel_coordinador}
-              onChange={handleInputChange}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (/^\d*$/.test(value)) {
+                  handleInputChange(e); // Aceptar solo números
+                  // Validación en tiempo real
+                  const celularColombiaRegex = /^\d{9}$/;
+                  errors.tel_coordinador =
+                    celularColombiaRegex.test(value)
+                      ? ""
+                      : "Ingrese un celular válido (10 dígitos)";
+                }
+              }}
               required
+              error={!!errors.tel_coordinador}
+              helperText={errors.tel_coordinador}
             />
+
           </Grid>
         </Grid>
       </Grid>
@@ -63,6 +90,8 @@ function Step4({ formData, handleInputChange }) {
               value={formData.perfil_competencia}
               onChange={handleInputChange}
               required
+              error={!!errors.perfil_competencia}
+              helperText={errors.perfil_competencia}
             />
           </Grid>
           <Grid item xs={6}>
@@ -75,6 +104,8 @@ function Step4({ formData, handleInputChange }) {
               value={formData.formas_evaluacion}
               onChange={handleInputChange}
               required
+              error={!!errors.formas_evaluacion}
+              helperText={errors.formas_evaluacion}
             />
           </Grid>
         </Grid>
@@ -135,6 +166,8 @@ function Step4({ formData, handleInputChange }) {
             })
           }
           required
+          error={!!errors.valor_inscripcion}
+          helperText={errors.valor_inscripcion}
         />
       </Grid>
     </Grid>

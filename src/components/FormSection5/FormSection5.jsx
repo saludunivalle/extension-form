@@ -53,6 +53,21 @@ function FormSection5({ formData, handleInputChange, userData, currentStep, setC
 
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
 
+  const [errors, setErrors] = useState({});
+
+  const validateStep = () => {
+    const stepErrors = {};
+  
+    // Validaciones para Step1FormSection5
+    if (!formData.proposito) stepErrors.proposito = "Este campo es obligatorio";
+    if (!formData.comentario) stepErrors.comentario = "Este campo es obligatorio";
+    if (!formData.programa) stepErrors.programa = "Este campo es obligatorio";
+  
+    setErrors(stepErrors);
+    return Object.keys(stepErrors).length === 0; // Retorna true si no hay errores
+  };
+  
+
   useEffect(() => {
     if (!idSolicitud) {
       alert('No se encontró un ID válido para esta solicitud. Por favor, vuelve al dashboard.');
@@ -69,6 +84,10 @@ function FormSection5({ formData, handleInputChange, userData, currentStep, setC
   }, [currentStep, steps.length]);
   
   const handleNext = async () => {
+    if (!validateStep()) {
+      console.log("Errores en los campos: ", errors); // Opcional: Depuración
+      return; // Detén el avance si hay errores
+    }
     if (activeStep < steps.length - 1) {
       setIsLoading(true); // Iniciar el loading
       const hoja = 3; // Formulario va en SOLICITUDES5
@@ -220,7 +239,7 @@ function FormSection5({ formData, handleInputChange, userData, currentStep, setC
   const renderStepContent = (step) => {
     switch (step) {
       case 0:
-        return <Step1FormSection5 formData={formData} handleInputChange={handleInputChange} />;
+        return <Step1FormSection5 formData={formData} handleInputChange={handleInputChange} errors={errors}/>;
       case 1:
         return <Step2FormSection5 formData={formData} handleInputChange={handleInputChange} />;
       case 2:

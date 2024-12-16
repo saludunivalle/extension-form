@@ -1,7 +1,7 @@
 import React from 'react';
 import { Grid, TextField, MenuItem, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel } from '@mui/material';
 
-function Step1({ formData, handleInputChange, escuelas, departamentos, secciones, programas, oficinas }) {
+function Step1({ formData, handleInputChange, escuelas, departamentos, secciones, programas, oficinas, errors }) {
   return (
     <Grid container spacing={2}>
       <Grid item xs={12}>
@@ -16,6 +16,8 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
             shrink: true,
           }}
           required
+          error={!!errors.fecha_solicitud}
+          helperText={errors.fecha_solicitud}
         />
       </Grid>
       <Grid item xs={12}>
@@ -26,6 +28,8 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
           value={formData.nombre_actividad}
           onChange={handleInputChange}
           required
+          error={!!errors.nombre_actividad}
+          helperText={errors.nombre_actividad}
         />
       </Grid>
       <Grid item xs={12}>
@@ -36,6 +40,8 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
           value={formData.nombre_solicitante}
           onChange={handleInputChange}
           required
+          error={!!errors.nombre_solicitante}
+          helperText={errors.nombre_solicitante}
         />
       </Grid>
       <Grid item xs={12}>
