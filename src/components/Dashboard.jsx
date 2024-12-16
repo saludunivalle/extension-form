@@ -30,6 +30,7 @@ function Dashboard({ userData }) {
           params: { userId: userData.id },
         });
         setActiveRequests(response.data);
+        console.log('Solicitudes activas:', response.data);
       } catch (error) {
         console.error('Error al obtener solicitudes activas:', error);
       }
@@ -154,7 +155,7 @@ function Dashboard({ userData }) {
           {activeRequests.map((request) => (
             <ListItem key={request.idSolicitud} style={{ display: 'flex', justifyContent: 'space-between' }}>
               <ListItemText
-                primary={request.nombre_actividad ? request.nombre_actividad : `Solicitud ${request.idSolicitud}`}
+                primary={request.nombre_actividad || `Solicitud ${request.idSolicitud}`}
               />
               <Button
                 variant="outlined"

@@ -17,6 +17,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
   const location = useLocation(); // Obtener la ubicación actual
   const [isLoading, setIsLoading] = useState(false); // Estado para manejar el loading del botón
   const [completedSteps, setCompletedSteps] = useState([]);
+  const [highestStepReached, setHighestStepReached] = useState(0); // Máximo paso alcanzado
 
   const steps = [
     'Actividades de Mercadeo Relacional',
@@ -174,9 +175,10 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
               newCompleted.push(activeStep);
             }
             return newCompleted;
-          });
-          setCompletedSteps((prevCompleted) => [...prevCompleted, activeStep]);
+          });                  
+        
           setActiveStep((prevActiveStep) => prevActiveStep + 1);
+          setHighestStepReached((prev) => Math.max(prev, activeStep + 1));
       } catch (error) {
           console.error('Error al guardar el progreso:', error.response?.data || error.message);
       }
@@ -246,10 +248,11 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
   };
 
   const handleStepClick = (stepIndex) => {
-    if (stepIndex >= 0 && stepIndex < steps.length && (completedSteps.includes(stepIndex) || stepIndex === activeStep)) {
-      setActiveStep(stepIndex);
+    if (stepIndex <= highestStepReached) {
+      setActiveStep(stepIndex); // Cambiar al paso clicado si es alcanzado
     }
   };
+
   
 
   const handleCloseModal = () => {
@@ -277,34 +280,48 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
   return (
     <Box>
       <Stepper
-        activeStep={activeStep}
-        sx={{
-          '& .MuiStepIcon-root': {
-            fontSize: '24px',
-            color: '#4F4F4F', // Color por defecto
-          },
-          '& .MuiStepIcon-root.Mui-active': {
-            fontSize: '30px',
-            color: '#0056b3', // Azul para el paso activo
-          },
-          '& .MuiStepIcon-root.Mui-completed': {
-            fontSize: '24px',
-            color: '#1976d2', // Azul para pasos completados
-          },
-        }}
-      >
-      {steps.map((label, index) => (
-        <Step key={index} sx={{marginBottom:'20px'}}>      
+          activeStep={activeStep}
+          sx={{
+            '& .MuiStepLabel-root': {
+              cursor: 'default', // Por defecto, los pasos no son clicables
+            },
+            '& .MuiStepLabel-root.Mui-completed': {
+              cursor: 'pointer', // Pasos completados son clicables
+            },
+            '& .MuiStepLabel-root.Mui-active': {
+              cursor: 'pointer', // Paso activo es clicable
+            },
+          }}
+        >
+          {steps.map((label, index) => (
+            <Step key={index} sx={{marginBottom: '20px'}}>
               <StepLabel
-                onClick={() => handleStepClick(index)}
+                onClick={() => handleStepClick(index)} // Navegación controlada
                 sx={{
-                  cursor: completedSteps.includes(index) || index === activeStep ? 'pointer' : 'default',
+                  '& .MuiStepLabel-label': {
+                    color: index === activeStep ? '#FFFFFF' : index < activeStep ? '#4F4F4F' : '#A0A0A0', // Blanco activo, gris oscuro completado, gris claro inactivo
+                    backgroundColor: index === activeStep ? '#0056b3' : 'transparent', // Fondo azul para paso activo
+                    padding: index === activeStep ? '5px 10px' : '0', // Espaciado interno solo en activo
+                    borderRadius: '20px', // Bordes redondeados para fondo activo
+                    fontWeight: index === activeStep ? 'bold' : 'normal',
+                    cursor: index <= highestStepReached ? 'pointer' : 'default', // Cursor pointer solo para pasos alcanzables
+                  },
+                  '& .MuiStepIcon-root': {
+                    color: index < activeStep ? '#0056b3' : '#E0E0E0', // Azul para pasos completados, gris para inactivos
+                    fontSize: '28px', // Tamaño del ícono
+                  },
+                  '& .MuiStepIcon-root.Mui-active': {
+                    color: '#0056b3', // Azul para el ícono del paso activo
+                  },
+                  '& .MuiStepIcon-text': {
+                    fill: '#FFFFFF', // Color blanco para el número del paso activo
+                  },
                 }}
               >
                 {label}
               </StepLabel>
             </Step>
-        ))}
+          ))}
       </Stepper>
 
       {renderStepContent(activeStep)}

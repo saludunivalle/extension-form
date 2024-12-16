@@ -8,6 +8,33 @@
   import axios from 'axios';
   import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
   import { useNavigate } from 'react-router-dom';
+  import CheckIcon from '@mui/icons-material/Check'; // Importa el ícono del check
+  import { styled } from '@mui/system';
+
+  const CustomStepIconRoot = styled('div')(({ ownerState }) => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: '50%', // Hacerlo redondo
+    backgroundColor: ownerState.completed
+      ? '#0056b3' // Fondo azul para pasos completados
+      : ownerState.active
+      ? '#0056b3' // Fondo azul para el paso activo
+      : '#E0E0E0', // Fondo gris para los pasos inactivos
+    color: ownerState.completed || ownerState.active ? '#FFFFFF' : '#4F4F4F', // Texto blanco si es activo/completado
+    fontWeight: 'bold',
+  }));
+  
+  // Componente del ícono del paso
+  const CustomStepIcon = ({ active, completed, icon }) => (
+    <CustomStepIconRoot ownerState={{ active, completed }}>
+      {completed ? <CheckIcon /> : icon}
+    </CustomStepIconRoot>
+  );
+  
+  
 
   function FormSection({ 
     formData, 
@@ -28,7 +55,7 @@
     const [isLoading, setIsLoading] = useState(false); // Estado para manejar el loading del botón
     const navigate = useNavigate();
     const [completedSteps, setCompletedSteps] = useState([]);
-
+    const [highestStepReached, setHighestStepReached] = useState(0); // Máximo paso alcanzado
 
     useEffect(() => {
       if (!idSolicitud) {
@@ -191,9 +218,10 @@
                 newCompleted.push(activeStep);
               }
               return newCompleted;
-            });
+            });                  
           
             setActiveStep((prevActiveStep) => prevActiveStep + 1);
+            setHighestStepReached((prev) => Math.max(prev, activeStep + 1));
         } catch (error) {
             console.error('Error al guardar el progreso:', error);
             if (error.response) {
@@ -210,12 +238,11 @@
     };
 
     const handleStepClick = (stepIndex) => {
-      if (completedSteps.includes(stepIndex) || stepIndex === activeStep) {
-        setActiveStep(stepIndex); // Permite cambiar solo a pasos completados o el actual
+      if (stepIndex <= highestStepReached) {
+        setActiveStep(stepIndex); // Cambiar al paso clicado si es alcanzado
       }
     };
-    
-    
+
     const handleSubmit = async () => {
       setIsLoading(true); // Finalizar el loading
       const hoja = 1;
@@ -304,34 +331,48 @@
         <Stepper
           activeStep={activeStep}
           sx={{
-            '& .MuiStepIcon-root': {
-              fontSize: '24px',
-              color: '#4F4F4F', // Color por defecto
+            '& .MuiStepLabel-root': {
+              cursor: 'default', // Por defecto, los pasos no son clicables
             },
-            '& .MuiStepIcon-root.Mui-active': {
-              fontSize: '30px',
-              color: '#0056b3', // Azul para el paso activo
+            '& .MuiStepLabel-root.Mui-completed': {
+              cursor: 'pointer', // Pasos completados son clicables
             },
-            '& .MuiStepIcon-root.Mui-completed': {
-              fontSize: '24px',
-              color: '#1976d2', // Azul para pasos completados
+            '& .MuiStepLabel-root.Mui-active': {
+              cursor: 'pointer', // Paso activo es clicable
             },
           }}
         >
-        {steps.map((label, index) => (
-          <Step key={index} sx={{marginBottom:'20px'}}>      
-                <StepLabel
-                  onClick={() => handleStepClick(index)}
-                  sx={{
-                    cursor: completedSteps.includes(index) || index === activeStep ? 'pointer' : 'default',
-                  }}
-                >
-                  {label}
-                </StepLabel>
-              </Step>
+          {steps.map((label, index) => (
+            <Step key={index} sx={{marginBottom: '20px'}}>
+            <StepLabel
+              StepIconComponent={(props) => (
+                <CustomStepIcon
+                  {...props}
+                  active={index === activeStep}
+                  completed={completedSteps.includes(index) || index < activeStep}
+                />
+              )}
+              onClick={() => handleStepClick(index)} // Navegación controlada
+              sx={{
+                '& .MuiStepLabel-label': {
+                  color: index === activeStep
+                    ? '#FFFFFF'
+                    : completedSteps.includes(index) || index < activeStep
+                    ? '#4F4F4F'
+                    : '#A0A0A0',
+                  backgroundColor: index === activeStep ? '#0056b3' : 'transparent',
+                  padding: index === activeStep ? '5px 10px' : '0',
+                  borderRadius: '20px',
+                  fontWeight: index === activeStep ? 'bold' : 'normal',
+                  cursor: index <= highestStepReached ? 'pointer' : 'default',
+                },
+              }}
+            >
+              {label}
+            </StepLabel>
+            </Step>
           ))}
         </Stepper>
-
 
         {renderStepContent(activeStep)}
 
