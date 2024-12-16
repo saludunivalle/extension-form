@@ -272,7 +272,7 @@
         console.log('Cargando datos de la solicitud:', solicitudId);
         //setLoading(true);
         try {
-          const response = await axios.get(`https://siac-extension-server.vercel.app/getSolicitud`, {
+          const response = await axios.get(`https://siac-extension-form.vercel.app/getSolicitud`, {
             params: { id_solicitud: solicitudId }
           });
           const data = response.data;
@@ -328,7 +328,7 @@
     useEffect(() => {
       const fetchData = async () => {
         try {
-          const response = await axios.get('https://siac-extension-server.vercel.app/getProgramasYOficinas');
+          const response = await axios.get('https://siac-extension-form.vercel.app/getProgramasYOficinas');
           const data = response.data;
 
           setEscuelas([...new Set(data.programas.map(item => item.Escuela).filter(Boolean))]);

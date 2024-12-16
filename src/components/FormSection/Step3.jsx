@@ -1,11 +1,11 @@
 import React from 'react';
-import { FormControl, FormControlLabel, FormLabel, Grid, Radio, RadioGroup, TextField, Typography } from '@mui/material';
+import { FormControl, FormControlLabel, FormLabel, Grid, Radio, RadioGroup, TextField, Typography  } from '@mui/material';
 
-function Step3({ formData, handleInputChange }) {
+function Step3({ formData, handleInputChange  }) {
   return (
     <Grid container spacing={2}>
             <Grid item xs={12}>
-        <FormControl component="fieldset">
+          <FormControl component="fieldset" required>
           <FormLabel component="legend">Tipo</FormLabel>
           <RadioGroup
             row
@@ -35,7 +35,7 @@ function Step3({ formData, handleInputChange }) {
       </Grid>
 
       <Grid item xs={12}>
-        <FormControl component="fieldset">
+        <FormControl component="fieldset" required>
           <FormLabel component="legend">Modalidad</FormLabel>
           <RadioGroup
             row

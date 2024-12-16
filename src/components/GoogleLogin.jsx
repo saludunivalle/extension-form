@@ -19,7 +19,7 @@ const GoogleLogin = ({ setIsLogin, setUserInfo }) => {
         name: data_decode.name,
       };
 
-      const userResponse = await axios.post('https://siac-extension-server.vercel.app/saveUser', userInfo);
+      const userResponse = await axios.post('https://siac-extension-form.vercel.app/saveUser', userInfo);
 
       console.log('Respuesta del servidor al guardar usuario:', userResponse.data);
 

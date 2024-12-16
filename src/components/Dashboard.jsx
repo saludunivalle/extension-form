@@ -26,7 +26,7 @@ function Dashboard({ userData }) {
   useEffect(() => {
     const fetchActiveRequests = async () => {
       try {
-        const response = await axios.get('https://siac-extension-server.vercel.app/getActiveRequests', {
+        const response = await axios.get('https://siac-extension-form.vercel.app/getActiveRequests', {
           params: { userId: userData.id },
         });
         setActiveRequests(response.data);
@@ -38,7 +38,7 @@ function Dashboard({ userData }) {
   
     const fetchCompletedRequests = async () => {
       try {
-        const response = await axios.get('https://siac-extension-server.vercel.app/getCompletedRequests', {
+        const response = await axios.get('https://siac-extension-form.vercel.app/getCompletedRequests', {
           params: { userId: userData.id },
         });
         setCompletedRequests(response.data);
@@ -76,7 +76,7 @@ function Dashboard({ userData }) {
 
   const handleCreateNewRequest = async () => {
     try {
-      const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
+      const response = await axios.get('https://siac-extension-form.vercel.app/getLastId', {
         params: { sheetName: 'SOLICITUDES2' },
       });
 
@@ -105,7 +105,7 @@ function Dashboard({ userData }) {
         return;
       }
   
-      const response = await axios.post('https://siac-extension-server.vercel.app/generateReport', {
+      const response = await axios.post('https://siac-extension-form.vercel.app/generateReport', {
         solicitudId: idSolicitud,
         formNumber,
       });

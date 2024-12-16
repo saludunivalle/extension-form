@@ -1,12 +1,12 @@
 import React from 'react';
-import { Grid, TextField, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, Select, InputLabel, MenuItem, Box } from '@mui/material';
+import { Grid, TextField, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, Select, InputLabel, MenuItem, Box  } from '@mui/material';
 
 function Step5({ formData, handleInputChange, handleFileChange }) {
 
   return (
     <Grid container spacing={2}>
       <Grid item xs={12}>
-        <FormLabel component="legend">Becas o exenciones</FormLabel>
+        <FormLabel component="legend" required>Becas o exenciones</FormLabel>
       </Grid>
       <Grid item xs={12}>
         <Grid container spacing={2}>
@@ -113,7 +113,7 @@ function Step5({ formData, handleInputChange, handleFileChange }) {
 
       {/* Periodicidad de la Oferta */}
       <Grid item xs={12}>
-        <FormControl component="fieldset">
+        <FormControl component="fieldset" required>
           <FormLabel component="legend">Periodicidad de la oferta</FormLabel>
           <RadioGroup
             name="periodicidad_oferta"
@@ -129,7 +129,7 @@ function Step5({ formData, handleInputChange, handleFileChange }) {
       </Grid>
               
       <Grid item xs={12}>
-      <FormControl component="fieldset">
+      <FormControl component="fieldset" required>
           <FormLabel component="legend">La organización de la actividad se hará por</FormLabel>
           <RadioGroup
             name="organizacion_actividad"
@@ -156,7 +156,7 @@ function Step5({ formData, handleInputChange, handleFileChange }) {
       </Grid>
       {/* "Es extensión solidaria?" campo */}
       <Grid item xs={12}>
-        <FormControl component="fieldset">
+        <FormControl component="fieldset" required>
           <FormLabel component="legend">¿Es Extensión Solidaria?</FormLabel>
           <RadioGroup
             name="extension_solidaria"
@@ -204,6 +204,7 @@ function Step5({ formData, handleInputChange, handleFileChange }) {
           value={formData.personal_externo || ''}
           onChange={handleInputChange}
           placeholder="Detalles del personal externo (opcional)"
+          required
         />
       </Grid>
 

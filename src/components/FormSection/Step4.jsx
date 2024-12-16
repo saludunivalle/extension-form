@@ -81,7 +81,7 @@ function Step4({ formData, handleInputChange }) {
       </Grid>
 
       <Grid item xs={12}>
-        <FormControl component="fieldset">
+        <FormControl component="fieldset" required>
           <FormLabel component="legend">Certificado o constancia que solicita expedir</FormLabel>
           <RadioGroup
             row
