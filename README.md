@@ -41,5 +41,5 @@ node -v
 
 1. Abre tu navegador y accede a:
    ```
-   http://localhost:3000
+   http://localhost:5173
    ```
