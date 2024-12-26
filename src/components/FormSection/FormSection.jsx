@@ -1,6 +1,6 @@
   import React, { useEffect, useState } from 'react';
   import { Stepper, Step, StepLabel, Button, Box, CircularProgress } from '@mui/material';
-  import Step1 from './Step1'; // Importamos los componentes de cada paso
+  import Step1 from './Step1'; 
   import Step2 from './Step2';
   import Step3 from './Step3';
   import Step4 from './Step4';
@@ -8,26 +8,36 @@
   import axios from 'axios';
   import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
   import { useNavigate } from 'react-router-dom';
-  import CheckIcon from '@mui/icons-material/Check'; // Importa el ícono del check
+  import CheckIcon from '@mui/icons-material/Check'; 
   import { styled } from '@mui/system';
 
+  /* 
+  Este componente se encarga de cambiar el color de fondo, el color del texto y otros estilos visuales del ícono:
+  - Si el paso está completado (`completed`), el fondo es azul oscuro y el texto blanco.
+  - Si el paso está activo (`active`), el fondo también es azul oscuro y el texto blanco. (Sin embargo con el otro componente se le añade el icono check)
+  - Si el paso está pendiente, el fondo es gris claro y el texto gris oscuro.
+  */
   const CustomStepIconRoot = styled('div')(({ ownerState }) => ({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     width: 36,
     height: 36,
-    borderRadius: '50%', // Hacerlo redondo
+    borderRadius: '50%', 
     backgroundColor: ownerState.completed
-      ? '#0056b3' // Fondo azul para pasos completados
+      ? '#0056b3' 
       : ownerState.active
-      ? '#0056b3' // Fondo azul para el paso activo
-      : '#E0E0E0', // Fondo gris para los pasos inactivos
-    color: ownerState.completed || ownerState.active ? '#FFFFFF' : '#4F4F4F', // Texto blanco si es activo/completado
+      ? '#0056b3' 
+      : '#E0E0E0', 
+    color: ownerState.completed || ownerState.active ? '#FFFFFF' : '#4F4F4F', 
     fontWeight: 'bold',
   }));
-  
-  // Componente del ícono del paso
+
+  /*
+  Este componente se encarga de renderizar el contenido del ícono.
+  - Si el paso está completado (`completed`), muestra un ícono de verificación (`CheckIcon`).
+  - Si el paso no está completado, muestra el ícono correspondiente al paso (`icon`).
+  */
   const CustomStepIcon = ({ active, completed, icon }) => (
     <CustomStepIconRoot ownerState={{ active, completed }}>
       {completed ? <CheckIcon /> : icon}
@@ -47,14 +57,20 @@
     currentStep,
     handleFileChange,
   }) {
-    const [activeStep, setActiveStep] = useState(currentStep); // Usar currentStep como el paso inicial
-    const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usar id_solicitud desde el localStorage
-    const [showModal, setShowModal] = useState(false); // Estado para el modal de finalización
-    const [isLoading, setIsLoading] = useState(false); // Estado para manejar el loading del botón
+    const [activeStep, setActiveStep] = useState(currentStep); 
+    const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); 
+    const [showModal, setShowModal] = useState(false); 
+    const [isLoading, setIsLoading] = useState(false); 
     const navigate = useNavigate();
     const [completedSteps, setCompletedSteps] = useState([]);
-    const [highestStepReached, setHighestStepReached] = useState(0); // Máximo paso alcanzado
+    const [highestStepReached, setHighestStepReached] = useState(0); 
     const [errors, setErrors] = useState({});
+
+    /*
+    Esta función se encarga de validar los campos requeridos del formulario en función del paso activo (`activeStep`).
+    - Si algún campo obligatorio está vacío o no cumple los requisitos, agrega un mensaje de error específico al objeto `stepErrors`.
+    - Devuelve `true` si no hay errores, indicando que el paso es válido; de lo contrario, devuelve `false`.
+    */
 
     const validateStep = () => {
       const stepErrors = {};
@@ -104,7 +120,7 @@
       }
     
       setErrors(stepErrors);
-      return Object.keys(stepErrors).length === 0; // Retorna true si no hay errores
+      return Object.keys(stepErrors).length === 0; 
     };    
 
     useEffect(() => {
@@ -131,169 +147,170 @@
     
     useEffect(() => {
       if (currentStep < 0 || currentStep >= steps.length) {
-        setActiveStep(0); // Reiniciar al paso 0 si el valor es inválido
+        setActiveStep(0); 
       } else {
         setActiveStep(currentStep);
       }
     }, [currentStep, steps.length]);
 
     
-    const handleNext = async () => {
-      if (!validateStep()) {
-        console.log("Errores en los campos: ", errors); // Opcional: Depuración
-        return; // Detén el avance si hay errores
-      }
-      if (activeStep < steps.length - 1) {
-        setIsLoading(true); // Iniciar el loading
-        const hoja = 1; // Cambiar según corresponda al formulario actual
-        let pasoData = {};
+    /*
+    Lógica del botón "Siguiente"
+    - Valida los campos del paso actual. Si hay errores, detiene el avance.
+    - Construye los datos necesarios (`pasoData`) según el paso activo, incluyendo archivos si aplica.
+    - Envía los datos al servidor usando `axios` y maneja errores de la solicitud.
+    - Si el envío es exitoso, marca el paso como completado, avanza al siguiente y actualiza el estado del progreso.
+    */
 
-        // Configurar los datos según el paso actual
-        switch (activeStep) {
-            case 0:
-                pasoData = {
-                    id_solicitud: idSolicitud,
-                    fecha_solicitud: formData.fecha_solicitud || 'N/A',
-                    nombre_actividad: formData.nombre_actividad || 'N/A',
-                    nombre_solicitante: formData.nombre_solicitante || 'N/A',
-                    dependencia_tipo: formData.dependencia_tipo || 'N/A',
-                    nombre_escuela: formData.nombre_escuela || 'N/A',
-                    nombre_departamento: formData.nombre_departamento || 'N/A',
-                    nombre_seccion: formData.nombre_seccion || 'N/A',
-                    nombre_dependencia: formData.nombre_dependencia || 'N/A',
-                };
-                break;
-            case 1:
-                pasoData = {
-                    introduccion: formData.introduccion || 'N/A',
-                    objetivo_general: formData.objetivo_general || 'N/A',
-                    objetivos_especificos: formData.objetivos_especificos || 'N/A',
-                    justificacion: formData.justificacion || 'N/A',
-                    metodologia: formData.metodologia || 'N/A',
-                };
-                break;
-            case 2:
-                pasoData = {
-                    tipo: formData.tipo || 'N/A',
-                    otro_tipo: formData.otro_tipo || 'N/A',
-                    modalidad: formData.modalidad || 'N/A',
-                    horas_trabajo_presencial: formData.horas_trabajo_presencial || 'N/A',
-                    horas_sincronicas: formData.horas_sincronicas || 'N/A',
-                    total_horas: formData.total_horas || 'N/A',
-                    programCont: formData.programCont || 'N/A',
-                    dirigidoa: formData.dirigidoa || 'N/A',
-                    creditos: formData.creditos || 'N/A',
-                    cupo_min: formData.cupo_min || 'N/A',
-                    cupo_max: formData.cupo_max || 'N/A',
-                };
-                break;
-            case 3:
-                pasoData = {
-                    nombre_coordinador: formData.nombre_coordinador || 'N/A',
-                    correo_coordinador: formData.correo_coordinador || 'N/A',
-                    tel_coordinador: formData.tel_coordinador || 'N/A',
-                    perfil_competencia: formData.perfil_competencia || 'N/A',
-                    formas_evaluacion: formData.formas_evaluacion || 'N/A',
-                    certificado_solicitado: formData.certificado_solicitado || 'N/A',
-                    calificacion_minima: formData.calificacion_minima || 'N/A',
-                    razon_no_certificado: formData.razon_no_certificado || 'N/A',
-                    valor_inscripcion: formData.valor_inscripcion || 'N/A',
-                };
-                break;
-            case 4:
-                pasoData = {
-                    becas_convenio: formData.becas_convenio || 'N/A',
-                    becas_estudiantes: formData.becas_estudiantes || 'N/A',
-                    becas_docentes: formData.becas_docentes || 'N/A',
-                    becas_egresados: formData.becas_egresados || 'N/A',
-                    becas_funcionarios: formData.becas_funcionarios || 'N/A',
-                    becas_otros: formData.becas_otros || 'N/A',
-                    periodicidad_oferta: formData.periodicidad_oferta || 'N/A',
-                    organizacion_actividad: formData.organizacion_actividad || 'N/A',
-                    otro_tipo_act: formData.otro_tipo_act || 'N/A',
-                    extension_solidaria: formData.extension_solidaria || 'N/A',
-                    costo_extension_solidaria: formData.costo_extension_solidaria || 'N/A',
-                    personal_externo: formData.personal_externo || 'N/A',
-                };
-                break;
-            default:
-                break;
+      const handleNext = async () => {
+        if (!validateStep()) {
+          console.log("Errores en los campos: ", errors); 
+          return; 
         }
+        if (activeStep < steps.length - 1) {
+          setIsLoading(true); 
+          const hoja = 1; 
+          let pasoData = {};
 
-        // Crear el objeto de datos a enviar
-        let dataToSend;
+          switch (activeStep) {
+              case 0:
+                  pasoData = {
+                      id_solicitud: idSolicitud,
+                      fecha_solicitud: formData.fecha_solicitud || 'N/A',
+                      nombre_actividad: formData.nombre_actividad || 'N/A',
+                      nombre_solicitante: formData.nombre_solicitante || 'N/A',
+                      dependencia_tipo: formData.dependencia_tipo || 'N/A',
+                      nombre_escuela: formData.nombre_escuela || 'N/A',
+                      nombre_departamento: formData.nombre_departamento || 'N/A',
+                      nombre_seccion: formData.nombre_seccion || 'N/A',
+                      nombre_dependencia: formData.nombre_dependencia || 'N/A',
+                  };
+                  break;
+              case 1:
+                  pasoData = {
+                      introduccion: formData.introduccion || 'N/A',
+                      objetivo_general: formData.objetivo_general || 'N/A',
+                      objetivos_especificos: formData.objetivos_especificos || 'N/A',
+                      justificacion: formData.justificacion || 'N/A',
+                      metodologia: formData.metodologia || 'N/A',
+                  };
+                  break;
+              case 2:
+                  pasoData = {
+                      tipo: formData.tipo || 'N/A',
+                      otro_tipo: formData.otro_tipo || 'N/A',
+                      modalidad: formData.modalidad || 'N/A',
+                      horas_trabajo_presencial: formData.horas_trabajo_presencial || 'N/A',
+                      horas_sincronicas: formData.horas_sincronicas || 'N/A',
+                      total_horas: formData.total_horas || 'N/A',
+                      programCont: formData.programCont || 'N/A',
+                      dirigidoa: formData.dirigidoa || 'N/A',
+                      creditos: formData.creditos || 'N/A',
+                      cupo_min: formData.cupo_min || 'N/A',
+                      cupo_max: formData.cupo_max || 'N/A',
+                  };
+                  break;
+              case 3:
+                  pasoData = {
+                      nombre_coordinador: formData.nombre_coordinador || 'N/A',
+                      correo_coordinador: formData.correo_coordinador || 'N/A',
+                      tel_coordinador: formData.tel_coordinador || 'N/A',
+                      perfil_competencia: formData.perfil_competencia || 'N/A',
+                      formas_evaluacion: formData.formas_evaluacion || 'N/A',
+                      certificado_solicitado: formData.certificado_solicitado || 'N/A',
+                      calificacion_minima: formData.calificacion_minima || 'N/A',
+                      razon_no_certificado: formData.razon_no_certificado || 'N/A',
+                      valor_inscripcion: formData.valor_inscripcion || 'N/A',
+                  };
+                  break;
+              case 4:
+                  pasoData = {
+                      becas_convenio: formData.becas_convenio || 'N/A',
+                      becas_estudiantes: formData.becas_estudiantes || 'N/A',
+                      becas_docentes: formData.becas_docentes || 'N/A',
+                      becas_egresados: formData.becas_egresados || 'N/A',
+                      becas_funcionarios: formData.becas_funcionarios || 'N/A',
+                      becas_otros: formData.becas_otros || 'N/A',
+                      periodicidad_oferta: formData.periodicidad_oferta || 'N/A',
+                      organizacion_actividad: formData.organizacion_actividad || 'N/A',
+                      otro_tipo_act: formData.otro_tipo_act || 'N/A',
+                      extension_solidaria: formData.extension_solidaria || 'N/A',
+                      costo_extension_solidaria: formData.costo_extension_solidaria || 'N/A',
+                      personal_externo: formData.personal_externo || 'N/A',
+                  };
+                  break;
+              default:
+                  break;
+          }
 
-        // Solo en el último paso se incluirá la pieza gráfica
-        if (formData.pieza_grafica && activeStep === 4) {
-            dataToSend = new FormData();
-            dataToSend.append('id_solicitud', idSolicitud);
-            dataToSend.append('paso', activeStep + 1);
-            dataToSend.append('hoja', hoja);
-            dataToSend.append('id_usuario', userData.id);
-            dataToSend.append('name', userData.name);
+          let dataToSend;
 
-            // Añadir los campos de pasoData al FormData
-            Object.keys(pasoData).forEach((key) => {
-                dataToSend.append(key, pasoData[key]);
-            });
+          if (formData.pieza_grafica && activeStep === 4) {
+              dataToSend = new FormData();
+              dataToSend.append('id_solicitud', idSolicitud);
+              dataToSend.append('paso', activeStep + 1);
+              dataToSend.append('hoja', hoja);
+              dataToSend.append('id_usuario', userData.id);
+              dataToSend.append('name', userData.name);
 
-            // Añadir pieza gráfica
-            dataToSend.append('pieza_grafica', formData.pieza_grafica);
-        } else {
-            // Si no hay pieza gráfica o no es el último paso, envía los datos como JSON
-            dataToSend = {
-                id_solicitud: idSolicitud,
-                paso: activeStep + 1,
-                hoja: hoja,
-                id_usuario: userData.id,
-                name: userData.name,
-                ...pasoData,
-            };
-        }
+              Object.keys(pasoData).forEach((key) => {
+                  dataToSend.append(key, pasoData[key]);
+              });
 
-        try {
-            // Debugging para asegurar los datos enviados
-            console.log("Enviando Datos:", dataToSend);
+              dataToSend.append('pieza_grafica', formData.pieza_grafica);
+          } else {
+              dataToSend = {
+                  id_solicitud: idSolicitud,
+                  paso: activeStep + 1,
+                  hoja: hoja,
+                  id_usuario: userData.id,
+                  name: userData.name,
+                  ...pasoData,
+              };
+          }
 
-            if (formData.pieza_grafica && activeStep === 4) {
-                await axios.post('https://siac-extension-form.vercel.app/guardarProgreso', dataToSend, {
-                    headers: {
-                        'Content-Type': 'multipart/form-data',
-                    },
-                });
-            } else {
-                try {
-                  await axios.post('https://siac-extension-form.vercel.app/guardarProgreso', dataToSend);
-                  setCompletedSteps((prev) => [...prev, activeStep]);
-                } catch (error) {
-                  console.error('Error al guardar el progreso:', error);
-                  alert('Hubo un problema al guardar los datos. Por favor, inténtalo de nuevo.');
-                } finally {
-                  setIsLoading(false);
-                }
-            }
+          try {
+              console.log("Enviando Datos:", dataToSend);
 
-            // Mover al siguiente paso si todo fue exitoso
-            setIsLoading(false); // Finalizar el loading
-            setCompletedSteps((prevCompleted) => {
-              const newCompleted = [...prevCompleted];
-              if (!newCompleted.includes(activeStep)) {
-                newCompleted.push(activeStep);
+              if (formData.pieza_grafica && activeStep === 4) {
+                  await axios.post('https://siac-extension-form.vercel.app/guardarProgreso', dataToSend, {
+                      headers: {
+                          'Content-Type': 'multipart/form-data',
+                      },
+                  });
+              } else {
+                  try {
+                    await axios.post('https://siac-extension-form.vercel.app/guardarProgreso', dataToSend);
+                    setCompletedSteps((prev) => [...prev, activeStep]);
+                  } catch (error) {
+                    console.error('Error al guardar el progreso:', error);
+                    alert('Hubo un problema al guardar los datos. Por favor, inténtalo de nuevo.');
+                  } finally {
+                    setIsLoading(false);
+                  }
               }
-              return newCompleted;
-            });                  
-          
-            setActiveStep((prevActiveStep) => prevActiveStep + 1);
-            setHighestStepReached((prev) => Math.max(prev, activeStep + 1));
-        } catch (error) {
-            console.error('Error al guardar el progreso:', error);
-            if (error.response) {
-                console.error('Detalles del error:', error.response.data);
-            }
-        }
-      }
-    };
 
+              setIsLoading(false); 
+              setCompletedSteps((prevCompleted) => {
+                const newCompleted = [...prevCompleted];
+                if (!newCompleted.includes(activeStep)) {
+                  newCompleted.push(activeStep);
+                }
+                return newCompleted;
+              });                  
+            
+              setActiveStep((prevActiveStep) => prevActiveStep + 1);
+              setHighestStepReached((prev) => Math.max(prev, activeStep + 1));
+          } catch (error) {
+              console.error('Error al guardar el progreso:', error);
+              if (error.response) {
+                  console.error('Detalles del error:', error.response.data);
+              }
+          }
+        }
+      };
+
+    //Lógica del botón "Atrás"
     const handleBack = () => {
       if (activeStep > 0) {
         setActiveStep((prev) => prev - 1);
@@ -302,65 +319,74 @@
 
     const handleStepClick = (stepIndex) => {
       if (stepIndex <= highestStepReached) {
-        setActiveStep(stepIndex); // Cambiar al paso clicado si es alcanzado
+        setActiveStep(stepIndex); 
       }
     };
 
+    /*
+      - Envía los datos del último paso del formulario al servidor.
+      - Construye los datos necesarios, incluyendo archivos si están presentes.
+      - Muestra un modal de confirmación si el envío es exitoso y maneja errores en caso de fallas.
+    */
+
     const handleSubmit = async () => {
-      setIsLoading(true); // Finalizar el loading
-      const hoja = 1;
+        setIsLoading(true); 
+        const hoja = 1;
 
-      let pasoData = {
-          becas_convenio: formData.becas_convenio || 'N/A',
-          becas_estudiantes: formData.becas_estudiantes || 'N/A',
-          becas_docentes: formData.becas_docentes || 'N/A',
-          becas_egresados: formData.becas_egresados || 'N/A',
-          becas_funcionarios: formData.becas_funcionarios || 'N/A',
-          becas_otros: formData.becas_otros || 'N/A',
-          periodicidad_oferta: formData.periodicidad_oferta || 'N/A',
-          organizacion_actividad: formData.organizacion_actividad || 'N/A',
-          otro_tipo_act: formData.otro_tipo_act || 'N/A',
-          extension_solidaria: formData.extension_solidaria || 'N/A',
-          costo_extension_solidaria: formData.costo_extension_solidaria || 'N/A',
-          personal_externo: formData.personal_externo || 'N/A',
-      };
+        let pasoData = {
+            becas_convenio: formData.becas_convenio || 'N/A',
+            becas_estudiantes: formData.becas_estudiantes || 'N/A',
+            becas_docentes: formData.becas_docentes || 'N/A',
+            becas_egresados: formData.becas_egresados || 'N/A',
+            becas_funcionarios: formData.becas_funcionarios || 'N/A',
+            becas_otros: formData.becas_otros || 'N/A',
+            periodicidad_oferta: formData.periodicidad_oferta || 'N/A',
+            organizacion_actividad: formData.organizacion_actividad || 'N/A',
+            otro_tipo_act: formData.otro_tipo_act || 'N/A',
+            extension_solidaria: formData.extension_solidaria || 'N/A',
+            costo_extension_solidaria: formData.costo_extension_solidaria || 'N/A',
+            personal_externo: formData.personal_externo || 'N/A',
+        };
 
-      let dataToSend = new FormData();
-      dataToSend.append('id_solicitud', idSolicitud);
-      dataToSend.append('paso', activeStep + 1);
-      dataToSend.append('hoja', hoja);
-      dataToSend.append('id_usuario', userData.id);
-      dataToSend.append('name', userData.name);
+        let dataToSend = new FormData();
+        dataToSend.append('id_solicitud', idSolicitud);
+        dataToSend.append('paso', activeStep + 1);
+        dataToSend.append('hoja', hoja);
+        dataToSend.append('id_usuario', userData.id);
+        dataToSend.append('name', userData.name);
 
-      // Añadir los campos de pasoData al FormData, evitando duplicados
-      Object.keys(pasoData).forEach((key) => {
-          if (pasoData[key] !== undefined && pasoData[key] !== null) {
-              dataToSend.append(key, pasoData[key]);
-          }
-      });
+        Object.keys(pasoData).forEach((key) => {
+            if (pasoData[key] !== undefined && pasoData[key] !== null) {
+                dataToSend.append(key, pasoData[key]);
+            }
+        });
 
-      // Añadir pieza gráfica como "N/A" si no está disponible
-      dataToSend.append('pieza_grafica', formData.pieza_grafica ? formData.pieza_grafica : 'N/A');
+        dataToSend.append('pieza_grafica', formData.pieza_grafica ? formData.pieza_grafica : 'N/A');
 
-      try {
-          console.log("Enviando Datos:", dataToSend);
+        try {
+            console.log("Enviando Datos:", dataToSend);
 
-          await axios.post('https://siac-extension-form.vercel.app/guardarProgreso', dataToSend, {
-              headers: {
-                  'Content-Type': 'multipart/form-data',
-              },
-          });
+            await axios.post('https://siac-extension-form.vercel.app/guardarProgreso', dataToSend, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
 
-          // Mostrar modal de finalización si todo fue exitoso
-          setIsLoading(false); // Finalizar el loading
-          setShowModal(true);
-      } catch (error) {
-          console.error('Error al guardar los datos del último paso:', error);
-          if (error.response) {
-              console.error('Detalles del error:', error.response.data);
-          }
-      }
-  };
+            setIsLoading(false); 
+            setShowModal(true);
+        } catch (error) {
+            console.error('Error al guardar los datos del último paso:', error);
+            if (error.response) {
+                console.error('Detalles del error:', error.response.data);
+            }
+        }
+    };
+
+    /*
+      - Devuelve el componente correspondiente al paso actual del formulario.
+      - Cada caso del `switch` renderiza un componente específico (`Step1`, `Step2`, etc.) con las props necesarias.
+      - Retorna `null` si el paso no es válido.
+    */
 
     const renderStepContent = (step) => {
       switch (step) {
@@ -396,13 +422,13 @@
           activeStep={activeStep}
           sx={{
             '& .MuiStepLabel-root': {
-              cursor: 'default', // Por defecto, los pasos no son clicables
+              cursor: 'default', 
             },
             '& .MuiStepLabel-root.Mui-completed': {
-              cursor: 'pointer', // Pasos completados son clicables
+              cursor: 'pointer', 
             },
             '& .MuiStepLabel-root.Mui-active': {
-              cursor: 'pointer', // Paso activo es clicable
+              cursor: 'pointer', 
             },
           }}
         >
@@ -416,7 +442,7 @@
                   completed={completedSteps.includes(index) || index < activeStep}
                 />
               )}
-              onClick={() => handleStepClick(index)} // Navegación controlada
+              onClick={() => handleStepClick(index)} 
               sx={{
                 '& .MuiStepLabel-label': {
                   color: index === activeStep
@@ -448,8 +474,8 @@
             variant="contained"
             color="primary"
             onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
-            disabled={isLoading} // Deshabilitar el botón si está cargando
-            startIcon={isLoading ? <CircularProgress size={20} /> : null} // Mostrar un CircularProgress si está cargando
+            disabled={isLoading} 
+            startIcon={isLoading ? <CircularProgress size={20} /> : null} 
           >
             {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
           </Button>

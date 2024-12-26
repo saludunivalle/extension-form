@@ -4,9 +4,9 @@
     Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button 
   } from '@mui/material';
   import FormSection from '../components/FormSection/FormSection';
-  import FormSection3 from '../components/FormSection3/FormSection3';
+  import FormSection2 from '../components/FormSection2/FormSection2';
   import FormSection4 from '../components/FormSection4/FormSection4';
-  import FormSection5 from '../components/FormSection5/FormSection5';
+  import FormSection3 from '../components/FormSection3/FormSection3';
   import axios from 'axios';
   import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
   import FormStepper from './FormStepper'; // Importa el componente FormStepper
@@ -450,9 +450,9 @@
         case 1:
           return <FormSection  formId={1} userData={userData} formData={formData} escuelas={escuelas} departamentos={departamentos} secciones={secciones} oficinas={oficinas} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange}   programas={programasFiltrados} currentStep={currentStep} handleFileChange={handleFileChange} />;
         case 2:
-          return <FormSection3 formId={2} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} />;
+          return <FormSection2 formId={2} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} />;
         case 3:
-          return <FormSection5 formId={3} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep}/>;
+          return <FormSection3 formId={3} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep}/>;
         case 4:
           return <FormSection4 formId={4} userData={userData} formData={formData} handleInputChange={handleInputChange} currentStep={currentStep}/>;
         default:

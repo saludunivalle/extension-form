@@ -1,127 +1,132 @@
 import React from 'react';
-import { Grid, Table, TableBody, TableCell, TableHead, TableRow, TextField } from '@mui/material';
+import { Typography, Box, Grid, Checkbox } from '@mui/material';
 
-function Step3FormSection3({ formData, handleInputChange, totalGastos}) {
-  // Calcular dinámicamente los totales según los datos en formData
-  const totalIngresos = (formData.ingresos_cantidad || 0) * (formData.ingresos_vr_unit || 0);
-
-  // Porcentaje para el fondo común (ajustable por el usuario)
-  const fondoComunPorcentaje = formData.fondo_comun_porcentaje || 30;
-
-  // Cálculo del fondo común, facultad y escuela/departamento
-  const fondoComun = (fondoComunPorcentaje / 100) * totalIngresos;
-  const facultadInstituto = totalIngresos * 0.05; // 5% del total de ingresos
-  const escuelaDepartamento = ((formData.escuela_departamento_porcentaje || 0) / 100) * totalIngresos;
-
-  // Suma total de los aportes
-  const totalAportesUnivalle = fondoComun + facultadInstituto + escuelaDepartamento;
-
-  // Formatear valores como moneda
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 2,
-    }).format(value || 0);
+function Step3FormSection3({ formData, handleInputChange }) {
+  const handleCheckboxChange = (event) => {
+    const { name, checked } = event.target;
+    handleInputChange({
+      target: {
+        name,
+        value: checked ? 'Sí' : 'No',
+      },
+    });
   };
-
+  
   return (
-    <Grid container spacing={2}>
-      <Grid item xs={12}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>CONCEPTO</TableCell>
-              <TableCell align="right">VALOR</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-             {/* Total Ingresos */}
-            <TableRow>
-              <TableCell style={{ fontWeight: 'bold' }}>Total Ingresos</TableCell>
-              <TableCell align="right" style={{ fontWeight: 'bold' }}>
-                {formatCurrency(totalIngresos)}
-              </TableCell>
-            </TableRow>
+    <Box>
+      <Typography variant="h6" gutterBottom>MATRIZ DE RIESGOS - LOCACIONES</Typography>
 
-            {/* Total Gastos */}
-            <TableRow>
-              <TableCell style={{ fontWeight: 'bold' }}>Total Gastos</TableCell>
-              <TableCell align="right" style={{ fontWeight: 'bold' }}>
-                {formatCurrency(totalGastos)} {/* Usa el campo correspondiente a los gastos */}
-              </TableCell>
-            </TableRow>
-            {/* Fondo Común */}
-            <TableRow>
-              <TableCell sx={{display:'flex', flexDirection:'row',alignItems:'center'}}>
-                Fondo Común (
-                <TextField
-                  type="number"
-                  name="fondo_comun_porcentaje"
-                  value={fondoComunPorcentaje}
-                  onChange={(e) => {
-                    let value = parseFloat(e.target.value) || 0;
-                    if (value < 1) value = 1; // Limitar mínimo a 1%
-                    if (value > 100) value = 100; // Limitar máximo a 100%
-                    handleInputChange({ target: { name: 'fondo_comun_porcentaje', value } });
-                  }}
-                  inputProps={{
-                    inputMode: 'numeric',
-                    pattern: '[0-9]*',
-                    min: 1,
-                    max: 100,
-                    style: { width: '50px', height: '30px', fontSize: '14px', padding: '5px'},
-                  }}
-                />
-                %)
-              </TableCell>
-              <TableCell align="right">{formatCurrency(fondoComun)}</TableCell>
-            </TableRow>
+      <Grid container spacing={2}>
+        {/* Títulos de las columnas */}
+        <Grid item xs={4}>
+          <Typography variant="subtitle1">RIESGO</Typography>
+        </Grid>
+        <Grid item xs={4}>
+          <Typography variant="subtitle1">¿APLICA?</Typography>
+        </Grid>
+        <Grid item xs={4}>
+          <Typography variant="subtitle1">MITIGACIÓN</Typography>
+        </Grid>
 
-            {/* Facultad o Instituto */}
-            <TableRow>
-              <TableCell>Facultad o Instituto (5%)</TableCell>
-              <TableCell align="right">{formatCurrency(facultadInstituto)}</TableCell>
-            </TableRow>
+        {/* Riesgo 1 */}
+        <Grid item xs={4}>
+          <Typography variant="body1">
+            Afectación en el desarrollo de programas de educación continua debido a la falta de espacio (salones, salas, auditorios) para la ejecución de la actividad.
+          </Typography>
+        </Grid>
+        <Grid item xs={4}>
+          <Checkbox
+            name="aplicaLocacion1"
+            checked={formData.aplicaLocacion1 || false}
+            onChange={handleCheckboxChange}
+          />
+        </Grid>
+        <Grid item xs={4}>
+          <Typography variant="body1">
+            Contar con un listado de auditorios, salones y lugares para desarrollar la actividad.
+          </Typography>
+        </Grid>
 
-            {/* Escuela/Departamento */}
-            <TableRow>
-              <TableCell sx={{display:'flex', flexDirection:'row',alignItems:'center'}}>
-                Escuela, Departamento, Área (
-                <TextField
-                  type="number"
-                  name="escuela_departamento_porcentaje"
-                  value={formData.escuela_departamento_porcentaje || ''}
-                  onChange={(e) => {
-                    let value = parseFloat(e.target.value) || 0;
-                    if (value < 0) value = 0; // Limitar mínimo a 0%
-                    if (value > 100) value = 100; // Limitar máximo a 100%
-                    handleInputChange({ target: { name: 'escuela_departamento_porcentaje', value } });
-                  }}
-                  inputProps={{
-                    inputMode: 'numeric',
-                    pattern: '[0-9]*',
-                    min: 0,
-                    max: 100,
-                    style: { width: '50px', height: '30px', fontSize: '14px', padding: '5px' },
-                  }}
-                />
-                %)
-              </TableCell>
-              <TableCell align="right">{formatCurrency(escuelaDepartamento)}</TableCell>
-            </TableRow>
+        {/* Riesgo 2 */}
+        <Grid item xs={4}>
+          <Typography variant="body1">
+            Afectación en el desarrollo de programas de educación continua debido mal estado de las instalaciones locativas.
+          </Typography>
+        </Grid>
+        <Grid item xs={4}>
+          <Checkbox
+            name="aplicaLocacion2"
+            checked={formData.aplicaLocacion2 || false}
+            onChange={handleCheckboxChange}
+          />
+        </Grid>
+        <Grid item xs={4}>
+          <Typography variant="body1">
+            Proyección de inversiones locativas o buscar un nuevo lugar para realizar los eventos de Educación Continua.
+          </Typography>
+        </Grid>
 
-            {/* Total Aportes */}
-            <TableRow>
-              <TableCell colSpan={1} style={{ fontWeight: 'bold' }}>Total Recursos</TableCell>
-              <TableCell align="right" style={{ fontWeight: 'bold' }}>
-                {formatCurrency(totalAportesUnivalle)}
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+        {/* Riesgo 3 */}
+        <Grid item xs={4}>
+          <Typography variant="body1">
+            Afectación en el desarrollo de programas de educación continua debido a la falta de recursos tecnológicos para el desarrollo de las actividades (equipos de computo, aire acondicionado).
+          </Typography>
+        </Grid>
+        <Grid item xs={4}>
+          <Checkbox
+            name="aplicaLocacion3"
+            checked={formData.aplicaLocacion3 || false}
+            onChange={handleCheckboxChange}
+          />
+        </Grid>
+        <Grid item xs={4}>
+          <Typography variant="body1">
+            Planificar con antelación el inventario de los mismos. <br />
+            Realizar pruebas exhaustivas antes del inicio actividades. <br />
+            Asegurar que haya soporte técnico disponible para resolver problemas rápidamente.
+          </Typography>
+        </Grid>
+
+        {/* Riesgo 4 */}
+        <Grid item xs={4}>
+          <Typography variant="body1">
+            Afectación en la ejecución de programas de educación continua por cierre, bloqueos o factores externos (Inundaciones, temblores, etc.) en el campus Universitario.
+          </Typography>
+        </Grid>
+        <Grid item xs={4}>
+          <Checkbox
+            name="aplicaLocacion4"
+            checked={formData.aplicaLocacion4 || false}
+            onChange={handleCheckboxChange}
+          />
+        </Grid>
+        <Grid item xs={4}>
+          <Typography variant="body1">
+            Tener lugares alternativos para realizar el evento, debe incluirse en el rubro de imprevistos. <br />
+            Mantener un plan de trabajo virtual, remoto o asistido por tecnologías cuando no se pueda dictar el programa de manera presencial.
+          </Typography>
+        </Grid>
+
+        {/* Riesgo 5 */}
+        <Grid item xs={4}>
+          <Typography variant="body1">
+            Afectación en la ejecución de programas de educación continua debido a problemas tecnológicos como fallas de conectividad.
+          </Typography>
+        </Grid>
+        <Grid item xs={4}>
+          <Checkbox
+            name="aplicaLocacion5"
+            checked={formData.aplicaLocacion5 || false}
+            onChange={handleCheckboxChange}
+          />
+        </Grid>
+        <Grid item xs={4}>
+          <Typography variant="body1">
+            Validar la conexión del lugar donde se impartirá el curso con suficiente tiempo el día del evento o días anteriores.
+          </Typography>
+        </Grid>
       </Grid>
-    </Grid>
+    </Box>
   );
 }
 

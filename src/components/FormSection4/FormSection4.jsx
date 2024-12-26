@@ -10,25 +10,35 @@ import Step4FormSection4 from './Step4FormSection4';
 import Step5FormSection4 from './Step5FormSection4';
 
 import CheckIcon from '@mui/icons-material/Check'; // Importa el ícono del check
-  import { styled } from '@mui/system';
+import { styled } from '@mui/system';
 
+  /* 
+  Este componente se encarga de cambiar el color de fondo, el color del texto y otros estilos visuales del ícono:
+  - Si el paso está completado (`completed`), el fondo es azul oscuro y el texto blanco.
+  - Si el paso está activo (`active`), el fondo también es azul oscuro y el texto blanco. (Sin embargo con el otro componente se le añade el icono check)
+  - Si el paso está pendiente, el fondo es gris claro y el texto gris oscuro.
+  */
   const CustomStepIconRoot = styled('div')(({ ownerState }) => ({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     width: 36,
     height: 36,
-    borderRadius: '50%', // Hacerlo redondo
+    borderRadius: '50%', 
     backgroundColor: ownerState.completed
-      ? '#0056b3' // Fondo azul para pasos completados
+      ? '#0056b3' 
       : ownerState.active
-      ? '#0056b3' // Fondo azul para el paso activo
-      : '#E0E0E0', // Fondo gris para los pasos inactivos
-    color: ownerState.completed || ownerState.active ? '#FFFFFF' : '#4F4F4F', // Texto blanco si es activo/completado
+      ? '#0056b3' 
+      : '#E0E0E0', 
+    color: ownerState.completed || ownerState.active ? '#FFFFFF' : '#4F4F4F', 
     fontWeight: 'bold',
   }));
   
-  // Componente del ícono del paso
+    /*
+  Este componente se encarga de renderizar el contenido del ícono.
+  - Si el paso está completado (`completed`), muestra un ícono de verificación (`CheckIcon`).
+  - Si el paso no está completado, muestra el ícono correspondiente al paso (`icon`).
+  */
   const CustomStepIcon = ({ active, completed, icon }) => (
     <CustomStepIconRoot ownerState={{ active, completed }}>
       {completed ? <CheckIcon /> : icon}
@@ -58,6 +68,11 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
 
   const [errors, setErrors] = useState({});
 
+  /*
+  Esta función se encarga de validar los campos requeridos del formulario en función del paso activo (`activeStep`).
+  - Si algún campo obligatorio está vacío o no cumple los requisitos, agrega un mensaje de error específico al objeto `stepErrors`.
+  - Devuelve `true` si no hay errores, indicando que el paso es válido; de lo contrario, devuelve `false`.
+  */
   const validateStep = () => {
     const stepErrors = {};
   
@@ -123,7 +138,13 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
     }
   }, [currentStep, steps.length]);
   
-
+  /*
+    Lógica del botón "Siguiente"
+    - Valida los campos del paso actual. Si hay errores, detiene el avance.
+    - Construye los datos necesarios (`pasoData`) según el paso activo, incluyendo archivos si aplica.
+    - Envía los datos al servidor usando `axios` y maneja errores de la solicitud.
+    - Si el envío es exitoso, marca el paso como completado, avanza al siguiente y actualiza el estado del progreso.
+  */
   const handleNext = async () => {
     if (!validateStep()) {
       console.log("Errores en los campos: ", errors); // Opcional: Depuración
@@ -131,7 +152,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
     }
     if (activeStep < steps.length - 1) {
       setIsLoading(true); // Finalizar el loading
-      const hoja = 4; // Formulario 2 va en SOLICITUDES
+      const hoja = 4; 
 
       const completarValoresConNo = (data) => {
           const completado = {};
@@ -256,8 +277,9 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
           console.error('Error al guardar el progreso:', error.response?.data || error.message);
       }
     }
-};
+  };
 
+  // Lógica del botón "Atrás"
   const handleBack = () => {
     if (activeStep > 0) {
       setActiveStep((prev) => prev - 1);

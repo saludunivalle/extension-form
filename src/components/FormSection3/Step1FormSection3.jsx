@@ -1,36 +1,79 @@
 import React from 'react';
-import { Grid, TextField } from '@mui/material';
+import { Typography, Box, TextField } from '@mui/material';
 
-function Step1FormSection3({ formData, handleInputChange }) {
+function Step1FormSection3({ formData, handleInputChange, errors }) {
   return (
-    <Grid container spacing={2}>
-      <Grid item xs={12}>
-        <TextField
-          label="Nombre de la Actividad"
-          fullWidth
-          name="nombre_actividad"
-          value={formData.nombre_actividad || ''}
-          onChange={handleInputChange}
-          required
-          disabled
-        />
-      </Grid>
-      <Grid item xs={12}>
-        <TextField
-          label="Fecha"
-          type="date"
-          fullWidth
-          name="fecha_solicitud"
-          value={formData.fecha_solicitud || ''}
-          onChange={handleInputChange}
-          InputLabelProps={{
-            shrink: true,
-          }}
-          required
-          disabled
-        />
-      </Grid>
-    </Grid>
+    <Box>
+      {/* Propósito */}
+      <Typography variant="h6" gutterBottom>PROPÓSITO</Typography>
+      <TextField
+        label="Definir los posibles riesgos asociados en el diseño y desarrollo de programas de educación continua."
+        name="proposito"
+        value={formData.proposito || ''}
+        onChange={handleInputChange}
+        fullWidth
+        margin="normal"
+        required
+        error={!!errors.proposito}
+        helperText={errors.proposito}
+      />
+
+      {/* Comentario */}
+      <Typography variant="h6" gutterBottom>COMENTARIO</Typography>
+      <TextField
+        label="El seguimiento y/o control del diseño y desarrollo de programas de educación continua está orientado a la verificación del cumplimiento de los requisitos normativos."
+        name="comentario"
+        value={formData.comentario || ''}
+        onChange={handleInputChange}
+        fullWidth
+        margin="normal"
+        required
+        error={!!errors.comentario}
+        helperText={errors.comentario}
+      />
+
+      {/* Programa */}
+      <Typography variant="h6" gutterBottom>PROGRAMA</Typography>
+      <TextField
+        label="Programa"
+        name="programa"
+        value={formData.programa || ''}
+        onChange={handleInputChange}
+        fullWidth
+        margin="normal"
+        required
+        error={!!errors.programa}
+        helperText={errors.programa}
+      />
+
+      {/* Fecha (deshabilitado) */}
+      <TextField
+        label="Fecha"
+        type="date"
+        fullWidth
+        name="fecha_solicitud"
+        value={formData.fecha_solicitud || ''}
+        onChange={handleInputChange}
+        InputLabelProps={{
+          shrink: true,
+        }}
+        required
+        sx={{ marginTop: 2, marginBottom: 2 }}
+        disabled
+      />
+
+      {/* Elaborado por (deshabilitado) */}
+      <Typography variant="h6" gutterBottom>ELABORADO POR</Typography>
+      <TextField
+        disabled
+        label="Elaborado por"
+        name="nombre_solicitante"
+        value={formData.nombre_solicitante || ''}
+        onChange={handleInputChange}
+        fullWidth
+        margin="normal"
+      />
+    </Box>
   );
 }
 
