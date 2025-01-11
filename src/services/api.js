@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // URL base de tu servidor backend
-const API_URL = 'https://siac-extension-form.vercel.app';
+const API_URL = 'https://siac-extension-server.vercel.app';
 
 // Función para enviar el formulario al servidor
 export const submitForm = (formData) => {

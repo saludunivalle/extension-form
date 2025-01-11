@@ -178,7 +178,7 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
       const pasoDataCompleto = completarValoresConNo(pasoData);
 
       try {
-          await axios.post('https://siac-extension-form.vercel.app/guardarProgreso', {
+          await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
               id_solicitud: idSolicitud,
               ...pasoDataCompleto, // Desestructurar pasoDataCompleto para que cada campo sea una clave separada
               paso: activeStep + 1,
@@ -228,7 +228,7 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
 
     try {
       // Guardar los datos del último paso en Google Sheets
-      await axios.post('https://siac-extension-form.vercel.app/guardarProgreso', {
+      await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
         id_solicitud: idSolicitud,
         formData: pasoDataCompleto,
         paso: 5,

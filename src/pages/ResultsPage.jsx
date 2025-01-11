@@ -38,7 +38,7 @@ function ResultsPage() {
       const solicitudId = queryParams.get('solicitud');
 
       try {
-        const response = await axios.get('https://siac-extension-form.vercel.app/getFormData', {
+        const response = await axios.get('https://siac-extension-server.vercel.app/getFormData', {
           params: { id_solicitud: solicitudId }
         });
         setFormData(response.data);

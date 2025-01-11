@@ -251,7 +251,7 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
           // Debugging para asegurar los datos enviados
           console.log("Enviando Datos:", dataToSend);
 
-          await axios.post('https://siac-extension-form.vercel.app/guardarProgreso', dataToSend);
+          await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend);
           
           // Mover al siguiente paso si todo fue exitoso
           setIsLoading(false); // Finalizar el loading
@@ -294,7 +294,7 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   
     try {
       // Guardar los datos del último paso
-      await axios.post('https://siac-extension-form.vercel.app/guardarProgreso', {
+      await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
         id_solicitud: idSolicitud,
         formData: pasoData,
         paso: 3,
