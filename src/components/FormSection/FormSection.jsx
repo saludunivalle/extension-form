@@ -1,5 +1,5 @@
-  import React, { useEffect, useState } from 'react';
-  import { Stepper, Step, StepLabel, Button, Box, CircularProgress } from '@mui/material';
+  import { useEffect, useState } from 'react';
+  import { Stepper, Step, StepLabel, Button, Box, CircularProgress, useMediaQuery } from '@mui/material';
   import Step1 from './Step1'; 
   import Step2 from './Step2';
   import Step3 from './Step3';
@@ -10,6 +10,7 @@
   import { useNavigate } from 'react-router-dom';
   import CheckIcon from '@mui/icons-material/Check'; 
   import { styled } from '@mui/system';
+  import PropTypes from 'prop-types';
 
   /* 
   Este componente se encarga de cambiar el color de fondo, el color del texto y otros estilos visuales del ícono:
@@ -43,9 +44,16 @@
       {completed ? <CheckIcon /> : icon}
     </CustomStepIconRoot>
   );
+
+  CustomStepIcon.propTypes = {
+    active: PropTypes.bool.isRequired,
+    completed: PropTypes.bool,
+    icon: PropTypes.node,
+  };
   
   function FormSection({ 
-    formData, 
+    formData,
+    setFormData, 
     handleInputChange, 
     setCurrentSection, 
     escuelas, 
@@ -58,13 +66,15 @@
     handleFileChange,
   }) {
     const [activeStep, setActiveStep] = useState(currentStep); 
-    const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); 
+    const [idSolicitud] = useState(localStorage.getItem('id_solicitud')); 
     const [showModal, setShowModal] = useState(false); 
     const [isLoading, setIsLoading] = useState(false); 
     const navigate = useNavigate();
     const [completedSteps, setCompletedSteps] = useState([]);
     const [highestStepReached, setHighestStepReached] = useState(0); 
     const [errors, setErrors] = useState({});
+    const isSmallScreen = useMediaQuery('(max-width:600px)');
+    const isVerySmallScreen = useMediaQuery('(max-width:375px)');
 
     /*
     Esta función se encarga de validar los campos requeridos del formulario en función del paso activo (`activeStep`).
@@ -76,12 +86,24 @@
       const stepErrors = {};
     
       if (activeStep === 0) {
+        //Validación de fecha, el nombre de la actividad y el solicitante
         if (!formData.fecha_solicitud) stepErrors.fecha_solicitud = "Este campo es obligatorio";
         if (!formData.nombre_actividad) stepErrors.nombre_actividad = "Este campo es obligatorio";
         if (!formData.nombre_solicitante) stepErrors.nombre_solicitante = "Este campo es obligatorio";
-        if (formData.dependencia_tipo === "Escuelas" && !formData.nombre_escuela) {
-          stepErrors.nombre_escuela = "Debe seleccionar una escuela";
+        if (!formData.dependencia_tipo) stepErrors.dependencia_tipo = "Debe seleccionar una dependencia";
+
+        // Validaciones de Escuelas
+        if (formData.dependencia_tipo === "Escuelas") {
+          if (!formData.nombre_escuela) stepErrors.nombre_escuela = "Debe seleccionar una escuela";
+          if (!formData.nombre_departamento) stepErrors.nombre_departamento = "Debe seleccionar un departamento";
+          if (!formData.nombre_seccion) stepErrors.nombre_seccion = "Debe seleccionar una sección";
+          if (!formData.nombre_dependencia) stepErrors.nombre_dependencia = "Debe seleccionar un programa académico";
         }
+        // Si la dependencia es "Oficinas", validar su campo
+        if (formData.dependencia_tipo === "Oficinas") {
+          if (!formData.nombre_dependencia) stepErrors.nombre_dependencia = "Debe seleccionar una oficina";
+        }
+
       } else if (activeStep === 1) {
         if (!formData.introduccion) stepErrors.introduccion = "Este campo es obligatorio";
         if (!formData.objetivo_general) stepErrors.objetivo_general = "Este campo es obligatorio";
@@ -120,7 +142,8 @@
       }
     
       setErrors(stepErrors);
-      return Object.keys(stepErrors).length === 0; 
+      return Object.keys(stepErrors).length === 0;
+       
     };    
 
     useEffect(() => {
@@ -137,6 +160,7 @@
       'Información Coordinador',
       'Información Adicional',
     ];
+    
     
     useEffect(() => {
       if (activeStep < 0 || activeStep >= steps.length) {
@@ -168,6 +192,7 @@
           return; 
         }
         if (activeStep < steps.length - 1) {
+          
           setIsLoading(true); 
           const hoja = 1; 
           let pasoData = {};
@@ -395,6 +420,8 @@
             <Step1
               formData={formData}
               handleInputChange={handleInputChange}
+              setFormData={setFormData}
+              setErrors={setErrors}
               escuelas={escuelas}
               departamentos={departamentos}
               secciones={secciones}
@@ -417,23 +444,19 @@
     };
 
     return (
-      <Box>
+      <Box sx={{ padding: isVerySmallScreen ? '10px' : isSmallScreen ? '15px' : '20px', width: '100%'}}>
         <Stepper
           activeStep={activeStep}
           sx={{
-            '& .MuiStepLabel-root': {
-              cursor: 'default', 
-            },
-            '& .MuiStepLabel-root.Mui-completed': {
-              cursor: 'pointer', 
-            },
-            '& .MuiStepLabel-root.Mui-active': {
-              cursor: 'pointer', 
+            marginBottom: isSmallScreen ? '15px' : '30px',
+          '& .MuiStepLabel-label': {
+            fontSize: isSmallScreen ? '12px' : '14px',
+            textAlign: isSmallScreen ? 'center' : 'left', 
             },
           }}
         >
           {steps.map((label, index) => (
-            <Step key={index} sx={{marginBottom: '20px'}}>
+            <Step key={index}>
             <StepLabel
               StepIconComponent={(props) => (
                 <CustomStepIcon
@@ -466,8 +489,11 @@
 
         {renderStepContent(activeStep, errors)}
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', marginBottom: '20px' }}>
-          <Button disabled={activeStep === 0} onClick={handleBack}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', flexDirection: isSmallScreen ? 'column' : 'row', marginTop: '20px', marginBottom: '20px' }}>
+          <Button disabled={activeStep === 0} onClick={handleBack} variant="outlined" sx={{ 
+            width: isSmallScreen ? '100%' : 'auto', 
+            marginBottom: isSmallScreen ? '10px' : '0' 
+          }}>
             Atrás
           </Button>
           <Button
@@ -475,7 +501,8 @@
             color="primary"
             onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
             disabled={isLoading} 
-            startIcon={isLoading ? <CircularProgress size={20} /> : null} 
+            startIcon={isLoading ? <CircularProgress size={20} /> : null}
+            sx={{ width: isSmallScreen ? '100%' : 'auto' }} 
           >
             {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
           </Button>
@@ -500,5 +527,23 @@
       </Box>
     );
   }
+
+  FormSection.propTypes = {
+    active: PropTypes.bool.isRequired,
+    completed: PropTypes.bool,
+    icon: PropTypes.node,
+    formData: PropTypes.object.isRequired,
+    setFormData: PropTypes.func.isRequired,
+    handleInputChange: PropTypes.func.isRequired,
+    setCurrentSection: PropTypes.func.isRequired,
+    escuelas: PropTypes.array,
+    departamentos: PropTypes.array,
+    secciones: PropTypes.array,
+    programas: PropTypes.array,
+    oficinas: PropTypes.array,
+    userData: PropTypes.object,
+    currentStep: PropTypes.number.isRequired,
+    handleFileChange: PropTypes.func,
+  };
 
   export default FormSection;

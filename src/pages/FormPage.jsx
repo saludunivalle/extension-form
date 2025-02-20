@@ -1,6 +1,6 @@
-  import React, { useState, useEffect } from 'react';
+  import { useState, useEffect } from 'react';
   import { 
-    Container, Typography, useMediaQuery, Box, 
+    Container, Typography, useMediaQuery,
     Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button 
   } from '@mui/material';
   import FormSection from '../components/FormSection/FormSection';
@@ -8,8 +8,9 @@
   import FormSection4 from '../components/FormSection4/FormSection4';
   import FormSection3 from '../components/FormSection3/FormSection3';
   import axios from 'axios';
-  import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+  import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
   import FormStepper from './FormStepper'; // Importa el componente FormStepper
+  import PropTypes from 'prop-types';
 
   // Definimos los títulos respectivos para cada sección del formulario
   const sectionTitles = [
@@ -76,16 +77,16 @@
     }, [currentSection, currentStep]);
     
 
-    const location = useLocation();
+    //const location = useLocation();
     const isSmallScreen = useMediaQuery('(max-width:600px)');
-    const [showDialog, setShowDialog] = useState(false); // Estado para controlar el diálogo
-    const [highestStepReached, setHighestStepReached] = useState(1); // Iniciamos con el paso 1 alcanzado
+    const [ setShowDialog] = useState(false); // Estado para controlar el diálogo
+    const [highestStepReached] = useState(1); // Iniciamos con el paso 1 alcanzado
     const [escuelas, setEscuelas] = useState([]);
     const [departamentos, setDepartamentos] = useState([]);
     const [secciones, setSecciones] = useState([]);
     const [programas, setProgramas] = useState([]);
     const [oficinas, setOficinas] = useState([]);
-    const [error, setError] = useState(false);
+    //const [error, setError] = useState(false);
     const solicitudId = searchParams.get('solicitud'); // Obtenemos el id_solicitud desde la URL
     const [formData, setFormData] = useState({
       // Hoja SOLICITUDES
@@ -93,11 +94,9 @@
       
     
       // Hoja SOLICITUDES2
-      fecha_solicitud: '',
-      nombre_actividad: '',
+      fecha_solicitud: '',      nombre_actividad: '',
       nombre_solicitante: userData?.name || '',
-      dependencia_tipo: '',
-      nombre_escuela: '',
+      dependencia_tipo: '',      nombre_escuela: '',
       nombre_departamento: '',
       nombre_seccion: '',
       nombre_dependencia: '',
@@ -436,9 +435,6 @@
 
     const handleSectionChange = (newSection) => {
       setCurrentSection(newSection);
-      if (newSection > highestStepReached) {
-        setHighestStepReached(newSection);
-      }
     };  
 
     const handleCloseDialog = () => {
@@ -466,8 +462,8 @@
 
     return (
       <Container sx={{
-        marginTop: isSmallScreen ? '130px' : '130px',
-        marginBottom: isSmallScreen ? '200px' : '20px',
+        marginTop: isSmallScreen ? '100px' : '130px',
+        marginBottom: isSmallScreen ? '150px' : '20px',
         maxWidth: '100%',
         padding: { xs: '0 15px', sm: '0 20px' }
       }}>
@@ -475,13 +471,13 @@
         {/* Agrega el FormStepper al layout */}
         <FormStepper activeStep={currentSection - 1} steps={sectionShortTitles} setCurrentSection={handleSectionChange} highestStepReached={highestStepReached} completedSteps={calculateCompletedSteps()} />
         {/* Contenido del formulario */}
-        <Typography variant={isSmallScreen ? 'h5' : 'h4'} gutterBottom sx={{fontWeight: 'bold'}}>
+        <Typography variant={isSmallScreen ? 'h5' : 'h4'} gutterBottom sx={{fontWeight: 'bold', textAlign: isSmallScreen ? 'center' : 'left' }}>
           {sectionTitles[currentSection - 1]}
         </Typography>
 
         {renderFormSection()}
 
-        <Dialog open={showDialog} onClose={handleCloseDialog}>
+        <Dialog open={false} onClose={handleCloseDialog}>
           <DialogTitle>Datos Guardados</DialogTitle>
           <DialogContent>
             <DialogContentText>
@@ -495,5 +491,11 @@
       </Container>
     );
   }
+
+  FormPage.propTypes = {
+    userData: PropTypes.shape({
+      name: PropTypes.string,
+    }),
+  };
 
   export default FormPage;
