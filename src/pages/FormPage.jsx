@@ -444,13 +444,13 @@
     const renderFormSection = () => {
       switch (currentSection) {
         case 1:
-          return <FormSection  formId={1} userData={userData} formData={formData} escuelas={escuelas} departamentos={departamentos} secciones={secciones} oficinas={oficinas} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange}   programas={programasFiltrados} currentStep={currentStep} handleFileChange={handleFileChange} />;
+          return <FormSection  formId={1} userData={userData} formData={formData} setFormData={setFormData} escuelas={escuelas} departamentos={departamentos} secciones={secciones} oficinas={oficinas} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange}   programas={programasFiltrados} currentStep={currentStep} handleFileChange={handleFileChange} />;
         case 2:
-          return <FormSection2 formId={2} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} />;
+          return <FormSection2 formId={2} userData={userData} formData={formData} setFormData={setFormData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep} />;
         case 3:
           return <FormSection3 formId={3} userData={userData} formData={formData} handleInputChange={handleInputChange} setCurrentSection={handleSectionChange} currentStep={currentStep}/>;
         case 4:
-          return <FormSection4 formId={4} userData={userData} formData={formData} handleInputChange={handleInputChange} currentStep={currentStep}/>;
+          return <FormSection4 formId={4} userData={userData} formData={formData}  setFormData={setFormData} handleInputChange={handleInputChange} currentStep={currentStep}/>;
         default:
           return null;
       }

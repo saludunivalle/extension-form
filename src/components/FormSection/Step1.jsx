@@ -13,12 +13,16 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
           name="fecha_solicitud"
           value={formData.fecha_solicitud}
           onChange={handleInputChange}
+          margin="normal"
           InputLabelProps={{
             shrink: true,
           }}
           required
           error={!!errors.fecha_solicitud}
           helperText={errors.fecha_solicitud}
+          onClick={(e) => {
+            e.target.showPicker && e.target.showPicker();
+          }}
         />
       </Grid>
       <Grid item xs={12}>
@@ -40,7 +44,10 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
           name="nombre_solicitante"
           value={formData.nombre_solicitante}
           onChange={handleInputChange}
+          margin="normal"
           required
+          autoComplete="off"
+          InputLabelProps={{ shrink: true }}
           error={!!errors.nombre_solicitante}
           helperText={errors.nombre_solicitante}
         />

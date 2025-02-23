@@ -1,5 +1,5 @@
-import React from 'react';
-import { Grid, TextField, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, Select, InputLabel, MenuItem, Box  } from '@mui/material';
+import { Grid, TextField, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, Box, FormHelperText  } from '@mui/material';
+import PropTypes from 'prop-types';
 
 function Step5({ formData, handleInputChange, handleFileChange, errors}) {
 
@@ -19,6 +19,12 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               value={formData.becas_convenio}
               onChange={handleInputChange}
               placeholder="0"
+              inputProps={{ 
+                min: "0",
+                onKeyPress: (e) => {
+                  if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
+                }
+              }}
               required
               error={!!errors.becas_convenio}
               helperText={errors.becas_convenio}
@@ -33,6 +39,12 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               value={formData.becas_estudiantes}
               onChange={handleInputChange}
               //inputProps={{ min: "0" }} 
+              inputProps={{ 
+                min: "0",
+                onKeyPress: (e) => {
+                  if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
+                }
+              }}
               required
               error={!!errors.becas_estudiantes}
               helperText={errors.becas_estudiantes}
@@ -49,6 +61,12 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               onChange={handleInputChange}
               //inputProps={{ min: "0" }}
               placeholder="0"
+              inputProps={{ 
+                min: "0",
+                onKeyPress: (e) => {
+                  if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
+                }
+              }}
               required
               error={!!errors.becas_docentes}
               helperText={errors.becas_docentes}
@@ -64,6 +82,12 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               onChange={handleInputChange}
               //inputProps={{ min: "0" }} 
               placeholder="0"
+              inputProps={{ 
+                min: "0",
+                onKeyPress: (e) => {
+                  if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
+                }
+              }}
               required
               error={!!errors.becas_egresados}
               helperText={errors.becas_egresados}
@@ -79,6 +103,12 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               onChange={handleInputChange}
               //inputProps={{ min: "0" }} 
               placeholder="0"
+              inputProps={{ 
+                min: "0",
+                onKeyPress: (e) => {
+                  if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
+                }
+              }}
               required
               error={!!errors.becas_funcionarios}
               helperText={errors.becas_funcionarios}
@@ -94,9 +124,13 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               onChange={handleInputChange}
               //inputProps={{ min: "0" }} 
               placeholder="0"
+              inputProps={{ 
+                min: "0",
+                onKeyPress: (e) => {
+                  if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
+                }
+              }}
               required
-              error={!!errors.becas_otros}
-              helperText={errors.becas_otros}
             />
           </Grid>
           <Grid item xs={2}>
@@ -117,6 +151,7 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               InputProps={{
                 readOnly: true,
               }}
+              disabled={true}
             />
           </Grid>
         </Grid>
@@ -124,7 +159,7 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
 
       {/* Periodicidad de la Oferta */}
       <Grid item xs={12}>
-        <FormControl component="fieldset" required>
+        <FormControl component="fieldset" required error={!!errors.periodicidad_oferta}>
           <FormLabel component="legend">Periodicidad de la oferta</FormLabel>
           <RadioGroup
             name="periodicidad_oferta"
@@ -138,11 +173,12 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
             <FormControlLabel value="semestral" control={<Radio />} label="Semestral" />
             <FormControlLabel value="permanente" control={<Radio />} label="Permanente" />
           </RadioGroup>
+          {errors.periodicidad_oferta && (<FormHelperText>{errors.periodicidad_oferta}</FormHelperText>)}
         </FormControl>
       </Grid>
               
       <Grid item xs={12}>
-      <FormControl component="fieldset" required>
+      <FormControl component="fieldset" required error={!!errors.organizacion_actividad}>
           <FormLabel component="legend">La organización de la actividad se hará por</FormLabel>
           <RadioGroup
             name="organizacion_actividad"
@@ -156,6 +192,7 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
             <FormControlLabel value="unidad_acad" control={<Radio />} label="Unidad Académica" />
             <FormControlLabel value="otro_act" control={<Radio />} label="Otro" />
           </RadioGroup>
+          {errors.organizacion_actividad && (<FormHelperText>{errors.organizacion_actividad}</FormHelperText>)}
           {formData.organizacion_actividad === "otro_act" && (
             <Box sx={{ marginTop: 2 }}>
               <TextField
@@ -171,7 +208,7 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
       </Grid>
       {/* "Es extensión solidaria?" campo */}
       <Grid item xs={12}>
-        <FormControl component="fieldset" required>
+        <FormControl component="fieldset" required error={!!errors.extension_solidaria}>
           <FormLabel component="legend">¿Es Extensión Solidaria?</FormLabel>
           <RadioGroup
             name="extension_solidaria"
@@ -181,6 +218,7 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
             <FormControlLabel value="si" control={<Radio />} label="Sí" />
             <FormControlLabel value="no" control={<Radio />} label="No" />
           </RadioGroup>
+          {errors.extension_solidaria && (<FormHelperText>{errors.extension_solidaria}</FormHelperText>)}
         </FormControl>
       </Grid>
 
@@ -193,7 +231,26 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
             name="costo_extension_solidaria"
             type="number"
             value={formData.costo_extension_solidaria || ''}
-            onChange={handleInputChange}
+            onChange={(e) => {
+              // Eliminar todos los caracteres no numéricos excepto números
+              const rawValue = e.target.value.replace(/[^0-9]/g, '');
+              const numericValue = rawValue === '' ? 0 : parseInt(rawValue, 10);
+              handleInputChange({
+                target: {
+                  name: e.target.name,
+                  value: numericValue
+                }
+              });
+            }}
+            inputProps={{
+              inputMode: "numeric",
+              pattern: "[0-9]*"
+            }}
+            error={!!errors.costo_extension_solidaria}
+            helperText={formData.costo_extension_solidaria === 0 ? "El programa es sin costo" : 
+            `Valor unitario: $${new Intl.NumberFormat('es-CO').format(formData.costo_extension_solidaria)} COP`
+
+            }
           />
         </Grid>
       )}
@@ -219,13 +276,18 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
           onChange={handleInputChange}
           placeholder="Detalles del personal externo (opcional)"
           required
-          error={!!errors.personal_externo}
-          helperText={errors.personal_externo}
         />
       </Grid>
 
     </Grid>
   );
 }
+
+Step5.propTypes = {
+  formData: PropTypes.object.isRequired,
+  handleInputChange: PropTypes.func.isRequired,
+  handleFileChange: PropTypes.func.isRequired,
+  errors: PropTypes.object.isRequired,
+};
 
 export default Step5;

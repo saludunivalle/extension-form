@@ -51,6 +51,11 @@ h4 {
   padding-bottom: 10px;
 }
 
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(60%) sepia(100%) saturate(636%) hue-rotate(189deg) brightness(94%) contrast(100%);
+}
+
+
 button {
   border-radius: 8px;
   border: 1px solid transparent;
