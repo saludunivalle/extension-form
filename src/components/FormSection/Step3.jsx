@@ -1,17 +1,45 @@
-import React from 'react';
-import { FormControl, FormControlLabel, FormLabel, Grid, Radio, RadioGroup, TextField, Typography  } from '@mui/material';
+import { FormControl, FormControlLabel, FormLabel, Grid, Radio, RadioGroup, TextField, Typography, Box, FormHelperText  } from '@mui/material';
+import PropTypes from 'prop-types';
 
-function Step3({ formData, handleInputChange, errors  }) {
+function Step3({ formData, setFormData, errors  }) {
+
+  const handleCustomInputChange = (event) => {
+    const { name, value } = event.target;
+  
+    setFormData((prevData) => {
+      const updatedData = { ...prevData, [name]: value };
+  
+      // Recalcular total_horas solo si es necesario
+      if (name === "horas_trabajo_presencial" || name === "horas_sincronicas" || name === "modalidad") {
+        let total = 0;
+  
+        if (updatedData.modalidad === "Presencial") {
+          total = parseInt(updatedData.horas_trabajo_presencial) || 0;
+        } else if (updatedData.modalidad === "Virtual") {
+          total = parseInt(updatedData.horas_sincronicas) || 0;
+        } else if (["Semipresencial", "Mixta", "Todas"].includes(updatedData.modalidad)) {
+          total =
+            (parseInt(updatedData.horas_trabajo_presencial) || 0) +
+            (parseInt(updatedData.horas_sincronicas) || 0);
+        }
+  
+        updatedData.total_horas = total > 0 ? total : 1;  
+      }
+  
+      return updatedData;
+    });
+  };
+
   return (
     <Grid container spacing={2}>
             <Grid item xs={12}>
-          <FormControl component="fieldset" required>
+          <FormControl component="fieldset" error={!!errors.tipo} required>
           <FormLabel component="legend">Tipo</FormLabel>
           <RadioGroup
             row
             name="tipo"
             value={formData.tipo || ''}
-            onChange={handleInputChange}
+            onChange={handleCustomInputChange}
           >
             <FormControlLabel value="Curso" control={<Radio />} label="Curso" />
             <FormControlLabel value="Congreso" control={<Radio />} label="Congreso" />
@@ -20,6 +48,7 @@ function Step3({ formData, handleInputChange, errors  }) {
             <FormControlLabel value="Diplomado" control={<Radio />} label="Diplomado" />
             <FormControlLabel value="Otro" control={<Radio />} label="Otro" />
           </RadioGroup>
+          {errors.tipo && <FormHelperText>{errors.tipo}</FormHelperText>}
           {formData.tipo === "Otro" && (
             <Box sx={{ marginTop: 2 }}>
               <TextField
@@ -27,7 +56,7 @@ function Step3({ formData, handleInputChange, errors  }) {
                 fullWidth
                 name="otro_tipo"
                 value={formData.otro_tipo || ""}
-                onChange={handleInputChange}
+                onChange={handleCustomInputChange}
               />
             </Box>
           )}
@@ -35,13 +64,13 @@ function Step3({ formData, handleInputChange, errors  }) {
       </Grid>
 
       <Grid item xs={12}>
-        <FormControl component="fieldset" required>
+        <FormControl component="fieldset" error={!!errors.modalidad} required>
           <FormLabel component="legend">Modalidad</FormLabel>
           <RadioGroup
             row
             name="modalidad"
             value={formData.modalidad || ''}
-            onChange={handleInputChange}
+            onChange={handleCustomInputChange}
           >
             <FormControlLabel value="Presencial" control={<Radio />} label="Presencial" />
             <FormControlLabel value="Semipresencial" control={<Radio />} label="Semipresencial" />
@@ -49,6 +78,7 @@ function Step3({ formData, handleInputChange, errors  }) {
             <FormControlLabel value="Mixta" control={<Radio />} label="Mixta" />
             <FormControlLabel value="Todas" control={<Radio />} label="Todas las anteriores" />
           </RadioGroup>
+          {errors.modalidad && <FormHelperText>{errors.modalidad}</FormHelperText>}
         </FormControl>
       </Grid>
       <Grid item xs={12}>
@@ -65,7 +95,16 @@ function Step3({ formData, handleInputChange, errors  }) {
                   fullWidth
                   name="horas_trabajo_presencial"
                   value={formData.horas_trabajo_presencial}
-                  onChange={handleInputChange}
+                  onChange={handleCustomInputChange}
+                  error={!!errors.horas_trabajo_presencial}
+                  helperText={errors.horas_trabajo_presencial}
+                  type="number"
+                  inputProps={{ 
+                    min: 1, // Valor mínimo permitido
+                    onKeyPress: (e) => {
+                      if (e.key === '-') e.preventDefault(); // Bloquear caracteres no deseados
+                    }
+                  }}
                 />
               </Grid>
             )}
@@ -77,7 +116,16 @@ function Step3({ formData, handleInputChange, errors  }) {
                   fullWidth
                   name="horas_sincronicas"
                   value={formData.horas_sincronicas}
-                  onChange={handleInputChange}
+                  onChange={handleCustomInputChange}
+                  error={!!errors.horas_sincronicas}
+                  helperText={errors.horas_sincronicas}
+                  type="number"
+                  inputProps={{ 
+                    min: 1, // Valor mínimo permitido
+                    onKeyPress: (e) => {
+                      if (e.key === '-') e.preventDefault(); // Bloquear caracteres no deseados
+                    }
+                  }}
                 />
               </Grid>
             )}
@@ -91,6 +139,7 @@ function Step3({ formData, handleInputChange, errors  }) {
                 InputProps={{
                   readOnly: true,
                 }}
+                disabled={true}
               />
             </Grid>
           </Grid>
@@ -105,7 +154,7 @@ function Step3({ formData, handleInputChange, errors  }) {
                     fullWidth
                     name="programCont"
                     value={formData.programCont}
-                    onChange={handleInputChange}
+                    onChange={handleCustomInputChange}
                     required
                     error={!!errors.programCont}
                     helperText={errors.programCont}
@@ -118,7 +167,7 @@ function Step3({ formData, handleInputChange, errors  }) {
                     fullWidth
                     name="dirigidoa"
                     value={formData.dirigidoa}
-                    onChange={handleInputChange}
+                    onChange={handleCustomInputChange}
                     required
                     error={!!errors.dirigidoa}
                     helperText={errors.dirigidoa}
@@ -132,15 +181,30 @@ function Step3({ formData, handleInputChange, errors  }) {
                     name="creditos"
                     value={formData.creditos}
                     type="number" 
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (/^\d*$/.test(value)) {
-                        handleInputChange(e);
+                    inputProps={{
+                      min: 1,
+                      max: 50,
+                      onKeyPress: (e) => {
+                        if (e.key === '-') e.preventDefault();
                       }
-                    }}      
+                    }}
+                    onChange={(e) => {
+                      let value = e.target.value;
+                      // Limitar máximo a 50
+                      if (value > 50) value = 50;
+                      // Convertir a número y validar
+                      const numericValue = Math.max(1, Math.min(50, parseInt(value)));
+                      handleCustomInputChange({
+                        target: {
+                          name: "creditos",
+                          value: numericValue
+                        }
+                      });
+                    }} 
                     required
                     error={!!errors.creditos}
-                    helperText={errors.creditos}
+                    helperText={errors.creditos || "Máximo 50 créditos"}
+                    
                     />
                 </Grid>
         </Grid>
@@ -160,7 +224,7 @@ function Step3({ formData, handleInputChange, errors  }) {
           onChange={(e) => {
             const value = e.target.value;
             if (/^\d*$/.test(value)) {
-              handleInputChange(e);
+              handleCustomInputChange(e);
             }
           }}
         />
@@ -176,7 +240,7 @@ function Step3({ formData, handleInputChange, errors  }) {
           onChange={(e) => {
             const value = e.target.value;
             if (/^\d*$/.test(value)) {
-              handleInputChange(e);
+              handleCustomInputChange(e);
             }
           }}          helperText="Este valor no incluye las becas"
           required
@@ -186,5 +250,23 @@ function Step3({ formData, handleInputChange, errors  }) {
     </Grid>
   );
 }
+
+Step3.propTypes = {
+  formData: PropTypes.shape({
+    tipo: PropTypes.string,
+    otro_tipo: PropTypes.string,
+    modalidad: PropTypes.string,
+    horas_trabajo_presencial: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    horas_sincronicas: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    total_horas: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    programCont: PropTypes.string,
+    dirigidoa: PropTypes.string,
+    creditos: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    cupo_min: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    cupo_max: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  }).isRequired,
+  setFormData: PropTypes.func.isRequired,
+  errors: PropTypes.object.isRequired,
+};
 
 export default Step3;

@@ -1,5 +1,7 @@
-import React from 'react';
-import { Grid, TextField, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel } from '@mui/material';
+import { Grid, TextField, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, FormHelperText } from '@mui/material';
+import PropTypes from 'prop-types';
+
+const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 function Step4({ formData, handleInputChange, errors }) {
   return (
@@ -29,13 +31,26 @@ function Step4({ formData, handleInputChange, errors }) {
                 const value = e.target.value;
                 handleInputChange(e); // Actualiza el estado global del formulario
                 // Validación en tiempo real
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                errors.correo_coordinador =
-                  emailRegex.test(value) ? "" : "Ingrese un correo válido";
+                const esValido = emailRegex.test(value);
+                
+                if (!esValido && value !== "") {
+                  errors.correo_coordinador = "Formato de correo inválido";
+                } else {
+                  errors.correo_coordinador = "";
+                }
+              }}
+              onBlur={(e) => { // Validación adicional al salir del campo
+                if (!e.target.value) {
+                  errors.correo_coordinador = "Campo obligatorio";
+                }
               }}
               required
               error={!!errors.correo_coordinador}
               helperText={errors.correo_coordinador}
+              inputProps={{
+                type: "email",
+                pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+              }}
             />
 
           </Grid>
@@ -47,15 +62,16 @@ function Step4({ formData, handleInputChange, errors }) {
               value={formData.tel_coordinador}
               onChange={(e) => {
                 const value = e.target.value;
-                if (/^\d*$/.test(value)) {
+                if (/^\d{0,15}$/.test(value)) { // Aceptar solo hasta 15 dígitos
                   handleInputChange(e); // Aceptar solo números
                   // Validación en tiempo real
-                  const celularColombiaRegex = /^\d{9}$/;
-                  errors.tel_coordinador =
-                    celularColombiaRegex.test(value)
-                      ? ""
-                      : "Ingrese un celular válido (10 dígitos)";
+                  const esValido = value.length >= 7 && value.length <= 15;
+                  errors.tel_coordinador = esValido ? "" : "Mínimo 7 dígitos, máximo 15";
                 }
+              }}
+              inputProps={{
+                inputMode: "numeric",
+                pattern: "[0-9]{7,15}"
               }}
               required
               error={!!errors.tel_coordinador}
@@ -112,7 +128,7 @@ function Step4({ formData, handleInputChange, errors }) {
       </Grid>
 
       <Grid item xs={12}>
-        <FormControl component="fieldset" required>
+        <FormControl component="fieldset" error={!!errors.certificado_solicitado} required>
           <FormLabel component="legend">Certificado o constancia que solicita expedir</FormLabel>
           <RadioGroup
             row
@@ -124,6 +140,7 @@ function Step4({ formData, handleInputChange, errors }) {
             <FormControlLabel value="De aprobación" control={<Radio />} label="De aprobación" />
             <FormControlLabel value="No otorga certificado" control={<Radio />} label="No otorga certificado" />
           </RadioGroup>
+          {errors.certificado_solicitado && <FormHelperText>{errors.certificado_solicitado}</FormHelperText>}
         </FormControl>
       </Grid>
 
@@ -135,6 +152,9 @@ function Step4({ formData, handleInputChange, errors }) {
             name="calificacion_minima"
             value={formData.calificacion_minima}
             onChange={handleInputChange}
+            required
+            error={!!errors.calificacion_minima}
+            helperText={errors.calificacion_minima}
           />
         </Grid>
       )}
@@ -147,6 +167,9 @@ function Step4({ formData, handleInputChange, errors }) {
             name="razon_no_certificado"
             value={formData.razon_no_certificado}
             onChange={handleInputChange}
+            required
+            error={!!errors.razon_no_certificado}
+            helperText={errors.razon_no_certificado}
           />
         </Grid>
       )}
@@ -156,22 +179,58 @@ function Step4({ formData, handleInputChange, errors }) {
           label="Valor unitario del programa EC expresado en SMMLV"
           fullWidth
           name="valor_inscripcion"
-          value={formData.valor_inscripcion || '0'}
-          onChange={(e) =>
+          value={formData.valor_inscripcion}
+          onChange={(e) => {
+            // Eliminar todos los caracteres no numéricos excepto números
+            const rawValue = e.target.value.replace(/[^0-9]/g, '');
+            const numericValue = rawValue === '' ? 0 : parseInt(rawValue, 10);
             handleInputChange({
               target: {
                 name: e.target.name,
-                value: e.target.value === '' ? '0' : e.target.value,
-              },
-            })
-          }
-          required
+                value: numericValue
+              }
+            });
+          }}
+          inputProps={{
+            inputMode: "numeric",
+            pattern: "[0-9]*"
+          }}
+      
           error={!!errors.valor_inscripcion}
-          helperText={errors.valor_inscripcion}
+          helperText={
+            formData.valor_inscripcion === 0 ? "El programa es sin costo" : 
+            `Valor unitario: $${new Intl.NumberFormat('es-CO').format(formData.valor_inscripcion)} COP`
+          }
         />
       </Grid>
     </Grid>
   );
 }
+
+Step4.propTypes = {
+  formData: PropTypes.shape({
+    nombre_coordinador: PropTypes.string,
+    correo_coordinador: PropTypes.string,
+    tel_coordinador: PropTypes.string,
+    perfil_competencia: PropTypes.string,
+    formas_evaluacion: PropTypes.string,
+    certificado_solicitado: PropTypes.string,
+    calificacion_minima: PropTypes.string,
+    razon_no_certificado: PropTypes.string,
+    valor_inscripcion: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+  }).isRequired,
+  handleInputChange: PropTypes.func.isRequired,
+  errors: PropTypes.shape({
+    nombre_coordinador: PropTypes.string,
+    correo_coordinador: PropTypes.string,
+    tel_coordinador: PropTypes.string,
+    perfil_competencia: PropTypes.string,
+    formas_evaluacion: PropTypes.string,
+    certificado_solicitado: PropTypes.string,
+    calificacion_minima: PropTypes.string,
+    razon_no_certificado: PropTypes.string,
+    valor_inscripcion: PropTypes.string
+  }).isRequired,
+};
 
 export default Step4;

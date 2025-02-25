@@ -1,7 +1,8 @@
-import React from 'react';
-import { Grid, TextField, MenuItem, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel } from '@mui/material';
+import PropTypes from "prop-types";
+import { FormHelperText, Grid, TextField, MenuItem, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel } from '@mui/material';
 
 function Step1({ formData, handleInputChange, escuelas, departamentos, secciones, programas, oficinas, errors }) {
+  
   return (
     <Grid container spacing={2}>
       <Grid item xs={12}>
@@ -12,12 +13,22 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
           name="fecha_solicitud"
           value={formData.fecha_solicitud}
           onChange={handleInputChange}
+          margin="normal"
           InputLabelProps={{
             shrink: true,
           }}
           required
           error={!!errors.fecha_solicitud}
           helperText={errors.fecha_solicitud}
+          onClick={(e) => {
+            e.target.showPicker && e.target.showPicker();
+          }}
+          onKeyDown={(e) => {
+            e.preventDefault();
+          }}
+          InputProps={{
+            readOnly: false,
+          }}
         />
       </Grid>
       <Grid item xs={12}>
@@ -39,16 +50,18 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
           name="nombre_solicitante"
           value={formData.nombre_solicitante}
           onChange={handleInputChange}
+          margin="normal"
           required
+          autoComplete="off"
+          InputLabelProps={{ shrink: true }}
           error={!!errors.nombre_solicitante}
           helperText={errors.nombre_solicitante}
         />
       </Grid>
       <Grid item xs={12}>
-        <FormControl component="fieldset">
+        <FormControl component="fieldset" error={!!errors.dependencia_tipo} required>
           <FormLabel component="legend">Dependencia</FormLabel>
           <RadioGroup
-            row
             name="dependencia_tipo"
             value={formData.dependencia_tipo || ''}
             onChange={handleInputChange}
@@ -56,6 +69,7 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
             <FormControlLabel value="Escuelas" control={<Radio />} label="Escuelas" />
             <FormControlLabel value="Oficinas" control={<Radio />} label="Oficinas" />
           </RadioGroup>
+          {errors.dependencia_tipo && <FormHelperText>{errors.dependencia_tipo}</FormHelperText>}
         </FormControl>
       </Grid>
 
@@ -70,6 +84,8 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
               value={formData.nombre_escuela || ''}
               onChange={handleInputChange}
               required
+              error={!!errors.nombre_escuela}
+              helperText={errors.nombre_escuela}
             >
               <MenuItem value="">Sin Seleccionar</MenuItem>
               {escuelas.map((escuela, index) => (
@@ -90,6 +106,8 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
                 value={formData.nombre_departamento || ''}
                 onChange={handleInputChange}
                 disabled={departamentos.length === 1 && departamentos[0] === "General"} // Deshabilitar si solo tiene "General"
+                error={!!errors.nombre_departamento}
+                helperText={errors.nombre_departamento}
               >
                 <MenuItem value="">Sin Seleccionar</MenuItem>
                 {departamentos.map((departamento, index) => (
@@ -111,11 +129,14 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
                 value={formData.nombre_seccion || ''}
                 onChange={handleInputChange}
                 disabled={secciones.length === 1 && secciones[0] === "General"} // Deshabilitar si solo tiene "General"
+                error={!!errors.nombre_seccion}
+                helperText={errors.nombre_seccion}
               >
                 <MenuItem value="">Sin Seleccionar</MenuItem>
                 {secciones.map((seccion, index) => (
                   <MenuItem key={index} value={seccion}>
                     {seccion}
+                    {seccion.sede && seccion.sede !== "Cali" ? ` - ${seccion.sede}` : ""}
                   </MenuItem>
                 ))}
               </TextField>
@@ -131,11 +152,14 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
               name="nombre_dependencia"
               value={formData.nombre_dependencia || ''}
               onChange={handleInputChange}
+              error={!!errors.nombre_dependencia}
+              helperText={errors.nombre_dependencia}
             >
               <MenuItem value="">Sin Seleccionar</MenuItem>
               {programas.map((programa, index) => (
                 <MenuItem key={index} value={programa.Programa}>
                   {programa.Programa}
+                  {programa.Sede && programa.Sede !== "Cali" ? ` - ${programa.Sede}` : ""}
                 </MenuItem>
               ))}
               <MenuItem value="General">General</MenuItem> {/* Agregar opción General */}
@@ -154,6 +178,8 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
             name="nombre_dependencia"
             value={formData.nombre_dependencia || ''}
             onChange={handleInputChange}
+            error={!!errors.nombre_dependencia}
+            helperText={errors.nombre_dependencia}
           >
             {oficinas.map((oficina, index) => (
               <MenuItem key={index} value={oficina}>
@@ -166,5 +192,18 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
     </Grid>
   );
 }
+
+Step1.propTypes = {
+  formData: PropTypes.object.isRequired,
+  handleInputChange: PropTypes.func.isRequired,
+  setFormData: PropTypes.func.isRequired,
+  errors: PropTypes.object.isRequired,
+  setErrors: PropTypes.func.isRequired,
+  escuelas: PropTypes.array.isRequired,
+  departamentos: PropTypes.array.isRequired,
+  secciones: PropTypes.array.isRequired,
+  programas: PropTypes.array.isRequired,
+  oficinas: PropTypes.array.isRequired,
+};
 
 export default Step1;

@@ -1,5 +1,5 @@
-  import React, { useEffect, useState } from 'react';
-  import { Stepper, Step, StepLabel, Button, Box, CircularProgress } from '@mui/material';
+  import { useEffect, useState } from 'react';
+  import { Stepper, Step, StepLabel, Button, Box, CircularProgress, useMediaQuery } from '@mui/material';
   import Step1 from './Step1'; 
   import Step2 from './Step2';
   import Step3 from './Step3';
@@ -10,6 +10,7 @@
   import { useNavigate } from 'react-router-dom';
   import CheckIcon from '@mui/icons-material/Check'; 
   import { styled } from '@mui/system';
+  import PropTypes from 'prop-types';
 
   /* 
   Este componente se encarga de cambiar el color de fondo, el color del texto y otros estilos visuales del ícono:
@@ -43,9 +44,16 @@
       {completed ? <CheckIcon /> : icon}
     </CustomStepIconRoot>
   );
+
+  CustomStepIcon.propTypes = {
+    active: PropTypes.bool.isRequired,
+    completed: PropTypes.bool,
+    icon: PropTypes.node,
+  };
   
   function FormSection({ 
-    formData, 
+    formData,
+    setFormData, 
     handleInputChange, 
     setCurrentSection, 
     escuelas, 
@@ -58,13 +66,15 @@
     handleFileChange,
   }) {
     const [activeStep, setActiveStep] = useState(currentStep); 
-    const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); 
+    const [idSolicitud] = useState(localStorage.getItem('id_solicitud')); 
     const [showModal, setShowModal] = useState(false); 
     const [isLoading, setIsLoading] = useState(false); 
     const navigate = useNavigate();
     const [completedSteps, setCompletedSteps] = useState([]);
     const [highestStepReached, setHighestStepReached] = useState(0); 
     const [errors, setErrors] = useState({});
+    const isSmallScreen = useMediaQuery('(max-width:600px)');
+    const isVerySmallScreen = useMediaQuery('(max-width:375px)');
 
     /*
     Esta función se encarga de validar los campos requeridos del formulario en función del paso activo (`activeStep`).
@@ -76,11 +86,21 @@
       const stepErrors = {};
     
       if (activeStep === 0) {
+        //Validación de fecha, el nombre de la actividad y el solicitante
         if (!formData.fecha_solicitud) stepErrors.fecha_solicitud = "Este campo es obligatorio";
         if (!formData.nombre_actividad) stepErrors.nombre_actividad = "Este campo es obligatorio";
         if (!formData.nombre_solicitante) stepErrors.nombre_solicitante = "Este campo es obligatorio";
-        if (formData.dependencia_tipo === "Escuelas" && !formData.nombre_escuela) {
-          stepErrors.nombre_escuela = "Debe seleccionar una escuela";
+        if (!formData.dependencia_tipo) stepErrors.dependencia_tipo = "Debe seleccionar una dependencia";
+        // Validaciones de Escuelas
+        if (formData.dependencia_tipo === "Escuelas") {
+          if (!formData.nombre_escuela) stepErrors.nombre_escuela = "Debe seleccionar una escuela";
+          if (!formData.nombre_departamento) stepErrors.nombre_departamento = "Debe seleccionar un departamento";
+          if (!formData.nombre_seccion) stepErrors.nombre_seccion = "Debe seleccionar una sección";
+          if (!formData.nombre_dependencia) stepErrors.nombre_dependencia = "Debe seleccionar un programa académico";
+        }
+        // Si la dependencia es "Oficinas", validar su campo
+        if (formData.dependencia_tipo === "Oficinas") {
+          if (!formData.nombre_dependencia) stepErrors.nombre_dependencia = "Debe seleccionar una oficina";
         }
       } else if (activeStep === 1) {
         if (!formData.introduccion) stepErrors.introduccion = "Este campo es obligatorio";
@@ -88,39 +108,125 @@
         if (!formData.objetivos_especificos) stepErrors.objetivos_especificos = "Este campo es obligatorio";
         if (!formData.justificacion) stepErrors.justificacion = "Este campo es obligatorio";
         if (!formData.metodologia) stepErrors.metodologia = "Este campo es obligatorio";
+
       } else if (activeStep === 2) {
         if (!formData.tipo) stepErrors.tipo = "Debe seleccionar un tipo";
         if (!formData.modalidad) stepErrors.modalidad = "Debe seleccionar una modalidad";
+
+        if (
+          (formData.modalidad === "Presencial" || formData.modalidad === "Mixta" || formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") &&
+          !formData.horas_trabajo_presencial
+        ) {
+          stepErrors.horas_trabajo_presencial = "Debe ingresar las horas presenciales";
+        }
+        if (
+          (formData.modalidad === "Presencial" || formData.modalidad === "Mixta" || 
+          formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") &&
+          (formData.horas_trabajo_presencial <= 0 || !formData.horas_trabajo_presencial)
+        ) {
+          stepErrors.horas_trabajo_presencial = "Debe ser mayor a 0";
+        }
+        if (
+          (formData.modalidad === "Virtual" || formData.modalidad === "Mixta" || 
+          formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") &&
+          (formData.horas_sincronicas <= 0 || !formData.horas_sincronicas)
+        ) {
+          stepErrors.horas_sincronicas = "Debe ser mayor a 0";
+        }
+        if (
+          (formData.modalidad === "Virtual" || formData.modalidad === "Mixta" || formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") &&
+          !formData.horas_sincronicas
+        ) {
+          stepErrors.horas_sincronicas = "Debe ingresar las horas sincrónicas";
+        }
+        if (!formData.total_horas) {
+          stepErrors.total_horas = "Debe ingresar el total de horas";
+        }
         if (!formData.programCont) stepErrors.programCont = "Este campo es obligatorio";
         if (!formData.dirigidoa) stepErrors.dirigidoa = "Este campo es obligatorio";
         if (!formData.creditos) stepErrors.creditos = "Este campo es obligatorio";
+        if (!formData.creditos || formData.creditos < 1 || formData.creditos > 50) {
+          stepErrors.creditos = "Debe ser entre 1 y 50 créditos";
+        }
         if (!formData.cupo_min) stepErrors.cupo_min = "Este campo es obligatorio";
         if (!formData.cupo_max) stepErrors.cupo_max = "Este campo es obligatorio";
+        if (
+          formData.cupo_min &&
+          formData.cupo_max &&
+          parseInt(formData.cupo_min) > parseInt(formData.cupo_max)
+        ) {
+          stepErrors.cupo_min = "El cupo mínimo no puede ser mayor que el cupo máximo";
+          stepErrors.cupo_max = "El cupo máximo debe ser mayor o igual al cupo mínimo";
+        }
+
       } else if (activeStep === 3) {
         if (!formData.nombre_coordinador) stepErrors.nombre_coordinador = "Este campo es obligatorio";
+
         if (!formData.correo_coordinador) stepErrors.correo_coordinador = "Este campo es obligatorio";
-        if (!formData.tel_coordinador) stepErrors.tel_coordinador = "Este campo es obligatorio";
+        if (!formData.correo_coordinador) {
+          stepErrors.correo_coordinador = "Este campo es obligatorio";
+        } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(formData.correo_coordinador)) {
+          stepErrors.correo_coordinador = "Correo electrónico inválido";
+        }
+        if (!formData.tel_coordinador) {
+          stepErrors.tel_coordinador = "Este campo es obligatorio";
+        } else if (!/^\d{7,15}$/.test(formData.tel_coordinador)) {
+          stepErrors.tel_coordinador = "Debe tener entre 7 y 15 dígitos";
+        }
         if (!formData.perfil_competencia) stepErrors.perfil_competencia = "Este campo es obligatorio";
         if (!formData.formas_evaluacion) stepErrors.formas_evaluacion = "Este campo es obligatorio";
-        if (!formData.certificado_solicitado) stepErrors.certificado_solicitado = "Debe seleccionar una opción";
-        if (!formData.valor_inscripcion) stepErrors.valor_inscripcion = "Este campo es obligatorio";
+        
+        if (!formData.certificado_solicitado) {
+          stepErrors.certificado_solicitado = "Debe seleccionar una opción";
+      } else {
+          if (formData.certificado_solicitado === "De aprobación" && !formData.calificacion_minima) {
+              stepErrors.calificacion_minima = "Este campo es obligatorio";
+          }
+          if (formData.certificado_solicitado === "No otorga certificado" && !formData.razon_no_certificado) {
+              stepErrors.razon_no_certificado = "Este campo es obligatorio";
+          }
+      }  
+          if (formData.valor_inscripcion === 0) {
+            // Valor válido, no hacer nada
+        } else if (!formData.valor_inscripcion) {
+            stepErrors.valor_inscripcion = "Este campo es obligatorio";
+        } else if (typeof formData.valor_inscripcion !== 'number' || formData.valor_inscripcion < 0) {
+            stepErrors.valor_inscripcion = "Debe ser un valor numérico válido";
+        }
       } else if (activeStep === 4) {
-        if (!formData.becas_convenio) stepErrors.becas_convenio = "Este campo es obligatorio";
-        if (!formData.becas_estudiantes) stepErrors.becas_estudiantes = "Este campo es obligatorio";
-        if (!formData.becas_docentes) stepErrors.becas_docentes = "Este campo es obligatorio";
-        if (!formData.becas_egresados) stepErrors.becas_egresados = "Este campo es obligatorio";
-        if (!formData.becas_funcionarios) stepErrors.becas_funcionarios = "Este campo es obligatorio";
-        if (!formData.becas_otros) stepErrors.becas_otros = "Este campo es obligatorio";
+        const camposBecas = [
+          'becas_convenio',
+          'becas_estudiantes',
+          'becas_docentes',
+          'becas_egresados',
+          'becas_funcionarios',
+          'becas_otros'
+        ];
+        camposBecas.forEach(campo => {
+          const valor = formData[campo];
+          if (!valor && valor !== 0) { // Permitir 0 como valor válido
+              stepErrors[campo] = "Este campo es obligatorio";
+          } else if (isNaN(valor) || valor < 0) {
+              stepErrors[campo] = "Debe ser un número mayor o igual a 0";
+          }
+        });  
         if (!formData.periodicidad_oferta) stepErrors.periodicidad_oferta = "Debe seleccionar una periodicidad";
         if (!formData.organizacion_actividad) stepErrors.organizacion_actividad = "Debe seleccionar una opción";
-        if (formData.extension_solidaria === "si" && !formData.costo_extension_solidaria) {
-          stepErrors.costo_extension_solidaria = "Este campo es obligatorio";
+        if (!formData.extension_solidaria) stepErrors.extension_solidaria = "Debe seleccionar una opción";
+      
+        if (formData.extension_solidaria === "si") {
+          const costo = formData.costo_extension_solidaria;
+          if (!costo && costo !== 0) {
+            stepErrors.costo_extension_solidaria = "Este campo es obligatorio";
+          } else if (isNaN(costo) || costo < 0) {
+            stepErrors.costo_extension_solidaria = "Debe ser un valor válido";
+          }
         }
-        if (!formData.personal_externo) stepErrors.personal_externo = "Este campo es obligatorio";
-      }
+        }
     
       setErrors(stepErrors);
-      return Object.keys(stepErrors).length === 0; 
+      return Object.keys(stepErrors).length === 0;
+       
     };    
 
     useEffect(() => {
@@ -138,6 +244,7 @@
       'Información Adicional',
     ];
     
+    
     useEffect(() => {
       if (activeStep < 0 || activeStep >= steps.length) {
         console.warn('Paso fuera de rango. Reiniciando a 0.');
@@ -153,7 +260,6 @@
       }
     }, [currentStep, steps.length]);
 
-    
     /*
     Lógica del botón "Siguiente"
     - Valida los campos del paso actual. Si hay errores, detiene el avance.
@@ -168,6 +274,7 @@
           return; 
         }
         if (activeStep < steps.length - 1) {
+          
           setIsLoading(true); 
           const hoja = 1; 
           let pasoData = {};
@@ -330,6 +437,11 @@
     */
 
     const handleSubmit = async () => {
+        if (!validateStep()) {
+          console.log("Errores en los campos: ", errors); 
+          return; 
+        }
+
         setIsLoading(true); 
         const hoja = 1;
 
@@ -395,6 +507,8 @@
             <Step1
               formData={formData}
               handleInputChange={handleInputChange}
+              setFormData={setFormData}
+              setErrors={setErrors}
               escuelas={escuelas}
               departamentos={departamentos}
               secciones={secciones}
@@ -404,36 +518,32 @@
             />
           );
         case 1:
-          return <Step2 formData={formData} handleInputChange={handleInputChange} errors={errors} />;
+          return <Step2 formData={formData} setFormData={setFormData} handleInputChange={handleInputChange} errors={errors} />;
         case 2:
-          return <Step3 formData={formData} handleInputChange={handleInputChange} errors={errors}/>;
+          return <Step3 formData={formData} setFormData={setFormData}  errors={errors}/>;
         case 3:
-          return <Step4 formData={formData} handleInputChange={handleInputChange} errors={errors}/>;
+          return <Step4 formData={formData} setFormData={setFormData} handleInputChange={handleInputChange} errors={errors}/>;
         case 4:
-          return <Step5 formData={formData} handleInputChange={handleInputChange} handleFileChange={handleFileChange} errors={errors} />;
+          return <Step5 formData={formData} setFormData={setFormData} handleInputChange={handleInputChange} handleFileChange={handleFileChange} errors={errors} />;
         default:
           return null;
       }
     };
 
     return (
-      <Box>
+      <Box sx={{ padding: isVerySmallScreen ? '10px' : isSmallScreen ? '15px' : '20px', width: '100%'}}>
         <Stepper
           activeStep={activeStep}
           sx={{
-            '& .MuiStepLabel-root': {
-              cursor: 'default', 
-            },
-            '& .MuiStepLabel-root.Mui-completed': {
-              cursor: 'pointer', 
-            },
-            '& .MuiStepLabel-root.Mui-active': {
-              cursor: 'pointer', 
+            marginBottom: isSmallScreen ? '15px' : '30px',
+          '& .MuiStepLabel-label': {
+            fontSize: isSmallScreen ? '12px' : '14px',
+            textAlign: isSmallScreen ? 'center' : 'left', 
             },
           }}
         >
           {steps.map((label, index) => (
-            <Step key={index} sx={{marginBottom: '20px'}}>
+            <Step key={index}>
             <StepLabel
               StepIconComponent={(props) => (
                 <CustomStepIcon
@@ -466,8 +576,11 @@
 
         {renderStepContent(activeStep, errors)}
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', marginBottom: '20px' }}>
-          <Button disabled={activeStep === 0} onClick={handleBack}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', flexDirection: isSmallScreen ? 'column' : 'row', marginTop: '20px', marginBottom: '20px' }}>
+          <Button disabled={activeStep === 0} onClick={handleBack} variant="outlined" sx={{ 
+            width: isSmallScreen ? '100%' : 'auto', 
+            marginBottom: isSmallScreen ? '10px' : '0' 
+          }}>
             Atrás
           </Button>
           <Button
@@ -475,7 +588,8 @@
             color="primary"
             onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
             disabled={isLoading} 
-            startIcon={isLoading ? <CircularProgress size={20} /> : null} 
+            startIcon={isLoading ? <CircularProgress size={20} /> : null}
+            sx={{ width: isSmallScreen ? '100%' : 'auto' }} 
           >
             {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
           </Button>
@@ -500,5 +614,23 @@
       </Box>
     );
   }
+
+  FormSection.propTypes = {
+    active: PropTypes.bool.isRequired,
+    completed: PropTypes.bool,
+    icon: PropTypes.node,
+    formData: PropTypes.object.isRequired,
+    setFormData: PropTypes.func.isRequired,
+    handleInputChange: PropTypes.func.isRequired,
+    setCurrentSection: PropTypes.func.isRequired,
+    escuelas: PropTypes.array,
+    departamentos: PropTypes.array,
+    secciones: PropTypes.array,
+    programas: PropTypes.array,
+    oficinas: PropTypes.array,
+    userData: PropTypes.object,
+    currentStep: PropTypes.number.isRequired,
+    handleFileChange: PropTypes.func,
+  };
 
   export default FormSection;

@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Button, Typography, List, ListItem, ListItemText } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
+import PropTypes from "prop-types";
 
 function Dashboard({ userData }) {
   const [activeRequests, setActiveRequests] = useState([]);
@@ -149,7 +150,7 @@ function Dashboard({ userData }) {
           Crear Nueva Solicitud
         </Button>
         <Typography variant="h6" style={{ marginTop: '20px' }}>
-          Solicitudes Activas:
+          Solicitudes en creación:
         </Typography>
         <List>
           {activeRequests.map((request) => (
@@ -210,5 +211,12 @@ function Dashboard({ userData }) {
     </ThemeProvider>
   );
 }
+
+Dashboard.propTypes = {
+  userData: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    name: PropTypes.string.isRequired,
+  }).isRequired,
+};
 
 export default Dashboard;

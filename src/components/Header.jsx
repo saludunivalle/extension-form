@@ -1,4 +1,3 @@
-import React from "react";
 import { styled } from "@mui/material/styles";
 import { Link } from "react-router-dom";
 import logo from "/src/assets/images/logounivalle.svg";
@@ -7,8 +6,8 @@ const HeaderContainer = styled("header")(({ theme }) => ({
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  width: "100vw",
-  height: "100px",
+  width: "100%",
+  height: "90px",
   position: "fixed",
   top: 0,
   left: 0,
@@ -31,32 +30,35 @@ const TitleContainer = styled("div")(({ theme }) => ({
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
+  flexGrow: 1,
   [theme.breakpoints.down("sm")]: {
     position: "static",
     transform: "none",
-    marginTop: "10px",
+    marginTop: "5px",
   },
 }));
 
 const Title = styled("div")(({ theme }) => ({
   fontWeight: 600,
-  fontSize: "40px",
+  fontSize: "30px",
   color: "#423b3b",
   fontFamily: "Helvetica, sans-serif",
   [theme.breakpoints.down("sm")]: {
     fontSize: "20px",
     textAlign: "center",
-    margin: "5px 0",
+  },
+  [theme.breakpoints.down("xs")]: {
+    fontSize: "18px",
   },
 }));
 
 const UserName = styled("div")(({ theme }) => ({
   fontWeight: 400,
-  fontSize: "20px",
+  fontSize: "18px",
   color: "#6b6b6b",
-  marginTop: "-7px",
+  marginTop: "-5px",
   [theme.breakpoints.down("sm")]: {
-    fontSize: "16px",
+    fontSize: "14px",
     textAlign: "center",
   },
 }));
@@ -65,19 +67,15 @@ const Logo = styled("div")(({ theme }) => ({
   paddingLeft: "10px",
   display: "flex",
   alignItems: "center",
-  [theme.breakpoints.down("sm")]: {
-    paddingLeft: 0,
-    marginBottom: "10px",
-    img: {
-      height: "auto",
-      maxHeight: "40px",
-    },
-  },
+  justifyContent: "center",
   img: {
-    height: "auto",
-    maxHeight: "60px",
-    [theme.breakpoints.down("sm")]: {
-      maxHeight: "40px",
+      height: "auto",
+      maxHeight: "50px",
+      [theme.breakpoints.down("sm")]: {
+        maxHeight: "35px",
+      },
+      [theme.breakpoints.down("xs")]: {
+        maxHeight: "25px"
     },
   },
 }));
