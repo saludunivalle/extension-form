@@ -23,6 +23,12 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
           onClick={(e) => {
             e.target.showPicker && e.target.showPicker();
           }}
+          onKeyDown={(e) => {
+            e.preventDefault();
+          }}
+          InputProps={{
+            readOnly: false,
+          }}
         />
       </Grid>
       <Grid item xs={12}>
@@ -130,6 +136,7 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
                 {secciones.map((seccion, index) => (
                   <MenuItem key={index} value={seccion}>
                     {seccion}
+                    {seccion.sede && seccion.sede !== "Cali" ? ` - ${seccion.sede}` : ""}
                   </MenuItem>
                 ))}
               </TextField>
@@ -152,6 +159,7 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
               {programas.map((programa, index) => (
                 <MenuItem key={index} value={programa.Programa}>
                   {programa.Programa}
+                  {programa.Sede && programa.Sede !== "Cali" ? ` - ${programa.Sede}` : ""}
                 </MenuItem>
               ))}
               <MenuItem value="General">General</MenuItem> {/* Agregar opción General */}

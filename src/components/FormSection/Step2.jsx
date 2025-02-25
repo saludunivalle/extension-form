@@ -1,5 +1,5 @@
-import React from 'react';
-import { Grid, TextField, Box, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, Tooltip } from '@mui/material';
+import { Grid, TextField, Tooltip } from '@mui/material';
+import PropTypes from "prop-types";
 
 function Step2({ formData, handleInputChange, errors }) {
   return (
@@ -88,5 +88,23 @@ function Step2({ formData, handleInputChange, errors }) {
     </Grid>
   );
 }
+
+Step2.propTypes = {
+  formData: PropTypes.shape({
+    introduccion: PropTypes.string,
+    objetivo_general: PropTypes.string,
+    objetivos_especificos: PropTypes.string,
+    justificacion: PropTypes.string,
+    metodologia: PropTypes.string,
+  }).isRequired,
+  handleInputChange: PropTypes.func.isRequired,
+  errors: PropTypes.shape({
+    introduccion: PropTypes.string,
+    objetivo_general: PropTypes.string,
+    objetivos_especificos: PropTypes.string,
+    justificacion: PropTypes.string,
+    metodologia: PropTypes.string,
+  }).isRequired,
+};
 
 export default Step2;
