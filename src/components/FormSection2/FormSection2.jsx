@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Box, Button, Stepper, Step, StepLabel, Typography, CircularProgress} from '@mui/material';
 import Step1FormSection2 from './Step1FormSection2';
 import Step2FormSection2 from './Step2FormSection2';
@@ -6,6 +6,7 @@ import Step3FormSection2 from './Step3FormSection2';
 import axios from 'axios'; 
 import { useLocation } from 'react-router-dom';
 import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import PropTypes from "prop-types";
 
 import CheckIcon from '@mui/icons-material/Check'; 
 import { styled } from '@mui/system';
@@ -415,5 +416,31 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
     </Box>
   );
 }
+
+FormSection2.propTypes = {
+  formData: PropTypes.shape({
+    nombre_actividad: PropTypes.string,
+    fecha_solicitud: PropTypes.string,
+    ingresos_cantidad: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    ingresos_vr_unit: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    total_ingresos: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    costos_personal_cantidad: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    costos_personal_vr_unit: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    personal_universidad_cantidad: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    personal_universidad_vr_unit: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    honorarios_docentes_cantidad: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    honorarios_docentes_vr_unit: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    otro_personal_cantidad: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    otro_personal_vr_unit: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  }).isRequired,
+  handleInputChange: PropTypes.func.isRequired,
+  setCurrentSection: PropTypes.func.isRequired,
+  userData: PropTypes.shape({
+    id_usuario: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    name: PropTypes.string,
+  }).isRequired,
+  totalAportesUnivalle: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  currentStep: PropTypes.number.isRequired,
+};
 
 export default FormSection2;
