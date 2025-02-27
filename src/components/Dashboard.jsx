@@ -150,7 +150,7 @@ function Dashboard({ userData }) {
           Crear Nueva Solicitud
         </Button>
         <Typography variant="h6" style={{ marginTop: '20px' }}>
-          Solicitudes en creación:
+          Solicitudes en Creación:
         </Typography>
         <List>
           {activeRequests.map((request) => (
