@@ -1,5 +1,5 @@
-import React from 'react';
 import { Typography, Box, Grid, Checkbox } from '@mui/material';
+import PropTypes from "prop-types";
 
 function Step4FormSection3({ formData, handleInputChange }) {
   const handleCheckboxChange = (event) => {
@@ -34,12 +34,15 @@ function Step4FormSection3({ formData, handleInputChange }) {
             Pérdida de competitividad y de mercado debido a programas de educación continua desactualizados y con contenido no pertinente.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaDesarrollo1"
-            checked={formData.aplicaDesarrollo1 || false}
+            checked={formData.aplicaDesarrollo1 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaDesarrollo1 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -53,12 +56,15 @@ function Step4FormSection3({ formData, handleInputChange }) {
             Pérdida de competitividad y de mercado por falta de innovación en las técnicas efectivas de enseñanza para el público objetivo.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaDesarrollo2"
-            checked={formData.aplicaDesarrollo2 || false}
+            checked={formData.aplicaDesarrollo2 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaDesarrollo2 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -72,12 +78,15 @@ function Step4FormSection3({ formData, handleInputChange }) {
             Afectación en la ejecución de programas de educación continua por falta de compromiso y competencia profesional docente.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaDesarrollo3"
-            checked={formData.aplicaDesarrollo3 || false}
+            checked={formData.aplicaDesarrollo3 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaDesarrollo3 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -91,12 +100,15 @@ function Step4FormSection3({ formData, handleInputChange }) {
             Afectación en la certificación de los programas de educación continua debido a la débil planificación de la etapa evaluación de los conocimientos o habilidades adquiridas.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaDesarrollo4"
-            checked={formData.aplicaDesarrollo4 || false}
+            checked={formData.aplicaDesarrollo4 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaDesarrollo4 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -111,12 +123,15 @@ function Step4FormSection3({ formData, handleInputChange }) {
             Afectación en el cronograma de ejecución de los programas de educación continua por cambios en los horarios sin previo aviso a los interesados.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaDesarrollo5"
-            checked={formData.aplicaDesarrollo5 || false}
+            checked={formData.aplicaDesarrollo5 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaDesarrollo5 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -130,12 +145,15 @@ function Step4FormSection3({ formData, handleInputChange }) {
             Afectación en la ejecución de los programas de educación continua por incumplimiento en el calendario y/o apertura de los mismos.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaDesarrollo6"
-            checked={formData.aplicaDesarrollo6 || false}
+            checked={formData.aplicaDesarrollo6 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaDesarrollo6 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -149,12 +167,15 @@ function Step4FormSection3({ formData, handleInputChange }) {
             Incumplimientos a los roles definidos en los programas de educación continua debido a la falta de asistencia del Director o Coordinador.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaDesarrollo7"
-            checked={formData.aplicaDesarrollo7 || false}
+            checked={formData.aplicaDesarrollo7 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaDesarrollo7 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -168,12 +189,15 @@ function Step4FormSection3({ formData, handleInputChange }) {
             Afectación en la ejecución de los programas de educación continua por falta de asistencia del docente, conferencista, orador o invitado especial.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaDesarrollo8"
-            checked={formData.aplicaDesarrollo8 || false}
+            checked={formData.aplicaDesarrollo8 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaDesarrollo8 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -187,12 +211,15 @@ function Step4FormSection3({ formData, handleInputChange }) {
             Afectación del alcance de los objetivos de los programas de educación continua por participantes que no adquieren las competencias necesarias.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaDesarrollo9"
-            checked={formData.aplicaDesarrollo9 || false}
+            checked={formData.aplicaDesarrollo9 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaDesarrollo9 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -206,12 +233,15 @@ function Step4FormSection3({ formData, handleInputChange }) {
             Pérdida de imagen y percepción de la institución debido a la insatisfacción de los participantes con relación a la calidad de los contenidos del programa desarrollado.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaDesarrollo10"
-            checked={formData.aplicaDesarrollo10 || false}
+            checked={formData.aplicaDesarrollo10 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaDesarrollo10 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -225,12 +255,15 @@ function Step4FormSection3({ formData, handleInputChange }) {
             Deserción y/o pérdida de mercado en la educación superior por falta de interés o relevancia percibida.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaDesarrollo11"
-            checked={formData.aplicaDesarrollo11 || false}
+            checked={formData.aplicaDesarrollo11 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaDesarrollo11 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -241,5 +274,22 @@ function Step4FormSection3({ formData, handleInputChange }) {
     </Box>
   );
 }
+
+Step4FormSection3.propTypes = {
+  formData: PropTypes.shape({
+    aplicaDesarrollo1: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo2: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo3: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo4: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo5: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo6: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo7: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo8: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo9: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo10: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo11: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+  }).isRequired,
+  handleInputChange: PropTypes.func.isRequired,
+};
 
 export default Step4FormSection3;

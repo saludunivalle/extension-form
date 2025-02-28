@@ -1,5 +1,5 @@
-import React from 'react';
 import { Typography, Box, Grid, Checkbox } from '@mui/material';
+import PropTypes from "prop-types";
 
 function Step2FormSection3({ formData, handleInputChange }) {
   const handleCheckboxChange = (event) => {
@@ -33,12 +33,15 @@ function Step2FormSection3({ formData, handleInputChange }) {
             Pérdida de competitividad educativa debido a bajas actividades de promoción y mercadeo.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaDiseno1"
-            checked={formData.aplicaDiseno1 || false}
+            checked={formData.aplicaDiseno1 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaDiseno1 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -52,12 +55,15 @@ function Step2FormSection3({ formData, handleInputChange }) {
            Deserción y/o pérdida de mercado en la educación superior por falta de valor agregado en la oferta de programas de extensión en educación continua
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaDiseno2"
-            checked={formData.aplicaDiseno2 || false}
+            hecked={formData.aplicaDiseno2 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaDiseno2 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -71,12 +77,15 @@ function Step2FormSection3({ formData, handleInputChange }) {
            Afectación en el desarrollo de programas de educación Continua y perdida de habilidades y competencias en diversos campos de formación académica por la inadecuada elaboración de presupuesto.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaDiseno3"
-            checked={formData.aplicaDiseno3 || false}
+            hecked={formData.aplicaDiseno3 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaDiseno3 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -90,12 +99,15 @@ function Step2FormSection3({ formData, handleInputChange }) {
           Propuesta no aprobada por el Consejo de Facultad o Consejo de Regionalización debido al incumplimiento en los pasos o requerimientos para el diseño y desarrollo de programas de educación continua.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaDiseno4"
-            checked={formData.aplicaDiseno4 || false}
+            hecked={formData.aplicaDiseno4 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaDiseno4 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -106,5 +118,16 @@ function Step2FormSection3({ formData, handleInputChange }) {
     </Box>
   );
 }
+
+Step2FormSection3.propTypes = {
+  formData: PropTypes.shape({
+    aplicaDiseno1: PropTypes.string,
+    aplicaDiseno2: PropTypes.string,
+    aplicaDiseno3: PropTypes.string,
+    aplicaDiseno4: PropTypes.string,
+  }).isRequired,
+  handleInputChange: PropTypes.func.isRequired,
+};
+
 
 export default Step2FormSection3;
