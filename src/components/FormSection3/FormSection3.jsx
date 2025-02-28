@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Button, Stepper, Step, StepLabel, CircularProgress, Typography, Modal, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
-import { useLocation, useNavigate } from 'react-router-dom'; // Cambia useHistory por useNavigate
+import { useState, useEffect } from 'react';
+import { Box, Button, Stepper, Step, StepLabel, CircularProgress, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
+import {  useNavigate } from 'react-router-dom'; // Cambia useHistory por useNavigate
 import axios from 'axios';
+import PropTypes from "prop-types";
 
 // Importa las secciones de los pasos
 import Step1FormSection3 from './Step1FormSection3';
@@ -49,13 +50,12 @@ import CheckIcon from '@mui/icons-material/Check'; // Importa el ícono del chec
 
 function FormSection3({ formData, handleInputChange, userData, currentStep, setCurrentSection}) {
   const [activeStep, setActiveStep] = useState(currentStep);  // Usar currentStep como el paso inicial
-  const [openModal, setOpenModal] = useState(false); // Estado para controlar el modal
+  const [setOpenModal] = useState(false); // Estado para controlar el modal
   const id_usuario = userData?.id_usuario;
   const navigate = useNavigate(); // Cambia useHistory por useNavigate
-  const location = useLocation(); // Obtener la ubicación actual
   const [isLoading, setIsLoading] = useState(false); // Estado para manejar el loading del botón
   const [showModal, setShowModal] = useState(false);
-  const [completedSteps, setCompletedSteps] = useState([]);
+  const [ completedSteps, setCompletedSteps] = useState([]);
   const [highestStepReached, setHighestStepReached] = useState(0); // Máximo paso alcanzado
 
   // Step labels
@@ -69,12 +69,14 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
     const stepErrors = {};
   
     // Validaciones para Step1FormSection3
-    if (!formData.proposito) stepErrors.proposito = "Este campo es obligatorio";
-    if (!formData.comentario) stepErrors.comentario = "Este campo es obligatorio";
-    if (!formData.programa) stepErrors.programa = "Este campo es obligatorio";
+    if (activeStep === 0) {
+      if (!formData.proposito) stepErrors.proposito = "Este campo es obligatorio";
+      if (!formData.comentario) stepErrors.comentario = "Este campo es obligatorio";
+      if (!formData.programa) stepErrors.programa = "Este campo es obligatorio";
+    }
   
     setErrors(stepErrors);
-    return Object.keys(stepErrors).length === 0; // Retorna true si no hay errores
+    return Object.keys(stepErrors).length === 0;
   };
   
 
@@ -361,4 +363,43 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
   );
 }
 
+FormSection3.propTypes = {
+  formData: PropTypes.shape({
+    proposito: PropTypes.string,
+    comentario: PropTypes.string,
+    programa: PropTypes.string,
+    fecha_solicitud: PropTypes.string,
+    nombre_solicitante: PropTypes.string,
+    aplicaDiseno1: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDiseno2: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDiseno3: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDiseno4: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaLocacion1: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaLocacion2: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaLocacion3: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaLocacion4: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaLocacion5: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo1: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo2: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo3: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo4: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo5: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo6: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo7: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo8: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo9: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo10: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaDesarrollo11: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaCierre1: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaCierre2: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaCierre3: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+  }).isRequired,
+  handleInputChange: PropTypes.func.isRequired,
+  userData: PropTypes.shape({
+    id_usuario: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    name: PropTypes.string,
+  }).isRequired,
+  currentStep: PropTypes.number.isRequired,
+  setCurrentSection: PropTypes.func.isRequired,
+};
 export default FormSection3;

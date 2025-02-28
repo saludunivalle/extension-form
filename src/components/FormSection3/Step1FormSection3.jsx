@@ -1,5 +1,5 @@
-import React from 'react';
 import { Typography, Box, TextField } from '@mui/material';
+import PropTypes from "prop-types";
 
 function Step1FormSection3({ formData, handleInputChange, errors }) {
   return (
@@ -76,5 +76,21 @@ function Step1FormSection3({ formData, handleInputChange, errors }) {
     </Box>
   );
 }
+
+Step1FormSection3.propTypes = {
+  formData: PropTypes.shape({
+    proposito: PropTypes.string,
+    comentario: PropTypes.string,
+    programa: PropTypes.string,
+    fecha_solicitud: PropTypes.string,
+    nombre_solicitante: PropTypes.string,
+  }).isRequired,
+  handleInputChange: PropTypes.func.isRequired,
+  errors: PropTypes.shape({
+    proposito: PropTypes.string,
+    comentario: PropTypes.string,
+    programa: PropTypes.string,
+  }).isRequired,
+};
 
 export default Step1FormSection3;

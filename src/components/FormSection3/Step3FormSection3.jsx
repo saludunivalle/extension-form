@@ -1,5 +1,5 @@
-import React from 'react';
 import { Typography, Box, Grid, Checkbox } from '@mui/material';
+import PropTypes from "prop-types";
 
 function Step3FormSection3({ formData, handleInputChange }) {
   const handleCheckboxChange = (event) => {
@@ -34,12 +34,15 @@ function Step3FormSection3({ formData, handleInputChange }) {
             Afectación en el desarrollo de programas de educación continua debido a la falta de espacio (salones, salas, auditorios) para la ejecución de la actividad.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaLocacion1"
-            checked={formData.aplicaLocacion1 || false}
+            checked={formData.aplicaLocacion1 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaLocacion1 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -53,12 +56,15 @@ function Step3FormSection3({ formData, handleInputChange }) {
             Afectación en el desarrollo de programas de educación continua debido mal estado de las instalaciones locativas.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaLocacion2"
-            checked={formData.aplicaLocacion2 || false}
+            checked={formData.aplicaLocacion2 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaLocacion2 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -72,12 +78,15 @@ function Step3FormSection3({ formData, handleInputChange }) {
             Afectación en el desarrollo de programas de educación continua debido a la falta de recursos tecnológicos para el desarrollo de las actividades (equipos de computo, aire acondicionado).
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaLocacion3"
-            checked={formData.aplicaLocacion3 || false}
+            checked={formData.aplicaLocacion3 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaLocacion3 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -93,12 +102,15 @@ function Step3FormSection3({ formData, handleInputChange }) {
             Afectación en la ejecución de programas de educación continua por cierre, bloqueos o factores externos (Inundaciones, temblores, etc.) en el campus Universitario.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaLocacion4"
-            checked={formData.aplicaLocacion4 || false}
+            checked={formData.aplicaLocacion4 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaLocacion4 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -113,12 +125,15 @@ function Step3FormSection3({ formData, handleInputChange }) {
             Afectación en la ejecución de programas de educación continua debido a problemas tecnológicos como fallas de conectividad.
           </Typography>
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Checkbox
             name="aplicaLocacion5"
-            checked={formData.aplicaLocacion5 || false}
+            checked={formData.aplicaLocacion5 === 'Sí'}
             onChange={handleCheckboxChange}
           />
+          <Typography variant="body2" color="textSecondary">
+            {formData.aplicaLocacion5 === 'Sí' ? 'Sí aplica' : 'No aplica'}
+          </Typography>
         </Grid>
         <Grid item xs={4}>
           <Typography variant="body1">
@@ -129,5 +144,16 @@ function Step3FormSection3({ formData, handleInputChange }) {
     </Box>
   );
 }
+
+Step3FormSection3.propTypes = {
+  formData: PropTypes.shape({
+    aplicaLocacion1: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaLocacion2: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaLocacion3: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaLocacion4: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaLocacion5: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+  }).isRequired,
+  handleInputChange: PropTypes.func.isRequired,
+};
 
 export default Step3FormSection3;
