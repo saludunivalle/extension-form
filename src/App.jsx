@@ -14,11 +14,19 @@ function App() {
   useEffect(() => {
     const token = Cookies.get('token');
     if (token) {
-      setIsLogged(true);
-      const decodedToken = JSON.parse(token);
-      setUserInfo(decodedToken);
+      try {
+        const decodedToken = JSON.parse(token);
+        setIsLogged(true);
+        setUserInfo(decodedToken);
+      } catch (error) {
+        console.error('Error al parsear el token:', error);
+        setIsLogged(false);
+        setUserInfo(null);
+      }
     }
   }, []);
+
+ 
 
   return (
     <Router>

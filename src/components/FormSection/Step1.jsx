@@ -52,7 +52,10 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
           onChange={handleInputChange}
           margin="normal"
           required
-          autoComplete="off"
+          autoComplete="new-password"
+          InputProps={{
+            autoComplete: 'new-password',
+          }}
           InputLabelProps={{ shrink: true }}
           error={!!errors.nombre_solicitante}
           helperText={errors.nombre_solicitante}
@@ -87,7 +90,7 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
               error={!!errors.nombre_escuela}
               helperText={errors.nombre_escuela}
             >
-              <MenuItem value="">Sin Seleccionar</MenuItem>
+              <MenuItem value="">-</MenuItem>
               {escuelas.map((escuela, index) => (
                 <MenuItem key={index} value={escuela}>
                   {escuela}
@@ -109,7 +112,7 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
                 error={!!errors.nombre_departamento}
                 helperText={errors.nombre_departamento}
               >
-                <MenuItem value="">Sin Seleccionar</MenuItem>
+                <MenuItem value="">-</MenuItem>
                 {departamentos.map((departamento, index) => (
                   <MenuItem key={index} value={departamento}>
                     {departamento}
@@ -132,7 +135,7 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
                 error={!!errors.nombre_seccion}
                 helperText={errors.nombre_seccion}
               >
-                <MenuItem value="">Sin Seleccionar</MenuItem>
+                <MenuItem value="">-</MenuItem>
                 {secciones.map((seccion, index) => (
                   <MenuItem key={index} value={seccion}>
                     {seccion}
@@ -155,7 +158,7 @@ function Step1({ formData, handleInputChange, escuelas, departamentos, secciones
               error={!!errors.nombre_dependencia}
               helperText={errors.nombre_dependencia}
             >
-              <MenuItem value="">Sin Seleccionar</MenuItem>
+              <MenuItem value="">-</MenuItem>
               {programas.map((programa, index) => (
                 <MenuItem key={index} value={programa.Programa}>
                   {programa.Programa}

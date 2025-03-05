@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Box, Button, Stepper, Step, StepLabel, CircularProgress, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
-import {  useNavigate } from 'react-router-dom'; // Cambia useHistory por useNavigate
+import { useLocation, useNavigate } from 'react-router-dom'; // Cambia useHistory por useNavigate
 import axios from 'axios';
 import PropTypes from "prop-types";
 
@@ -50,29 +50,44 @@ import CheckIcon from '@mui/icons-material/Check'; // Importa el ícono del chec
 
 function FormSection3({ formData, handleInputChange, userData, currentStep, setCurrentSection}) {
   const [activeStep, setActiveStep] = useState(currentStep);  // Usar currentStep como el paso inicial
-  const [setOpenModal] = useState(false); // Estado para controlar el modal
+  const [openModal, setOpenModal] = useState(false); // Estado para controlar el modal
   const id_usuario = userData?.id_usuario;
   const navigate = useNavigate(); // Cambia useHistory por useNavigate
+  const location = useLocation(); // Obtener la ubicación actual
   const [isLoading, setIsLoading] = useState(false); // Estado para manejar el loading del botón
   const [showModal, setShowModal] = useState(false);
-  const [ completedSteps, setCompletedSteps] = useState([]);
+  const [completedSteps, setCompletedSteps] = useState([]);
   const [highestStepReached, setHighestStepReached] = useState(0); // Máximo paso alcanzado
 
   // Step labels
   const steps = ['Propósito y Comentario', 'Matriz de Riesgos - Diseño', 'Matriz de Riesgos - Locaciones', 'Matriz de Riesgos - Desarrollo', 'Matriz de Riesgos - Cierre y Otros'];
 
-  const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
+  const [idSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
 
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState({
+    aplicaDiseno1: 'No',
+    aplicaDiseno2: 'No',
+    aplicaDiseno3: 'No',
+    aplicaDiseno4: 'No',
+  });
 
   const validateStep = () => {
     const stepErrors = {};
   
-    // Validaciones para Step1FormSection3
-    if (activeStep === 0) {
-      if (!formData.proposito) stepErrors.proposito = "Este campo es obligatorio";
-      if (!formData.comentario) stepErrors.comentario = "Este campo es obligatorio";
-      if (!formData.programa) stepErrors.programa = "Este campo es obligatorio";
+    if (activeStep === 1) { // Paso 2 corresponde al índice 1
+      const requiredFields = [
+        'aplicaDiseno1',
+        'aplicaDiseno2',
+        'aplicaDiseno3',
+        'aplicaDiseno4'
+      ];
+  
+      requiredFields.forEach(field => {
+        if (!formData[field] || 
+           (formData[field] !== 'Sí' && formData[field] !== 'No')) {
+          stepErrors[field] = "Debe seleccionar una opción";
+        }
+      });
     }
   
     setErrors(stepErrors);
@@ -267,7 +282,7 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
       case 0:
         return <Step1FormSection3 formData={formData} handleInputChange={handleInputChange} errors={errors}/>;
       case 1:
-        return <Step2FormSection3 formData={formData} handleInputChange={handleInputChange} />;
+        return <Step2FormSection3 formData={formData} handleInputChange={handleInputChange} errors={errors} />;
       case 2:
         return <Step3FormSection3 formData={formData} handleInputChange={handleInputChange} />;
       case 3:
@@ -333,7 +348,7 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
           ))}
         </Stepper>
 
-      {renderStepContent(activeStep)}
+      {renderStepContent(activeStep, errors)}
 
 +      <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
         <Button disabled={activeStep === 0} onClick={handleBack}>Atrás</Button>
@@ -402,4 +417,5 @@ FormSection3.propTypes = {
   currentStep: PropTypes.number.isRequired,
   setCurrentSection: PropTypes.func.isRequired,
 };
+
 export default FormSection3;

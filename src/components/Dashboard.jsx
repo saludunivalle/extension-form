@@ -25,13 +25,21 @@ function Dashboard({ userData }) {
   });
 
   useEffect(() => {
+    console.log('userData:', userData);
+  }, [userData]);
+
+  useEffect(() => {
+    if (!userData || !userData.id) {
+      console.warn('No hay userData disponible.');
+      return;
+    }
+  
     const fetchActiveRequests = async () => {
       try {
         const response = await axios.get('https://siac-extension-server.vercel.app/getActiveRequests', {
           params: { userId: userData.id },
         });
         setActiveRequests(response.data);
-        console.log('Solicitudes activas:', response.data);
       } catch (error) {
         console.error('Error al obtener solicitudes activas:', error);
       }
@@ -50,7 +58,7 @@ function Dashboard({ userData }) {
   
     fetchActiveRequests();
     fetchCompletedRequests();
-  }, [userData.id]);  
+  }, [userData]);  
 
   const handleContinue = (request) => {
     const { idSolicitud, formulario, paso } = request;
@@ -138,6 +146,8 @@ function Dashboard({ userData }) {
   };  
 
   return (
+    <>
+    {userData && userData.id ? <Dashboard userData={userData} /> : <div>Cargando...</div>}
     <ThemeProvider theme={theme}>
       <div style={{ padding: '20px', marginTop: '130px' }}>
         <Typography variant="h5">Bienvenido, {userData.name}</Typography>
@@ -209,6 +219,7 @@ function Dashboard({ userData }) {
 
       </div>
     </ThemeProvider>
+  </>
   );
 }
 

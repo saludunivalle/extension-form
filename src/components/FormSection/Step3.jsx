@@ -81,15 +81,43 @@ function Step3({ formData, setFormData, errors  }) {
           {errors.modalidad && <FormHelperText>{errors.modalidad}</FormHelperText>}
         </FormControl>
       </Grid>
+      <Grid item xs={6}>
+          <TextField
+            label="Programa y contenidos"
+            fullWidth
+            name="programCont"
+            value={formData.programCont}
+            onChange={handleCustomInputChange}
+            multiline
+            rows={4}
+            required
+            error={!!errors.programCont}
+            helperText={errors.programCont}
+          />
+      </Grid>
+      <Grid item xs={6}>
+          <TextField
+            label="Dirigido a"
+            fullWidth
+            name="dirigidoa"
+            value={formData.dirigidoa}
+            onChange={handleCustomInputChange}
+            multiline
+            rows={4}
+            required
+            error={!!errors.dirigidoa}
+            helperText={errors.dirigidoa}
+          />
+      </Grid>
+
       <Grid item xs={12}>
         <Typography variant="h6">Intensidad Horaria</Typography>
       </Grid>
-
       {(formData.modalidad === "Presencial" || formData.modalidad === "Virtual" || formData.modalidad === "Mixta" || formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") && (
         <Grid item xs={12}>
           <Grid container spacing={2}>
             {(formData.modalidad === "Presencial" || formData.modalidad === "Mixta" || formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") && (
-              <Grid item xs={4}>
+              <Grid item xs={3.5}>
                 <TextField
                   label="Horas de trabajo Presencial"
                   fullWidth
@@ -110,7 +138,7 @@ function Step3({ formData, setFormData, errors  }) {
             )}
 
             {(formData.modalidad === "Virtual" || formData.modalidad === "Mixta" || formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") && (
-              <Grid item xs={4}>
+              <Grid item xs={3.5}>
                 <TextField
                   label="Horas Sincrónicas"
                   fullWidth
@@ -130,7 +158,41 @@ function Step3({ formData, setFormData, errors  }) {
               </Grid>
             )}
 
-            <Grid item xs={4}>
+            <Grid item xs={3.5}>
+              <TextField
+                label="Créditos"
+                fullWidth
+                name="creditos"
+                value={formData.creditos}
+                type="number" 
+                inputProps={{
+                  min: 1,
+                  max: 50,
+                  onKeyPress: (e) => {
+                    if (e.key === '-') e.preventDefault();
+                  }
+                }}
+                onChange={(e) => {
+                  let value = e.target.value;
+                  // Limitar máximo a 50
+                  if (value > 50) value = 50;
+                  // Convertir a número y validar
+                  const numericValue = Math.max(1, Math.min(50, parseInt(value)));
+                  handleCustomInputChange({
+                    target: {
+                      name: "creditos",
+                      value: numericValue
+                    }
+                  });
+                }} 
+                required
+                error={!!errors.creditos}
+                helperText={errors.creditos || "Máximo 50 créditos"}
+                
+                />
+            </Grid>
+
+            <Grid item xs={1.5}>
               <TextField
                 label="Total Horas"
                 fullWidth
@@ -145,71 +207,6 @@ function Step3({ formData, setFormData, errors  }) {
           </Grid>
         </Grid>
       )}
-
-     <Grid item xs={12}>
-        <Grid container spacing={2}>
-                <Grid item xs={4} sm={4}>
-                    <TextField
-                    label="Programa y contenidos"
-                    fullWidth
-                    name="programCont"
-                    value={formData.programCont}
-                    onChange={handleCustomInputChange}
-                    required
-                    error={!!errors.programCont}
-                    helperText={errors.programCont}
-                    />
-                </Grid>
-
-                <Grid item xs={4} sm={4}>
-                    <TextField
-                    label="Dirigido a"
-                    fullWidth
-                    name="dirigidoa"
-                    value={formData.dirigidoa}
-                    onChange={handleCustomInputChange}
-                    required
-                    error={!!errors.dirigidoa}
-                    helperText={errors.dirigidoa}
-                    />
-                </Grid>
-
-                <Grid item xs={4} sm={4}>
-                    <TextField
-                    label="Créditos"
-                    fullWidth
-                    name="creditos"
-                    value={formData.creditos}
-                    type="number" 
-                    inputProps={{
-                      min: 1,
-                      max: 50,
-                      onKeyPress: (e) => {
-                        if (e.key === '-') e.preventDefault();
-                      }
-                    }}
-                    onChange={(e) => {
-                      let value = e.target.value;
-                      // Limitar máximo a 50
-                      if (value > 50) value = 50;
-                      // Convertir a número y validar
-                      const numericValue = Math.max(1, Math.min(50, parseInt(value)));
-                      handleCustomInputChange({
-                        target: {
-                          name: "creditos",
-                          value: numericValue
-                        }
-                      });
-                    }} 
-                    required
-                    error={!!errors.creditos}
-                    helperText={errors.creditos || "Máximo 50 créditos"}
-                    
-                    />
-                </Grid>
-        </Grid>
-     </Grid>
-
 
       <Grid item xs={6} sm={6}>
         <TextField
