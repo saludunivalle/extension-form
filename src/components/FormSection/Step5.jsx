@@ -152,6 +152,17 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
                 readOnly: true,
               }}
               disabled={true}
+              sx={{
+                "& .MuiInputBase-input.Mui-disabled": {
+                  WebkitTextFillColor: "#303030", // Texto en gris oscuro
+                },
+                "& .MuiOutlinedInput-root.Mui-disabled .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "#a1a1a1", // Borde más oscuro
+                },
+                "& .MuiInputLabel-root.Mui-disabled": {
+                  color: "#717171", // Label en gris oscuro
+                },
+              }}
             />
           </Grid>
         </Grid>
@@ -269,13 +280,12 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
       {/* "Personal Externo" campo */}
       <Grid item xs={12}>
         <TextField
-          label="Personal Externo"
+          label="Përsonal Externo Asignado"
           fullWidth
           name="personal_externo"
           value={formData.personal_externo || ''}
           onChange={handleInputChange}
           placeholder="Detalles del personal externo (opcional)"
-          required
         />
       </Grid>
 

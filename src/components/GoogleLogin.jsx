@@ -42,6 +42,7 @@ const GoogleLogin = ({ setIsLogin, setUserInfo }) => {
     }
   }, [navigate, setIsLogin, setUserInfo]);
 
+
   useEffect(() => {
     let script;
     const initializeGoogleAuth = () => {
@@ -67,6 +68,7 @@ const GoogleLogin = ({ setIsLogin, setUserInfo }) => {
         console.log('Error inicializando Google Auth:', error);
       }
     };
+
 
     if (!document.getElementById('google-auth-script')) {
       script = document.createElement('script');

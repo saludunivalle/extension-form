@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Box, Button, Stepper, Step, StepLabel, Typography, Modal, CircularProgress } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios'; // Importa Axios para realizar la solicitud de guardado
+import PropTypes from "prop-types";
 
 import Step1FormSection4 from './Step1FormSection4';
 import Step2FormSection4 from './Step2FormSection4';
@@ -104,12 +105,132 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
       if (!formData.estrategiasCompetencia) {
         stepErrors.estrategiasCompetencia = "Este campo es obligatorio";
       }
+    } else if (activeStep === 2) {
+      const checkboxGroups = [
+        {
+          checkboxes: ['personasInteresChecked', 'personasMatriculadasChecked', 'otroInteresChecked'],
+          otroCheckbox: 'otroInteresChecked',
+          otherField: 'otroInteres',
+          errorKey: 'indicadoresPrevios'
+        },
+        {
+          checkboxes: ['innovacion', 'solicitudExterno', 'interesSondeo', 'otroMercadeoChecked'],
+          otroCheckbox: 'otroMercadeoChecked',
+          otherField: 'otroMercadeo',
+          errorKey: 'variablesMercadeo'
+        },
+        {
+          checkboxes: ['llamadas', 'encuestas', 'webinar', 'pautas_redes', 'otroEstrategiasChecked'],
+          otroCheckbox: 'otroEstrategiasChecked',
+          otherField: 'otroEstrategias',
+          errorKey: 'estrategiasSondeo'
+        },
+        {
+          checkboxes: ['preregistroFisico', 'preregistroGoogle', 'preregistroOtroChecked'],
+          otroCheckbox: 'preregistroOtroChecked',
+          otherField: 'preregistroOtro',
+          errorKey: 'preregistro'
+        }
+      ];
+  
+      checkboxGroups.forEach(group => {
+        const isAnyChecked = group.checkboxes.some(checkbox => formData[checkbox] === 'Sí');
+        if (!isAnyChecked) {
+          stepErrors[group.errorKey] = 'Debe seleccionar al menos una opción';
+        } else {
+          if (group.otroCheckbox) {
+            const isOtroChecked = formData[group.otroCheckbox] === 'Sí';
+            if (isOtroChecked && !formData[group.otherField]?.trim()) {
+              stepErrors[group.otherField] = 'Este campo es obligatorio cuando se selecciona "Otro"';
+            }
+          }
+        }
+      });
+    } else if (activeStep === 3) { // Paso 4
+      const checkboxGroups = [
+        {
+          checkboxes: ['gremios', 'sectores_empresariales', 'politicas_publicas', 'otros_mesas_trabajoChecked'],
+          otroCheckbox: 'otros_mesas_trabajoChecked',
+          otherField: 'otros_mesas_trabajo',
+          errorKey: 'mesasTrabajo'
+        },
+        {
+          checkboxes: ['focusGroup', 'desayunosTrabajo', 'almuerzosTrabajo', 'openHouse', 'ferias_colegios', 'ferias_empresarial', 'otros_mercadeoChecked'],
+          otroCheckbox: 'otros_mercadeoChecked',
+          otherField: 'otros_mercadeo',
+          errorKey: 'actividadesMercadeo'
+        },
+        {
+          checkboxes: ['modalidadPresencial', 'modalidadVirtual', 'modalidadSemipresencial', 'traslados_docente', 'modalidad_asistida_tecnologia'],
+          errorKey: 'modalidades'
+        }
+      ];
+  
+      // Validar radio button
+      if (!formData.valorEconomico) {
+        stepErrors.valorEconomico = 'Este campo es obligatorio';
+      }
+  
+      checkboxGroups.forEach(group => {
+        const isAnyChecked = group.checkboxes.some(checkbox => formData[checkbox] === 'Sí');
+        
+        if (!isAnyChecked) {
+          stepErrors[group.errorKey] = 'Debe seleccionar al menos una opción';
+        }
+        
+        if (group.otroCheckbox) {
+          const isOtroChecked = formData[group.otroCheckbox] === 'Sí';
+          if (isOtroChecked && !formData[group.otherField]?.trim()) {
+            stepErrors[group.otherField] = 'Campo obligatorio cuando selecciona "Otro"';
+          }
+        }
+      });
+    } else if (activeStep === 4) {
+      const requiredFields = [
+        'beneficiosTangibles',
+        'beneficiosIntangibles',
+        'tendenciasActuales',
+        'dofaDebilidades',
+        'dofaOportunidades',
+        'dofaFortalezas',
+        'dofaAmenazas'
+      ];
+      
+      requiredFields.forEach(field => {
+        if (!formData[field]?.trim()) {
+          stepErrors[field] = 'Este campo es obligatorio';
+        }
+      });
+
+      const checkboxGroups = [
+        {
+          checkboxes: ['particulares', 'colegios', 'empresas', 'egresados', 'colaboradores', 'otros_publicos_potencialesChecked'],
+          otroCheckbox: 'otros_publicos_potencialesChecked',
+          otherField: 'otros_publicos_potenciales',
+          errorKey: 'publicosPotenciales'
+        },
+        {
+          checkboxes: ['paginaWeb', 'facebook', 'instagram', 'linkedin', 'correo', 'prensa', 'boletin', 'llamadas_redes', 'otro_canalChecked'],
+          otroCheckbox: 'otro_canalChecked',
+          otherField: 'otro_canal',
+          errorKey: 'canalesDivulgacion'
+        }
+      ];
+  
+      checkboxGroups.forEach(group => {
+        const isAnyChecked = group.checkboxes.some(checkbox => formData[checkbox] === 'Sí');
+        if (!isAnyChecked) {
+          stepErrors[group.errorKey] = 'Debe seleccionar al menos una opción';
+        }
+        if (group.otroCheckbox) {
+          const isOtroChecked = formData[group.otroCheckbox] === 'Sí';
+          if (isOtroChecked && !formData[group.otherField]?.trim()) {
+            stepErrors[group.otherField] = 'Campo obligatorio cuando se selecciona "Otro"';
+          }
+        }
+      });
     }
-  
-    // Actualiza los errores en el estado
     setErrors(stepErrors);
-  
-    // Retorna true si no hay errores
     return Object.keys(stepErrors).length === 0;
   };
   
@@ -127,7 +248,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
       alert('No se encontró un ID válido para esta solicitud. Por favor, vuelve al dashboard.');
       navigate('/');
     }
-  }, [idSolicitud]);
+  }, [idSolicitud, navigate]);
   
   useEffect(() => {
     if (currentStep < 0 || currentStep >= steps.length) {
@@ -185,18 +306,22 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
               pasoData = {
                   personasInteresChecked: formData.personasInteresChecked || 'No',
                   personasMatriculadasChecked: formData.personasMatriculadasChecked || 'No',
+                  otroInteresChecked: formData.otroInteresChecked || 'No',
                   otroInteres: formData.otroInteres || 'No',
                   innovacion: formData.innovacion || 'No',
                   solicitudExterno: formData.solicitudExterno || 'No',
                   interesSondeo: formData.interesSondeo || 'No',
+                  otroMercadeoChecked: formData.otroMercadeoChecked || 'No',
                   otroMercadeo: formData.otroMercadeo || 'No',
                   llamadas: formData.llamadas || 'No',
                   encuestas: formData.encuestas || 'No',
                   webinar: formData.webinar || 'No',
                   pautas_redes: formData.pautas_redes || 'No',
+                  otroEstrategiasChecked: formData.otroEstrategiasChecked || 'No',
                   otroEstrategias: formData.otroEstrategias || 'No',
                   preregistroFisico: formData.preregistroFisico || 'No',
                   preregistroGoogle: formData.preregistroGoogle || 'No',
+                  preregistroOtroChecked: formData.preregistroOtroChecked || 'No',
                   preregistroOtro: formData.preregistroOtro || 'No',
               };
               break;
@@ -210,9 +335,10 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
                   desayunosTrabajo: formData.desayunosTrabajo || 'No',
                   almuerzosTrabajo: formData.almuerzosTrabajo || 'No',
                   openHouse: formData.openHouse || 'No',
+                  otros_mercadeoChecked: formData.otros_mercadeoChecked || 'No',
+                  otros_mercadeo: formData.otros_mercadeo || 'No',
                   ferias_colegios: formData.ferias_colegios || 'No',
                   ferias_empresarial: formData.ferias_empresarial || 'No',
-                  otros_mercadeo: formData.otros_mercadeo || 'No',
                   valorEconomico: formData.valorEconomico || 'No',
                   modalidadPresencial: formData.modalidadPresencial || 'No',
                   modalidadVirtual: formData.modalidadVirtual || 'No',
@@ -222,30 +348,32 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
               };
               break;
           case 4:
-              pasoData = {
-                  beneficiosTangibles: formData.beneficiosTangibles || 'No',
-                  beneficiosIntangibles: formData.beneficiosIntangibles || 'No',
-                  particulares: formData.particulares || 'No',
-                  colegios: formData.colegios || 'No',
-                  empresas: formData.empresas || 'No',
-                  egresados: formData.egresados || 'No',
-                  colaboradores: formData.colaboradores || 'No',
-                  otros_publicos_potenciales: formData.otros_publicos_potenciales || 'No',
-                  tendenciasActuales: formData.tendenciasActuales || 'No',
-                  dofaDebilidades: formData.dofaDebilidades || 'No',
-                  dofaOportunidades: formData.dofaOportunidades || 'No',
-                  dofaFortalezas: formData.dofaFortalezas || 'No',
-                  dofaAmenazas: formData.dofaAmenazas || 'No',
-                  paginaWeb: formData.paginaWeb || 'No',
-                  facebook: formData.facebook || 'No',
-                  instagram: formData.instagram || 'No',
-                  linkedin: formData.linkedin || 'No',
-                  correo: formData.correo || 'No',
-                  prensa: formData.prensa || 'No',
-                  boletin: formData.boletin || 'No',
-                  llamadas_redes: formData.llamadas_redes || 'No',
-                  otro_canal: formData.otro_canal || 'No',
-              };
+            pasoData = {
+              beneficiosTangibles: formData.beneficiosTangibles || 'No',
+              beneficiosIntangibles: formData.beneficiosIntangibles || 'No',
+              particulares: formData.particulares || 'No',
+              colegios: formData.colegios || 'No',
+              empresas: formData.empresas || 'No',
+              egresados: formData.egresados || 'No',
+              colaboradores: formData.colaboradores || 'No',
+              otros_publicos_potenciales: formData.otros_publicos_potenciales || 'No',
+              otros_publicos_potencialesChecked: formData.otros_publicos_potencialesChecked || 'No',
+              otro_canalChecked: formData.otro_canalChecked || 'No',
+              tendenciasActuales: formData.tendenciasActuales || 'No',
+              dofaDebilidades: formData.dofaDebilidades || 'No',
+              dofaOportunidades: formData.dofaOportunidades || 'No',
+              dofaFortalezas: formData.dofaFortalezas || 'No',
+              dofaAmenazas: formData.dofaAmenazas || 'No',
+              paginaWeb: formData.paginaWeb || 'No',
+              facebook: formData.facebook || 'No',
+              instagram: formData.instagram || 'No',
+              linkedin: formData.linkedin || 'No',
+              correo: formData.correo || 'No',
+              prensa: formData.prensa || 'No',
+              boletin: formData.boletin || 'No',
+              llamadas_redes: formData.llamadas_redes || 'No',
+              otro_canal: formData.otro_canal || 'No',
+            };
               break;
           default:
               break;
@@ -362,11 +490,11 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
       case 1:
         return <Step2FormSection4 formData={formData} handleInputChange={handleInputChange} errors={errors}/>;
       case 2:
-        return <Step3FormSection4 formData={formData} handleInputChange={handleInputChange} />;
+        return <Step3FormSection4 formData={formData} handleInputChange={handleInputChange} errors={errors}/>;
       case 3:
-        return <Step4FormSection4 formData={formData} handleInputChange={handleInputChange} />;
+        return <Step4FormSection4 formData={formData} handleInputChange={handleInputChange} errors={errors} />;
       case 4:
-        return <Step5FormSection4 formData={formData} handleInputChange={handleInputChange} />;
+        return <Step5FormSection4 formData={formData} handleInputChange={handleInputChange} errors={errors}/>;
       default:
         return null;
     }
@@ -443,5 +571,87 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
     </Box>
   );
 }
+
+FormSection4.propTypes = {
+  formData: PropTypes.shape({
+    descripcionPrograma: PropTypes.string,
+    identificacionNecesidades: PropTypes.string,
+    atributosBasicos: PropTypes.string,
+    atributosDiferenciadores: PropTypes.string,
+    competencia: PropTypes.string,
+    programa: PropTypes.string,
+    programasSimilares: PropTypes.string,
+    estrategiasCompetencia: PropTypes.string,
+    personasInteresChecked: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    personasMatriculadasChecked: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    otroInteres: PropTypes.string,
+    otroInteresChecked: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    innovacion: PropTypes.string,
+    solicitudExterno: PropTypes.string,
+    interesSondeo: PropTypes.string,
+    otroMercadeo: PropTypes.string,
+    otroMercadeoChecked: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    llamadas: PropTypes.string,
+    encuestas: PropTypes.string,
+    webinar: PropTypes.string,
+    pautas_redes: PropTypes.string,
+    otroEstrategias: PropTypes.string,
+    otroEstrategiasChecked: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    preregistroFisico: PropTypes.string,
+    preregistroGoogle: PropTypes.string,
+    preregistroOtro: PropTypes.string,
+    preregistroOtroChecked: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    gremios: PropTypes.string,
+    sectores_empresariales: PropTypes.string,
+    politicas_publicas: PropTypes.string,
+    otros_mesas_trabajo: PropTypes.string,
+    otros_mesas_trabajoChecked: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    focusGroup: PropTypes.string,
+    desayunosTrabajo: PropTypes.string,
+    almuerzosTrabajo: PropTypes.string,
+    openHouse: PropTypes.string,
+    ferias_colegios: PropTypes.string,
+    ferias_empresarial: PropTypes.string,
+    otros_mercadeo: PropTypes.string,
+    otros_mercadeoChecked: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    valorEconomico: PropTypes.string,
+    modalidadPresencial: PropTypes.string,
+    modalidadVirtual: PropTypes.string,
+    modalidadSemipresencial: PropTypes.string,
+    traslados_docente: PropTypes.string,
+    modalidad_asistida_tecnologia: PropTypes.string,
+    beneficiosTangibles: PropTypes.string,
+    beneficiosIntangibles: PropTypes.string,
+    particulares: PropTypes.string,
+    colegios: PropTypes.string,
+    empresas: PropTypes.string,
+    egresados: PropTypes.string,
+    colaboradores: PropTypes.string,
+    otros_publicos_potenciales: PropTypes.string,
+    otros_publicos_potencialesChecked: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    tendenciasActuales: PropTypes.string,
+    dofaDebilidades: PropTypes.string,
+    dofaOportunidades: PropTypes.string,
+    dofaFortalezas: PropTypes.string,
+    dofaAmenazas: PropTypes.string,
+    paginaWeb: PropTypes.string,
+    facebook: PropTypes.string,
+    instagram: PropTypes.string,
+    linkedin: PropTypes.string,
+    correo: PropTypes.string,
+    prensa: PropTypes.string,
+    boletin: PropTypes.string,
+    llamadas_redes: PropTypes.string,
+    otro_canal: PropTypes.string,
+    otro_canalChecked: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+  }).isRequired,
+  handleInputChange: PropTypes.func.isRequired,
+  userData: PropTypes.shape({
+    id_usuario: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    name: PropTypes.string.isRequired,
+  }).isRequired,
+  currentStep: PropTypes.number.isRequired,
+};
+
 
 export default FormSection4;

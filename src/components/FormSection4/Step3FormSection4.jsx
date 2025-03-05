@@ -1,6 +1,7 @@
 import { TextField, Grid, Box, Typography, FormControlLabel, Checkbox } from '@mui/material';
+import PropTypes from "prop-types";
 
-function Step3FormSection4({ formData, handleInputChange }) {
+function Step3FormSection4({ formData, handleInputChange, errors }) {
   
   const handleCheckboxChange = (event) => {
     const { name, checked } = event.target;
@@ -14,6 +15,7 @@ function Step3FormSection4({ formData, handleInputChange }) {
 
   return (
     <Box>
+      {/* Grupo 1: Indicadores previos */}
       <Typography variant="h6" gutterBottom>
         ¿Cuáles son los indicadores previos para medir la acogida de este programa de Educación Continua?
       </Typography>
@@ -30,7 +32,6 @@ function Step3FormSection4({ formData, handleInputChange }) {
             label="Cantidad de personas que mostraron interés por algún medio"
           />
         </Grid>
-
         <Grid item xs={4}>
           <FormControlLabel
             control={
@@ -43,7 +44,6 @@ function Step3FormSection4({ formData, handleInputChange }) {
             label="Cantidad de personas matriculadas previamente"
           />
         </Grid>
-
         <Grid item xs={4}>
           <FormControlLabel
             control={
@@ -63,12 +63,20 @@ function Step3FormSection4({ formData, handleInputChange }) {
               onChange={handleInputChange}
               fullWidth
               margin="normal"
+              error={!!errors.otroInteres}
+              helperText={errors.otroInteres}
             />
           )}
         </Grid>
       </Grid>
+      {errors.indicadoresPrevios && (
+        <Typography color="error" sx={{ mt: 1 }}>
+          {errors.indicadoresPrevios}
+        </Typography>
+      )}
 
-      <Typography variant="h6" gutterBottom>
+      {/* Grupo 2: Variables de mercadeo */}
+      <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
         ¿Cuáles son las variables de mercadeo utilizadas por su área para abrir un nuevo programa de Educación Continua?
       </Typography>
       <FormControlLabel
@@ -121,9 +129,15 @@ function Step3FormSection4({ formData, handleInputChange }) {
           margin="normal"
         />
       )}
+      {errors.variablesMercadeo && (
+        <Typography color="error" sx={{ mt: 1 }}>
+          {errors.variablesMercadeo}
+        </Typography>
+      )}
 
-      <Typography variant="h6" gutterBottom>
-        ¿Cuál de las siguientes estrategias han utilizado para sondear previamente el interés de las personas frente a la apertura de un programa de Educación Continua?
+      {/* Grupo 3: Estrategias de sondeo */}
+      <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+        ¿Cuál de las siguientes estrategias han utilizado para sondear previamente el interés de las personas?
       </Typography>
       <FormControlLabel
         control={
@@ -185,11 +199,16 @@ function Step3FormSection4({ formData, handleInputChange }) {
           margin="normal"
         />
       )}
+      {errors.estrategiasSondeo && (
+        <Typography color="error" sx={{ mt: 1 }}>
+          {errors.estrategiasSondeo}
+        </Typography>
+      )}
 
-      <Typography variant="h6" gutterBottom>
-        ¿Cuentan con un preregistro, bases de datos, formularios diligenciados, etc., para aperturar el programa?
+      {/* Grupo 4: Preregistro */}
+      <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+        ¿Cuentan con un preregistro, bases de datos o formularios diligenciados para aperturar el programa?
       </Typography>
-
       <FormControlLabel
         control={
           <Checkbox
@@ -200,7 +219,6 @@ function Step3FormSection4({ formData, handleInputChange }) {
         }
         label="Físico"
       />
-
       <FormControlLabel
         control={
           <Checkbox
@@ -211,7 +229,6 @@ function Step3FormSection4({ formData, handleInputChange }) {
         }
         label="Google"
       />
-
       <FormControlLabel
         control={
           <Checkbox
@@ -222,7 +239,6 @@ function Step3FormSection4({ formData, handleInputChange }) {
         }
         label="Otro"
       />
-
       {formData.preregistroOtroChecked === 'Sí' && (
         <TextField
           label="¿Cuál?"
@@ -233,8 +249,50 @@ function Step3FormSection4({ formData, handleInputChange }) {
           margin="normal"
         />
       )}
+      {errors.preregistro && (
+        <Typography color="error" sx={{ mt: 1 }}>
+          {errors.preregistro}
+        </Typography>
+      )}
     </Box>
   );
 }
+
+Step3FormSection4.propTypes = {
+  formData: PropTypes.shape({
+    personasInteresChecked: PropTypes.string,
+    personasMatriculadasChecked: PropTypes.string,
+    otroInteresChecked: PropTypes.string,
+    otroInteres: PropTypes.string,
+    innovacion: PropTypes.string,
+    solicitudExterno: PropTypes.string,
+    interesSondeo: PropTypes.string,
+    otroMercadeoChecked: PropTypes.string,
+    otroMercadeo: PropTypes.string,
+    llamadas: PropTypes.string,
+    encuestas: PropTypes.string,
+    webinar: PropTypes.string,
+    pautas_redes: PropTypes.string,
+    otroEstrategiasChecked: PropTypes.string,
+    otroEstrategias: PropTypes.string,
+    preregistroFisico: PropTypes.string,
+    preregistroGoogle: PropTypes.string,
+    preregistroOtroChecked: PropTypes.string,
+    preregistroOtro: PropTypes.string,
+    errors: PropTypes.object,
+  }).isRequired,
+  handleInputChange: PropTypes.func.isRequired,
+  errors: PropTypes.shape({
+    indicadoresPrevios: PropTypes.string,
+    variablesMercadeo: PropTypes.string,
+    estrategiasSondeo: PropTypes.string,
+    preregistro: PropTypes.string,
+    otroInteres: PropTypes.string,
+  }),
+};
+
+Step3FormSection4.defaultProps = {
+  errors: {},
+};
 
 export default Step3FormSection4;

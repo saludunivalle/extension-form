@@ -272,29 +272,50 @@
         //setLoading(true);
         try {
           const response = await axios.get(`https://siac-extension-server.vercel.app/getSolicitud`, {
-            params: { id_solicitud: solicitudId }
+            params: { 
+              id_solicitud: solicitudId,
+              timestamp: new Date().getTime()
+             }
           });
-          const data = response.data;
+          
+          /*const data = response.data;
           
           // Combina los datos de todas las hojas en formData
           const combinedData = {
+            ...data.SOLICITUDES,
             ...data.SOLICITUDES2,
             ...data.SOLICITUDES3,
             ...data.SOLICITUDES4,
             ...data.SOLICITUDES5,
-          };
+          };*/
 
-          setFormData(combinedData);
+          // Fusionar datos cargados con el estado actual
+          setFormData((prevData) => ({
+            ...prevData,
+            ...response.data
+          }));
         } catch (error) {
           console.error('Error al cargar los datos de la solicitud:', error);
-        } finally {
-          //setLoading(false);
-        }
-      }
-    };
+        } 
+    }
+  };
 
     fetchSolicitudData();
   }, [solicitudId]);
+
+  useEffect(() => {
+    if (formData.id_solicitud) {
+      localStorage.setItem(`formData_${formData.id_solicitud}`, JSON.stringify(formData));
+    }
+  }, [formData]);
+
+  useEffect(() => {
+    const storedData = localStorage.getItem(`formData_${solicitudId}`);
+    if (storedData) {
+      setFormData(JSON.parse(storedData));
+    }
+  }, [solicitudId]);
+  
 
   useEffect(() => {
     if (!solicitudId) {
