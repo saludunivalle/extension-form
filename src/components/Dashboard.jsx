@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Button, Typography, List, ListItem, ListItemText, CircularProgress } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
 import PropTypes from "prop-types";
 
 function Dashboard({ userData }) {
@@ -67,11 +68,14 @@ function Dashboard({ userData }) {
 
   const handleCreateNewRequest = async () => {
     try {
+      /*
       const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
         params: { sheetName: 'SOLICITUDES2' },
       });
 
-      const nuevoId = response.data.lastId + 1;
+      const nuevoId = response.data.lastId + 1;*/
+
+      const nuevoId = uuidv4(); 
 
       navigate(`/formulario/1?solicitud=${nuevoId}&paso=0`);
     } catch (error) {
