@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Button, Typography, List, ListItem, ListItemText } from '@mui/material';
+import { Button, Typography, List, ListItem, ListItemText, CircularProgress } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from "prop-types";
@@ -8,6 +8,7 @@ import PropTypes from "prop-types";
 function Dashboard({ userData }) {
   const [activeRequests, setActiveRequests] = useState([]);
   const [completedRequests, setCompletedRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   const theme = createTheme({
@@ -25,40 +26,37 @@ function Dashboard({ userData }) {
   });
 
   useEffect(() => {
-    console.log('userData:', userData);
-  }, [userData]);
-
-  useEffect(() => {
     if (!userData || !userData.id) {
-      console.warn('No hay userData disponible.');
-      return;
+      console.error("No hay userData disponible.");
+    return;
     }
-  
-    const fetchActiveRequests = async () => {
+    const fetchRequests = async () => {
+      setLoading(true);
       try {
-        const response = await axios.get('https://siac-extension-server.vercel.app/getActiveRequests', {
-          params: { userId: userData.id },
-        });
-        setActiveRequests(response.data);
+        const activeResponse = await axios.get(
+          'https://siac-extension-server.vercel.app/getActiveRequests', {
+            params: { userId: userData.id },
+          }
+        );
+        setActiveRequests(activeResponse.data);
       } catch (error) {
         console.error('Error al obtener solicitudes activas:', error);
       }
-    };
-  
-    const fetchCompletedRequests = async () => {
       try {
-        const response = await axios.get('https://siac-extension-server.vercel.app/getCompletedRequests', {
-          params: { userId: userData.id },
-        });
-        setCompletedRequests(response.data);
+        const completedResponse = await axios.get(
+          'https://siac-extension-server.vercel.app/getCompletedRequests', {
+            params: { userId: userData.id },
+          }
+        );
+        setCompletedRequests(completedResponse.data);
       } catch (error) {
         console.error('Error al obtener solicitudes terminadas:', error);
       }
+      setLoading(false);
     };
-  
-    fetchActiveRequests();
-    fetchCompletedRequests();
-  }, [userData]);  
+    fetchRequests();
+  }, [userData]);
+ 
 
   const handleContinue = (request) => {
     const { idSolicitud, formulario, paso } = request;
@@ -75,11 +73,8 @@ function Dashboard({ userData }) {
       return;
     }
   
-    const pasoCorrecto = paso > 0 ? paso - 1 : 0;
     localStorage.setItem('id_solicitud', idSolicitud);
-  
-    const formRoute = `/formulario/${formulario}?solicitud=${idSolicitud}&paso=${pasoCorrecto}`;
-    navigate(formRoute);
+    navigate(`/formulario/${formulario}?solicitud=${idSolicitud}&paso=${paso}`);
   };
   
 
@@ -137,17 +132,25 @@ function Dashboard({ userData }) {
     const isCompleted = completedRequests.some((completed) => completed.idSolicitud === request.idSolicitud);
     
     // Habilita todos los botones para solicitudes terminadas
-    if (isCompleted) {
-      return true;
-    }
-  
-    // Habilitar solo hasta el formulario actual para solicitudes activas
+    if (isCompleted) return true;
     return formNumber <= request.formulario;
-  };  
+  };
 
+  if (!userData || !userData.id) {
+    return <div>Cargando...</div>;
+  }
+  
+  if (loading) {
+    return (
+      <ThemeProvider theme={theme}>
+        <div style={{ padding: '20px', marginTop: '130px', textAlign: 'center' }}>
+          <CircularProgress />
+        </div>
+      </ThemeProvider>
+    );
+  }
+  
   return (
-    <>
-    {userData && userData.id ? <Dashboard userData={userData} /> : <div>Cargando...</div>}
     <ThemeProvider theme={theme}>
       <div style={{ padding: '20px', marginTop: '130px' }}>
         <Typography variant="h5">Bienvenido, {userData.name}</Typography>
@@ -191,7 +194,7 @@ function Dashboard({ userData }) {
             </ListItem>
           ))}
         </List>
-
+  
         <Typography variant="h6" style={{ marginTop: '20px' }}>
           Solicitudes Terminadas:
         </Typography>
@@ -204,7 +207,7 @@ function Dashboard({ userData }) {
               <div style={{ display: 'flex', gap: '10px' }}>
                 {[1, 2, 3, 4].map((buttonNumber) => (
                   <Button
-                    key={`${request.idSolicitud}-${buttonNumber}`} // Combinar idSolicitud y buttonNumber
+                    key={`${request.idSolicitud}-${buttonNumber}`}
                     variant="contained"
                     color="primary"
                     onClick={() => handleGenerateFormReport(request, buttonNumber)}
@@ -216,10 +219,8 @@ function Dashboard({ userData }) {
             </ListItem>
           ))}
         </List>
-
       </div>
     </ThemeProvider>
-  </>
   );
 }
 
