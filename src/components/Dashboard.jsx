@@ -61,19 +61,6 @@ function Dashboard({ userData }) {
   const handleContinue = (request) => {
     const { idSolicitud, formulario, paso } = request;
   
-    // Validar formulario y paso
-    if (formulario < 1 || formulario > 4) {
-      console.error('Formulario inválido:', formulario);
-      alert('El número de formulario no es válido.');
-      return;
-    }
-    if (paso < 0) {
-      console.error('Paso inválido:', paso);
-      alert('El paso del formulario no es válido.');
-      return;
-    }
-  
-    localStorage.setItem('id_solicitud', idSolicitud);
     navigate(`/formulario/${formulario}?solicitud=${idSolicitud}&paso=${paso}`);
   };
   
@@ -85,9 +72,6 @@ function Dashboard({ userData }) {
       });
 
       const nuevoId = response.data.lastId + 1;
-
-      localStorage.removeItem('id_solicitud');
-      localStorage.setItem('id_solicitud', nuevoId);
 
       navigate(`/formulario/1?solicitud=${nuevoId}&paso=0`);
     } catch (error) {
