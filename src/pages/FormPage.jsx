@@ -29,9 +29,9 @@ const sectionShortTitles = [
 function FormPage({ userData }) {
   const [searchParams] = useSearchParams();
   const { formId } = useParams(); // Extraer formId desde la URL
-  const formStep = searchParams.get('paso') || 0; // Obtener el paso desde la URL
+  const formStep = parseInt(searchParams.get('paso'), 10) || 0;
   const [currentSection, setCurrentSection] = useState(parseInt(formId, 10));
-  const [currentStep, setCurrentStep] = useState(parseInt(formStep, 10) || 0);
+  const [currentStep, setCurrentStep] = useState(formStep);
   const navigate = useNavigate();
   const isSmallScreen = useMediaQuery('(max-width:600px)');
 
@@ -111,22 +111,31 @@ function FormPage({ userData }) {
           const response = await axios.get(`https://siac-extension-server.vercel.app/getSolicitud`, {
             params: { id_solicitud: solicitudId }
           });
+
+          if (response.data.isEmpty) {
+            console.warn("Solicitud nueva detectada. Inicializando valores por defecto.");
+            setFormData(prev => ({
+              ...prev,
+              id_solicitud: solicitudId,
+              nombre_solicitante: userData?.name || ''
+            }));
+          } else {
           const data = response.data;
           const combinedData = {
             ...data.SOLICITUDES,
             ...data.SOLICITUDES2,
             ...data.SOLICITUDES3,
             ...data.SOLICITUDES4,
-            ...data.SOLICITUDES5,
-            ...data.ETAPAS,
           };
           console.log('Datos combinados:', combinedData);
-          setFormData(combinedData);
-        } catch (error) {
-          if (error.response && error.response.status === 404) {
-            console.warn('No se encontraron datos para esta solicitud. Se inicializa con valores por defecto.');
+          setFormData({...data.SOLICITUDES});
+        }
+      } catch (error) {
+        if (error.response?.status === 404) {
+            console.warn("No se encontraron datos para", solicitudId, ". Se inicializarán valores por defecto.");
             // Aquí se asigna el objeto inicial (igual que en la inicialización del estado)
-            setFormData({
+            setFormData(prev => ({
+              ...prev,
               id_solicitud: solicitudId || '',
               fecha_solicitud: '', nombre_actividad: '', nombre_solicitante: userData?.name || '',
               dependencia_tipo: '', nombre_escuela: '', nombre_departamento: '',
@@ -186,9 +195,9 @@ function FormPage({ userData }) {
               aplicaDesarrollo1: '', aplicaDesarrollo2: '', aplicaDesarrollo3: '',
               aplicaDesarrollo4: '', aplicaDesarrollo5: '', aplicaCierre1: '',
               aplicaCierre2: '', aplicaOtros1: '', aplicaOtros2: ''
-            });
+            }));
           } else {
-            console.error('Error al cargar los datos de la solicitud:', error);
+            console.error("Error al cargar los datos de la solicitud:", error);
           }
         }
       }
@@ -197,11 +206,11 @@ function FormPage({ userData }) {
   }, [solicitudId, userData]);
 
   // (Opcional) Si decides guardar en localStorage como respaldo, puedes mantener este efecto
-  useEffect(() => {
+  /*useEffect(() => {
     if (formData.id_solicitud) {
       localStorage.setItem(`formData_${formData.id_solicitud}`, JSON.stringify(formData));
     }
-  }, [formData]);
+  }, [formData]);*/
 
   // Actualizar los parámetros de sección y paso tomando la URL
   useEffect(() => {
@@ -230,8 +239,8 @@ function FormPage({ userData }) {
       3: 4,
       4: 2,
     };
-    const currentMaxSteps = maxSteps[currentSection] || 0;
-    if (currentStep >= currentMaxSteps) {
+    //const currentMaxSteps = maxSteps[currentSection] || 0;
+    if (currentStep >= (maxSteps[currentSection] || 0)) {
       setCurrentStep(0);
     }
   }, [currentSection, currentStep]);
@@ -397,10 +406,7 @@ function FormPage({ userData }) {
     }
   };
 
-  const calculateCompletedSteps = () => {
-    // Crear un arreglo basado en los formularios completados anteriores
-    return Array.from({ length: currentSection - 1 }, (_, i) => i);
-  };
+  const calculateCompletedSteps = () => Array.from({ length: currentSection - 1 }, (_, i) => i);
 
   return (
     <Container sx={{

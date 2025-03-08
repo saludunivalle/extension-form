@@ -64,12 +64,16 @@ function Dashboard({ userData }) {
   
     navigate(`/formulario/${formulario}?solicitud=${idSolicitud}&paso=${paso}`);
   };
-  
+
+  const isValidUUID = (uuid) => {
+  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return regex.test(uuid);
+};
 
   const handleCreateNewRequest = async () => {
     try {
-      /*
-      const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
+
+      /*const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
         params: { sheetName: 'SOLICITUDES2' },
       });
 
@@ -77,6 +81,9 @@ function Dashboard({ userData }) {
 
       const nuevoId = uuidv4(); 
 
+      if (!isValidUUID(nuevoId)) {
+        throw new Error("El UUID generado no es válido");
+      }
       navigate(`/formulario/1?solicitud=${nuevoId}&paso=0`);
     } catch (error) {
       console.error('Error al generar el ID de la solicitud:', error);
