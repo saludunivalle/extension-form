@@ -269,14 +269,17 @@
     */
 
       const handleNext = async () => {
+        if (!userData || !userData.id) {
+          alert("La información del usuario no está disponible. Por favor, inicia sesión nuevamente.");
+          return; // o bien redirigir o mostrar un mensaje de error
+        }
         if (!validateStep()) {
-          console.log("Errores en los campos: ", errors); 
-          return; 
+          console.log("Errores en los campos: ", errors);
+          return;
         }
         if (activeStep < steps.length - 1) {
-          
-          setIsLoading(true); 
-          const hoja = 1; 
+          setIsLoading(true);
+          const hoja = 1;
           let pasoData = {};
 
           switch (activeStep) {
@@ -363,7 +366,6 @@
               Object.keys(pasoData).forEach((key) => {
                   dataToSend.append(key, pasoData[key]);
               });
-
               dataToSend.append('pieza_grafica', formData.pieza_grafica);
           } else {
               dataToSend = {
@@ -377,42 +379,35 @@
           }
 
           try {
-              console.log("Enviando Datos:", dataToSend);
-
-              if (formData.pieza_grafica && activeStep === 4) {
-                  await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend, {
-                      headers: {
-                          'Content-Type': 'multipart/form-data',
-                      },
-                  });
-              } else {
-                  try {
-                    await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend);
-                    setCompletedSteps((prev) => [...prev, activeStep]);
-                  } catch (error) {
-                    console.error('Error al guardar el progreso:', error);
-                    alert('Hubo un problema al guardar los datos. Por favor, inténtalo de nuevo.');
-                  } finally {
-                    setIsLoading(false);
-                  }
+            console.log("Enviando Datos:", dataToSend);
+            if (formData.pieza_grafica && activeStep === 4) {
+              await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+              });
+            } else {
+              try {
+                await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend);
+                setCompletedSteps((prev) => [...prev, activeStep]);
+              } catch (error) {
+                console.error('Error al guardar el progreso:', error);
+                alert('Hubo un problema al guardar los datos. Por favor, inténtalo de nuevo.');
+              } finally {
+                setIsLoading(false);
               }
-
-              setIsLoading(false); 
-              setCompletedSteps((prevCompleted) => {
-                const newCompleted = [...prevCompleted];
-                if (!newCompleted.includes(activeStep)) {
-                  newCompleted.push(activeStep);
-                }
-                return newCompleted;
-              });                  
-            
-              setActiveStep((prevActiveStep) => prevActiveStep + 1);
-              setHighestStepReached((prev) => Math.max(prev, activeStep + 1));
+            }
+            setIsLoading(false);
+            setCompletedSteps((prevCompleted) => {
+              const newCompleted = [...prevCompleted];
+              if (!newCompleted.includes(activeStep)) {
+                newCompleted.push(activeStep);
+              }
+              return newCompleted;
+            });
+            setActiveStep((prevActiveStep) => prevActiveStep + 1);
+            setHighestStepReached((prev) => Math.max(prev, activeStep + 1));
           } catch (error) {
-              console.error('Error al guardar el progreso:', error);
-              if (error.response) {
-                  console.error('Detalles del error:', error.response.data);
-              }
+            console.error('Error al guardar el progreso:', error);
+            if (error.response) console.error('Detalles del error:', error.response.data);
           }
         }
       };

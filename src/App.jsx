@@ -63,8 +63,8 @@ function App() {
           path="/form"
           element={
             isLogged ? (
-              <Layout userData={userInfo}>
-                <FormPage userData={userInfo} />
+              <Layout userData={userData}>
+                <FormPage userData={userData} />
               </Layout>
             ) : (
               <Navigate to="/login" />
@@ -75,8 +75,8 @@ function App() {
           path="/results"
           element={
             isLogged ? (
-              <Layout userData={userInfo}>
-                <ResultsPage userData={userInfo} />
+              <Layout userData={userData}>
+                <ResultsPage userData={userData} />
               </Layout>
             ) : (
               <Navigate to="/login" />
@@ -87,8 +87,8 @@ function App() {
           path="/formulario/:formId"
           element={
             isLogged ? (
-              <Layout userData={userInfo}>
-                <FormPage userData={userInfo} />
+              <Layout userData={userData}>
+                <FormPage userData={userData} />
               </Layout>
             ) : (
               <Navigate to="/login" />
