@@ -1,15 +1,13 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Button, Typography, List, ListItem, ListItemText, CircularProgress } from '@mui/material';
+import { Button, Typography, List, ListItem, ListItemText } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
-import { v4 as uuidv4 } from 'uuid';
 import PropTypes from "prop-types";
 
 function Dashboard({ userData }) {
   const [activeRequests, setActiveRequests] = useState([]);
   const [completedRequests, setCompletedRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   const theme = createTheme({
@@ -27,63 +25,75 @@ function Dashboard({ userData }) {
   });
 
   useEffect(() => {
+    console.log('userData:', userData);
+  }, [userData]);
+
+  useEffect(() => {
     if (!userData || !userData.id) {
-      console.error("No hay userData disponible.");
-    return;
+      console.warn('No hay userData disponible.');
+      return;
     }
-    const fetchRequests = async () => {
-      setLoading(true);
+  
+    const fetchActiveRequests = async () => {
       try {
-        const activeResponse = await axios.get(
-          'https://siac-extension-server.vercel.app/getActiveRequests', {
-            params: { userId: userData.id },
-          }
-        );
-        setActiveRequests(activeResponse.data);
+        const response = await axios.get('https://siac-extension-server.vercel.app/getActiveRequests', {
+          params: { userId: userData.id },
+        });
+        setActiveRequests(response.data);
       } catch (error) {
         console.error('Error al obtener solicitudes activas:', error);
       }
+    };
+  
+    const fetchCompletedRequests = async () => {
       try {
-        const completedResponse = await axios.get(
-          'https://siac-extension-server.vercel.app/getCompletedRequests', {
-            params: { userId: userData.id },
-          }
-        );
-        setCompletedRequests(completedResponse.data);
+        const response = await axios.get('https://siac-extension-server.vercel.app/getCompletedRequests', {
+          params: { userId: userData.id },
+        });
+        setCompletedRequests(response.data);
       } catch (error) {
         console.error('Error al obtener solicitudes terminadas:', error);
       }
-      setLoading(false);
     };
-    fetchRequests();
-  }, [userData]);
- 
+  
+    fetchActiveRequests();
+    fetchCompletedRequests();
+  }, [userData]);  
 
   const handleContinue = (request) => {
     const { idSolicitud, formulario, paso } = request;
   
-    navigate(`/formulario/${formulario}?solicitud=${idSolicitud}&paso=${paso}`);
+    // Validar formulario y paso
+    if (formulario < 1 || formulario > 4) {
+      console.error('Formulario inválido:', formulario);
+      alert('El número de formulario no es válido.');
+      return;
+    }
+    if (paso < 0) {
+      console.error('Paso inválido:', paso);
+      alert('El paso del formulario no es válido.');
+      return;
+    }
+  
+    const pasoCorrecto = paso > 0 ? paso - 1 : 0;
+    localStorage.setItem('id_solicitud', idSolicitud);
+  
+    const formRoute = `/formulario/${formulario}?solicitud=${idSolicitud}&paso=${pasoCorrecto}`;
+    navigate(formRoute);
   };
-
-  const isValidUUID = (uuid) => {
-  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return regex.test(uuid);
-};
+  
 
   const handleCreateNewRequest = async () => {
     try {
-
-      /*const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
+      const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
         params: { sheetName: 'SOLICITUDES2' },
       });
 
-      const nuevoId = response.data.lastId + 1;*/
+      const nuevoId = response.data.lastId + 1;
 
-      const nuevoId = uuidv4(); 
+      localStorage.removeItem('id_solicitud');
+      localStorage.setItem('id_solicitud', nuevoId);
 
-      if (!isValidUUID(nuevoId)) {
-        throw new Error("El UUID generado no es válido");
-      }
       navigate(`/formulario/1?solicitud=${nuevoId}&paso=0`);
     } catch (error) {
       console.error('Error al generar el ID de la solicitud:', error);
@@ -127,25 +137,17 @@ function Dashboard({ userData }) {
     const isCompleted = completedRequests.some((completed) => completed.idSolicitud === request.idSolicitud);
     
     // Habilita todos los botones para solicitudes terminadas
-    if (isCompleted) return true;
+    if (isCompleted) {
+      return true;
+    }
+  
+    // Habilitar solo hasta el formulario actual para solicitudes activas
     return formNumber <= request.formulario;
-  };
+  };  
 
-  if (!userData || !userData.id) {
-    return <div>Cargando...</div>;
-  }
-  
-  if (loading) {
-    return (
-      <ThemeProvider theme={theme}>
-        <div style={{ padding: '20px', marginTop: '130px', textAlign: 'center' }}>
-          <CircularProgress />
-        </div>
-      </ThemeProvider>
-    );
-  }
-  
   return (
+    <>
+    {userData && userData.id ? <Dashboard userData={userData} /> : <div>Cargando...</div>}
     <ThemeProvider theme={theme}>
       <div style={{ padding: '20px', marginTop: '130px' }}>
         <Typography variant="h5">Bienvenido, {userData.name}</Typography>
@@ -189,7 +191,7 @@ function Dashboard({ userData }) {
             </ListItem>
           ))}
         </List>
-  
+
         <Typography variant="h6" style={{ marginTop: '20px' }}>
           Solicitudes Terminadas:
         </Typography>
@@ -202,7 +204,7 @@ function Dashboard({ userData }) {
               <div style={{ display: 'flex', gap: '10px' }}>
                 {[1, 2, 3, 4].map((buttonNumber) => (
                   <Button
-                    key={`${request.idSolicitud}-${buttonNumber}`}
+                    key={`${request.idSolicitud}-${buttonNumber}`} // Combinar idSolicitud y buttonNumber
                     variant="contained"
                     color="primary"
                     onClick={() => handleGenerateFormReport(request, buttonNumber)}
@@ -214,8 +216,10 @@ function Dashboard({ userData }) {
             </ListItem>
           ))}
         </List>
+
       </div>
     </ThemeProvider>
+  </>
   );
 }
 

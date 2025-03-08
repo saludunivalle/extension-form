@@ -1,5 +1,5 @@
 import  { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import FormPage from './pages/FormPage';
 import Dashboard from './components/Dashboard';
 import ResultsPage from './pages/ResultsPage';
@@ -10,39 +10,23 @@ import Cookies from 'js-cookie';
 function App() {
   const [isLogged, setIsLogged] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
-  const [userData, setUserData] = useState();
 
   useEffect(() => {
     const token = Cookies.get('token');
     if (token) {
       try {
         const decodedToken = JSON.parse(token);
-        // Asegurarse de asignar id_usuario en el objeto userData
-        const user = decodedToken.sub
-          ? {
-              id_usuario: decodedToken.sub,
-              id: decodedToken.sub,
-              name: decodedToken.name,
-              email: decodedToken.email,
-            }
-          : decodedToken;
-        console.log("User obtenido:", user);
         setIsLogged(true);
-        setUserData(user);
+        setUserInfo(decodedToken);
       } catch (error) {
         console.error('Error al parsear el token:', error);
         setIsLogged(false);
-        setUserData(null);
+        setUserInfo(null);
       }
-    } else {
-      setUserData(null);
     }
   }, []);
 
-
-  if (userData === undefined) {
-    return <div style={{textAlign: 'center', marginTop: '100px'}}>Cargando...</div>;
-  }
+ 
 
   return (
     <Router>
@@ -50,30 +34,24 @@ function App() {
         <Route
           path="/"
           element={
-            userData && userData.id ? (
-              <Layout userData={userData}>
-                <Dashboard userData={userData} />
+            isLogged ? (
+              <Layout userData={userInfo}>
+                <Dashboard userData={userInfo} />
               </Layout>
             ) : (
-              <Navigate to="/login" />
+              <GoogleLogin setIsLogin={setIsLogged} setUserInfo={setUserInfo} />
             )
-          }
-        />
-        <Route
-          path="/login"
-          element={
-            <GoogleLogin setIsLogin={setIsLogged} setUserInfo={setUserInfo} />
           }
         />
         <Route
           path="/form"
           element={
             isLogged ? (
-              <Layout userData={userData}>
-                <FormPage userData={userData} />
+              <Layout userData={userInfo}>
+                <FormPage userData={userInfo} />
               </Layout>
             ) : (
-              <Navigate to="/login" />
+              <GoogleLogin setIsLogin={setIsLogged} setUserInfo={setUserInfo} />
             )
           }
         />
@@ -81,11 +59,11 @@ function App() {
           path="/results"
           element={
             isLogged ? (
-              <Layout userData={userData}>
-                <ResultsPage userData={userData} />
+              <Layout userData={userInfo}>
+                <ResultsPage userData={userInfo} />
               </Layout>
             ) : (
-              <Navigate to="/login" />
+              <GoogleLogin setIsLogin={setIsLogged} setUserInfo={setUserInfo} />
             )
           }
         />
@@ -93,14 +71,15 @@ function App() {
           path="/formulario/:formId"
           element={
             isLogged ? (
-              <Layout userData={userData}>
-                <FormPage userData={userData} />
+              <Layout userData={userInfo}>
+                <FormPage userData={userInfo} />
               </Layout>
             ) : (
-              <Navigate to="/login" />
+              <GoogleLogin setIsLogin={setIsLogged} setUserInfo={setUserInfo} />
             )
           }
         />
+
       </Routes>
     </Router>
   );
