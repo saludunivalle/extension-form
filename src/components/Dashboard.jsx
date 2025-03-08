@@ -3,7 +3,6 @@ import axios from 'axios';
 import { Button, Typography, List, ListItem, ListItemText, CircularProgress } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
-import { v4 as uuidv4 } from 'uuid';
 import PropTypes from "prop-types";
 
 function Dashboard({ userData }) {
@@ -62,28 +61,34 @@ function Dashboard({ userData }) {
   const handleContinue = (request) => {
     const { idSolicitud, formulario, paso } = request;
   
+    // Validar formulario y paso
+    if (formulario < 1 || formulario > 4) {
+      console.error('Formulario inválido:', formulario);
+      alert('El número de formulario no es válido.');
+      return;
+    }
+    if (paso < 0) {
+      console.error('Paso inválido:', paso);
+      alert('El paso del formulario no es válido.');
+      return;
+    }
+  
+    localStorage.setItem('id_solicitud', idSolicitud);
     navigate(`/formulario/${formulario}?solicitud=${idSolicitud}&paso=${paso}`);
   };
-
-  const isValidUUID = (uuid) => {
-  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return regex.test(uuid);
-};
+  
 
   const handleCreateNewRequest = async () => {
     try {
-
-      /*const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
+      const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
         params: { sheetName: 'SOLICITUDES2' },
       });
 
-      const nuevoId = response.data.lastId + 1;*/
+      const nuevoId = response.data.lastId + 1;
 
-      const nuevoId = uuidv4(); 
+      localStorage.removeItem('id_solicitud');
+      localStorage.setItem('id_solicitud', nuevoId);
 
-      if (!isValidUUID(nuevoId)) {
-        throw new Error("El UUID generado no es válido");
-      }
       navigate(`/formulario/1?solicitud=${nuevoId}&paso=0`);
     } catch (error) {
       console.error('Error al generar el ID de la solicitud:', error);

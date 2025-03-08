@@ -17,14 +17,8 @@ function App() {
     if (token) {
       try {
         const decodedToken = JSON.parse(token);
-        // Asegurarse de asignar id_usuario en el objeto userData
         const user = decodedToken.sub
-          ? {
-              id_usuario: decodedToken.sub,
-              id: decodedToken.sub,
-              name: decodedToken.name,
-              email: decodedToken.email,
-            }
+          ? { id: decodedToken.sub, name: decodedToken.name, email: decodedToken.email }
           : decodedToken;
         console.log("User obtenido:", user);
         setIsLogged(true);
@@ -69,8 +63,8 @@ function App() {
           path="/form"
           element={
             isLogged ? (
-              <Layout userData={userData}>
-                <FormPage userData={userData} />
+              <Layout userData={userInfo}>
+                <FormPage userData={userInfo} />
               </Layout>
             ) : (
               <Navigate to="/login" />
@@ -81,8 +75,8 @@ function App() {
           path="/results"
           element={
             isLogged ? (
-              <Layout userData={userData}>
-                <ResultsPage userData={userData} />
+              <Layout userData={userInfo}>
+                <ResultsPage userData={userInfo} />
               </Layout>
             ) : (
               <Navigate to="/login" />
@@ -93,8 +87,8 @@ function App() {
           path="/formulario/:formId"
           element={
             isLogged ? (
-              <Layout userData={userData}>
-                <FormPage userData={userData} />
+              <Layout userData={userInfo}>
+                <FormPage userData={userInfo} />
               </Layout>
             ) : (
               <Navigate to="/login" />

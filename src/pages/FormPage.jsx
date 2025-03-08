@@ -29,9 +29,9 @@ const sectionShortTitles = [
 function FormPage({ userData }) {
   const [searchParams] = useSearchParams();
   const { formId } = useParams(); // Extraer formId desde la URL
-  const formStep = parseInt(searchParams.get('paso'), 10) || 0;
+  const formStep = searchParams.get('paso') || 0; // Obtener el paso desde la URL
   const [currentSection, setCurrentSection] = useState(parseInt(formId, 10));
-  const [currentStep, setCurrentStep] = useState(formStep);
+  const [currentStep, setCurrentStep] = useState(parseInt(formStep, 10) || 0);
   const navigate = useNavigate();
   const isSmallScreen = useMediaQuery('(max-width:600px)');
 
@@ -111,106 +111,33 @@ function FormPage({ userData }) {
           const response = await axios.get(`https://siac-extension-server.vercel.app/getSolicitud`, {
             params: { id_solicitud: solicitudId }
           });
-
-          if (response.data.isEmpty) {
-            console.warn("Solicitud nueva detectada. Inicializando valores por defecto.");
-            setFormData(prev => ({
-              ...prev,
-              id_solicitud: solicitudId,
-              nombre_solicitante: userData?.name || ''
-            }));
-          } else {
           const data = response.data;
           const combinedData = {
             ...data.SOLICITUDES,
             ...data.SOLICITUDES2,
             ...data.SOLICITUDES3,
             ...data.SOLICITUDES4,
+            ...data.SOLICITUDES5,
+            ...data.ETAPAS,
           };
           console.log('Datos combinados:', combinedData);
-          setFormData({...data.SOLICITUDES});
-        }
-      } catch (error) {
-        if (error.response?.status === 404) {
-            console.warn("No se encontraron datos para", solicitudId, ". Se inicializarán valores por defecto.");
-            // Aquí se asigna el objeto inicial (igual que en la inicialización del estado)
-            setFormData(prev => ({
-              ...prev,
-              id_solicitud: solicitudId || '',
-              fecha_solicitud: '', nombre_actividad: '', nombre_solicitante: userData?.name || '',
-              dependencia_tipo: '', nombre_escuela: '', nombre_departamento: '',
-              nombre_seccion: '', nombre_dependencia: '', introduccion: '',
-              objetivo_general: '', objetivos_especificos: '', justificacion: '',
-              metodologia: '', tipo: '', otro_tipo: '', modalidad: '',
-              horas_trabajo_presencial: '', horas_sincronicas: '', total_horas: '',
-              programCont: '', dirigidoa: '', creditos: '', cupo_min: '', cupo_max: '',
-              profesor_participante: '', nombre_coordinador: '', correo_coordinador: '',
-              tel_coordinador: '', perfil_competencia: '', formas_evaluacion: '',
-              certificado_solicitado: '', calificacion_minima: '', razon_no_certificado: '',
-              valor_inscripcion: '', becas_convenio: '', becas_estudiantes: '',
-              becas_docentes: '', becas_egresados: '', becas_funcionarios: '',
-              becas_otros: '', becas_total: '', periodicidad_oferta: '', fechas_actividad: '',
-              organizacion_actividad: '', otro_tipo_act: '', fecha_por_meses: '',
-              fecha_inicio: '', fecha_final: '', extension_solidaria: '',
-              costo_extension_solidaria: '', personal_externo: '', pieza_grafica: '',
-              // Hoja SOLICITUDES3
-              ingresos_cantidad: '', ingresos_vr_unit: '',
-              personal_universidad_cantidad: '', personal_universidad_vr_unit: '',
-              honorarios_docentes_cantidad: '', honorarios_docentes_vr_unit: '',
-              otro_personal_cantidad: '', otro_personal_vr_unit: '',
-              escuela_departamento_porcentaje: '', escuela_departamento: '',
-              total_recursos: '', coordinador_actividad: '', visto_bueno_unidad: '',
-              total_ingresos: '', total_costos_personal: '',
-              total_personal_universidad: '', total_honorarios_docentes: '',
-              total_otro_personal: '', total_materiales_sumi: '',
-              total_gastos_alojamiento: '', total_gastos_alimentacion: '',
-              total_gastos_transporte: '', total_equipos_alquiler_compra: '',
-              total_dotacion_participantes: '', total_carpetas: '', total_libretas: '',
-              total_lapiceros: '', total_memorias: '', total_marcadores_papel_otros: '',
-              total_impresos: '', total_labels: '', total_certificados: '',
-              total_escarapelas: '', total_fotocopias: '', total_estacion_cafe: '',
-              total_transporte_mensaje: '', total_refrigerios: '',
-              total_infraestructura_fisica: '', total_gastos_generales: '',
-              total_infraestructura_universitaria: '', imprevistos: '', total_aportes_univalle: '',
-              // Hoja SOLICITUDES4
-              descripcionPrograma: '', identificacionNecesidades: '', atributosBasicos: '',
-              atributosDiferenciadores: '', competencia: '', programa: '',
-              programasSimilares: '', estrategiasCompetencia: '', personasInteres: '',
-              personasMatriculadas: '', otroInteres: '', innovacion: '',
-              solicitudExterno: '', interesSondeo: '', llamadas: '', encuestas: '',
-              webinar: '', preregistro: '', mesasTrabajo: '', focusGroup: '',
-              desayunosTrabajo: '', almuerzosTrabajo: '', openHouse: '', valorEconomico: '',
-              modalidadPresencial: '', modalidadVirtual: '', modalidadSemipresencial: '',
-              otraModalidad: '', beneficiosTangibles: '', beneficiosIntangibles: '',
-              particulares: '', colegios: '', empresas: '', egresados: '',
-              colaboradores: '', otros_publicos_potenciales: '', tendenciasActuales: '',
-              dofaDebilidades: '', dofaOportunidades: '', dofaFortalezas: '',
-              dofaAmenazas: '', paginaWeb: '', facebook: '', instagram: '',
-              linkedin: '', correo: '', prensa: '', boletin: '', llamadas_redes: '',
-              otro_canal: '',
-              // Hoja SOLICITUDES5
-              proposito: '', comentario: '', fecha: '', elaboradoPor: '',
-              aplicaDiseno1: '', aplicaDiseno2: '', aplicaDiseno3: '',
-              aplicaLocacion1: '', aplicaLocacion2: '', aplicaLocacion3: '',
-              aplicaDesarrollo1: '', aplicaDesarrollo2: '', aplicaDesarrollo3: '',
-              aplicaDesarrollo4: '', aplicaDesarrollo5: '', aplicaCierre1: '',
-              aplicaCierre2: '', aplicaOtros1: '', aplicaOtros2: ''
-            }));
-          } else {
-            console.error("Error al cargar los datos de la solicitud:", error);
-          }
+          setFormData(combinedData);
+          // Si se quisiera usar localStorage como respaldo, se podría guardar:
+          // localStorage.setItem(`formData_${solicitudId}`, JSON.stringify(combinedData));
+        } catch (error) {
+          console.error('Error al cargar los datos de la solicitud:', error);
         }
       }
     };
     fetchSolicitudData();
-  }, [solicitudId, userData]);
+  }, [solicitudId]);
 
   // (Opcional) Si decides guardar en localStorage como respaldo, puedes mantener este efecto
-  /*useEffect(() => {
+  useEffect(() => {
     if (formData.id_solicitud) {
       localStorage.setItem(`formData_${formData.id_solicitud}`, JSON.stringify(formData));
     }
-  }, [formData]);*/
+  }, [formData]);
 
   // Actualizar los parámetros de sección y paso tomando la URL
   useEffect(() => {
@@ -239,8 +166,8 @@ function FormPage({ userData }) {
       3: 4,
       4: 2,
     };
-    //const currentMaxSteps = maxSteps[currentSection] || 0;
-    if (currentStep >= (maxSteps[currentSection] || 0)) {
+    const currentMaxSteps = maxSteps[currentSection] || 0;
+    if (currentStep >= currentMaxSteps) {
       setCurrentStep(0);
     }
   }, [currentSection, currentStep]);
@@ -406,7 +333,10 @@ function FormPage({ userData }) {
     }
   };
 
-  const calculateCompletedSteps = () => Array.from({ length: currentSection - 1 }, (_, i) => i);
+  const calculateCompletedSteps = () => {
+    // Crear un arreglo basado en los formularios completados anteriores
+    return Array.from({ length: currentSection - 1 }, (_, i) => i);
+  };
 
   return (
     <Container sx={{
