@@ -17,8 +17,14 @@ function App() {
     if (token) {
       try {
         const decodedToken = JSON.parse(token);
+        // Asegurarse de asignar id_usuario en el objeto userData
         const user = decodedToken.sub
-          ? { id: decodedToken.sub, name: decodedToken.name, email: decodedToken.email }
+          ? {
+              id_usuario: decodedToken.sub,
+              id: decodedToken.sub,
+              name: decodedToken.name,
+              email: decodedToken.email,
+            }
           : decodedToken;
         console.log("User obtenido:", user);
         setIsLogged(true);
