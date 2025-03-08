@@ -61,48 +61,49 @@ function Dashboard({ userData }) {
     }
   }, [userData]);
  
-
-  const handleContinue = (request) => {
-    const { idSolicitud, formulario, paso } = request;
-  
-    // Validar formulario y paso
-    if (formulario < 1 || formulario > 4) {
-      console.error('Formulario inválido:', formulario);
-      alert('El número de formulario no es válido.');
-      return;
-    }
-    if (paso < 0) {
-      console.error('Paso inválido:', paso);
-      alert('El paso del formulario no es válido.');
-      return;
-    }
-  
-    localStorage.setItem('id_solicitud', idSolicitud);
-    navigate(`/formulario/${formulario}?solicitud=${idSolicitud}&paso=${paso}`);
-  };
-  
-
   const handleCreateNewRequest = async () => {
     try {
-      // 🔹 Generar SIEMPRE un nuevo ID de solicitud sin importar si hay activas
+      console.log('🆕 Solicitando nuevo ID de solicitud...');
+      // 🧹 Limpiar cualquier dato previo en localStorage antes de crear una nueva solicitud
+      localStorage.removeItem('id_solicitud');
+      localStorage.removeItem('formData');
+
+      // Obtener el último ID registrado en la base de datos
       const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
-        params: { sheetName: 'SOLICITUDES2' },
+        params: { sheetName: 'SOLICITUDES' }, // Asegurar que esté consultando la hoja correcta
       });
-  
+      console.log('Respuesta de getLastId:', response.data);
+
       if (!response.data || response.status !== 200) {
         throw new Error('Respuesta inesperada del servidor.');
       }
-  
+      // Generar un nuevo ID sumando 1 al último ID registrado
       const nuevoId = (response.data.lastId || 0) + 1;
+      console.log(`✅ Nuevo ID generado: ${nuevoId}`);
+
+      // Insertar nueva fila en Google Sheets para asegurar que el ID se guarde
+      await axios.post('https://siac-extension-server.vercel.app/createNewRequest', {
+        id_solicitud: nuevoId,
+        fecha_solicitud: new Date().toISOString().split('T')[0], // Fecha actual
+        nombre_actividad: '',
+        nombre_solicitante: userData.name, // Nombre del usuario autenticado
+        dependencia_tipo: '',
+        nombre_dependencia: ''
+      });
+      console.log(`✅ Nueva solicitud guardada con ID: ${nuevoId}`);
+
+      // Guardar el nuevo ID en localStorage
       localStorage.setItem('id_solicitud', nuevoId);
-      console.log('Nuevo ID generado:', nuevoId);
-  
+      
+      // Redirigir al formulario con el nuevo ID
       navigate(`/formulario/1?solicitud=${nuevoId}&paso=0`);
+      
     } catch (error) {
-      console.error('Error al generar el ID de la solicitud:', error);
+      console.error('🚨 Error al generar el ID de la solicitud:', error);
       alert('Hubo un problema al crear la nueva solicitud. Inténtalo de nuevo.');
     }
-  };
+};
+  
   
   const handleContinueRequest = async (request) => {
     const { idSolicitud, formulario, paso } = request;
