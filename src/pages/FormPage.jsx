@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { 
-  Container, Typography, useMediaQuery,
-  Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button 
-} from '@mui/material';
+import { Container, Typography, useMediaQuery, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button } from '@mui/material';
 import FormSection from '../components/FormSection/FormSection';
 import FormSection2 from '../components/FormSection2/FormSection2';
 import FormSection3 from '../components/FormSection3/FormSection3';
@@ -13,35 +10,61 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import PropTypes from 'prop-types';
 
 const sectionTitles = [
-  'Aprobación - Formulario F-05-MP-05-01-01', 
-  'Presupuesto - Formulario F-06-MP-05-01-01', 
+  'Aprobación - Formulario F-05-MP-05-01-01',
+  'Presupuesto - Formulario F-06-MP-05-01-01',
   'Riesgos Potenciales - Formulario F-08-MP-05-01-01',
   'Identificación de Mercadeo - Formulario F-07-MP-05-01-01'
 ];
 
 const sectionShortTitles = [
-  'Aprobación', 
-  'Presupuesto', 
+  'Aprobación',
+  'Presupuesto',
   'Riesgos Potenciales',
   'Identificación de Mercadeo'
 ];
 
 function FormPage({ userData }) {
   const [searchParams] = useSearchParams();
-  const { formId } = useParams(); // Extraer formId desde la URL
-  const formStep = searchParams.get('paso') || 0; // Obtener el paso desde la URL
-  const [currentSection, setCurrentSection] = useState(parseInt(formId, 10));
-  const [currentStep, setCurrentStep] = useState(parseInt(formStep, 10) || 0);
+  const { formId } = useParams(); // Se extrae la sección actual de la URL
+  const formStep = searchParams.get('paso') || 0;
   const navigate = useNavigate();
   const isSmallScreen = useMediaQuery('(max-width:600px)');
 
-  // Si se prefiere no usar localStorage, esta constante se omite (o se comenta)
-  const solicitudId = searchParams.get('solicitud'); 
+  // Obtenemos el id de solicitud exclusivamente de la URL
+  const solicitudId = searchParams.get('solicitud');
 
-  // Inicializar formData con valores vacíos  
-  const [formData, setFormData] = useState({
+  // Si no existe id en la URL, se solicita uno nuevo y se redirige a la sección 1, paso 0.
+  useEffect(() => {
+    if (!solicitudId) {
+      // Si no existe id en la URL, obtener un nuevo a través de getLastId con la hoja SOLICITUDES2
+      axios.get('https://siac-extension-server.vercel.app/getLastId', {
+        params: { sheetName: 'ETAPAS' }
+      })
+      .then(response => {
+        const nuevoId = response.data.lastId + 1;
+        localStorage.setItem('id_solicitud', nuevoId);
+        navigate(`/formulario/1?solicitud=${nuevoId}&paso=0`, { replace: true });
+      })
+      .catch(error => {
+        console.error('Error al obtener un nuevo ID de solicitud:', error);
+      });
+    } else {
+      localStorage.setItem('id_solicitud', solicitudId);
+    }
+  }, [solicitudId, navigate, userData.id]);
+
+  // Estados para la sección y el paso actuales
+  const [currentSection, setCurrentSection] = useState(parseInt(formId, 10) || 1);
+  const [currentStep, setCurrentStep] = useState(
+    !isNaN(parseInt(formStep, 10)) && parseInt(formStep, 10) >= 0 ? parseInt(formStep, 10) : 0
+  );
+
+  // formData se inicializa con el id de solicitud obtenido de la URL
+  const [formData, setFormData] = useState(() => {
+    const savedFormData = localStorage.getItem('formData');
+    return savedFormData ? JSON.parse(savedFormData) : {
     id_solicitud: solicitudId || '',
-    // Hoja SOLICITUDES
+    // Resto de campos inicializados según las hojas de la solicitud
     fecha_solicitud: '', nombre_actividad: '', nombre_solicitante: userData?.name || '',
     dependencia_tipo: '', nombre_escuela: '', nombre_departamento: '',
     nombre_seccion: '', nombre_dependencia: '', introduccion: '',
@@ -100,79 +123,62 @@ function FormPage({ userData }) {
     aplicaDesarrollo1: '', aplicaDesarrollo2: '', aplicaDesarrollo3: '',
     aplicaDesarrollo4: '', aplicaDesarrollo5: '', aplicaCierre1: '',
     aplicaCierre2: '', aplicaOtros1: '', aplicaOtros2: ''
-  });
+  }});
 
-  // Cargar datos de la solicitud desde el backend (Google Sheets)
+  useEffect(() => {
+    const savedFormData = localStorage.getItem('formData');
+    if (savedFormData) {
+      setFormData(JSON.parse(savedFormData));
+    }
+  }, [solicitudId]);
+
+  // Cargar datos de la solicitud desde el backend sin usar cache local
   useEffect(() => {
     const fetchSolicitudData = async () => {
       if (solicitudId) {
-        console.log('Cargando datos de la solicitud:', solicitudId);
         try {
-          const response = await axios.get(`https://siac-extension-server.vercel.app/getSolicitud`, {
-            params: { id_solicitud: solicitudId }
+          const response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
+            params: { id_solicitud: solicitudId, timestamp: new Date().getTime() }
           });
-          const data = response.data;
-          const combinedData = {
-            ...data.SOLICITUDES,
-            ...data.SOLICITUDES2,
-            ...data.SOLICITUDES3,
-            ...data.SOLICITUDES4,
-            ...data.SOLICITUDES5,
-            ...data.ETAPAS,
-          };
-          console.log('Datos combinados:', combinedData);
-          setFormData(combinedData);
-          // Si se quisiera usar localStorage como respaldo, se podría guardar:
-          // localStorage.setItem(`formData_${solicitudId}`, JSON.stringify(combinedData));
+          setFormData(prev => ({ ...prev, ...response.data }));
         } catch (error) {
-          console.error('Error al cargar los datos de la solicitud:', error);
+          if (error.response && error.response.status === 404) {
+            console.warn('No se encontraron datos para la solicitud, se usa id de URL');
+            setFormData(prev => ({ ...prev, id_solicitud: solicitudId }));
+          } else {
+            console.error('Error al cargar los datos de la solicitud:', error);
+          }
         }
       }
     };
     fetchSolicitudData();
   }, [solicitudId]);
 
-  // (Opcional) Si decides guardar en localStorage como respaldo, puedes mantener este efecto
-  useEffect(() => {
-    if (formData.id_solicitud) {
-      localStorage.setItem(`formData_${formData.id_solicitud}`, JSON.stringify(formData));
-    }
-  }, [formData]);
-
-  // Actualizar los parámetros de sección y paso tomando la URL
+  // Actualización de currentSection y currentStep según la URL
   useEffect(() => {
     const parsedFormId = parseInt(formId, 10);
     const parsedFormStep = parseInt(formStep, 10);
     const isFormIdValid = !isNaN(parsedFormId) && parsedFormId >= 1 && parsedFormId <= sectionTitles.length;
     const isFormStepValid = !isNaN(parsedFormStep) && parsedFormStep >= 0;
-    if (!solicitudId) {
-      // En ausencia de un id_solicitud, iniciar en formulario 1 y paso 0
-      setCurrentSection(1);
-      setCurrentStep(0);
-    } else if (isFormIdValid && isFormStepValid) {
+    if (isFormIdValid && isFormStepValid) {
       setCurrentSection(parsedFormId);
       setCurrentStep(parsedFormStep);
     } else {
       setCurrentSection(1);
       setCurrentStep(0);
     }
-  }, [formId, formStep, solicitudId]);
+  }, [formId, formStep]);
 
   // Validación de currentStep según la sección
   useEffect(() => {
-    const maxSteps = {
-      1: 5,
-      2: 3,
-      3: 4,
-      4: 2,
-    };
+    const maxSteps = { 1: 5, 2: 3, 3: 4, 4: 2 };
     const currentMaxSteps = maxSteps[currentSection] || 0;
     if (currentStep >= currentMaxSteps) {
       setCurrentStep(0);
     }
   }, [currentSection, currentStep]);
 
-  // Fetch de datos de escuelas, programas y oficinas (desde Google Sheets)
+  // Fetch de datos de escuelas, programas y oficinas desde Google Sheets
   const [escuelas, setEscuelas] = useState([]);
   const [departamentos, setDepartamentos] = useState([]);
   const [secciones, setSecciones] = useState([]);
@@ -195,7 +201,7 @@ function FormPage({ userData }) {
     fetchData();
   }, []);
 
-  // Manejo de dependencias para departamentos, secciones y programas filtrados
+  // Dependencias para departamentos, secciones y programas filtrados
   useEffect(() => {
     if (formData.nombre_escuela) {
       const departamentosFiltrados = [
@@ -249,6 +255,7 @@ function FormPage({ userData }) {
     }
   }, [formData.nombre_seccion, formData.nombre_departamento, formData.nombre_escuela, programas]);
 
+  // Manejo de cambios en los inputs
   const handleInputChange = (event) => {
     const { name, value, files } = event.target;
     setFormData(prev => {
@@ -276,65 +283,75 @@ function FormPage({ userData }) {
     }
   };
 
+  // Actualiza la sección actual y navega
   const handleSectionChange = (newSection) => {
     setCurrentSection(newSection);
+    navigate(`/formulario/${newSection}?solicitud=${solicitudId}&paso=0`, { replace: true });
   };
 
-  // Renderizar la sección correspondiente. Se asegura que la prop active se pase como booleano.
+  // Renderizar la sección correspondiente según currentSection
   const renderFormSection = () => {
     switch (currentSection) {
       case 1:
-        return <FormSection 
-                  formId={1} 
-                  userData={userData} 
-                  active={currentSection === 1} 
-                  formData={formData} 
-                  setFormData={setFormData} 
-                  escuelas={escuelas} 
-                  departamentos={departamentos} 
-                  secciones={secciones} 
-                  oficinas={oficinas} 
-                  handleInputChange={handleInputChange} 
-                  setCurrentSection={handleSectionChange}   
-                  programas={programasFiltrados} 
-                  currentStep={currentStep} 
-                  handleFileChange={handleFileChange} 
-               />;
+        return (
+          <FormSection 
+            formId={1} 
+            userData={userData} 
+            formData={formData} 
+            setFormData={setFormData} 
+            escuelas={escuelas} 
+            departamentos={departamentos} 
+            secciones={secciones} 
+            oficinas={oficinas} 
+            handleInputChange={handleInputChange} 
+            setCurrentSection={handleSectionChange} 
+            programas={programasFiltrados} 
+            currentStep={currentStep} 
+            handleFileChange={handleFileChange}
+            active={currentSection === 1}  /* Se pasa la prop requerida */
+          />
+        );
       case 2:
-        return <FormSection2 
-                  formId={2} 
-                  userData={userData} 
-                  formData={formData} 
-                  setFormData={setFormData} 
-                  handleInputChange={handleInputChange} 
-                  setCurrentSection={handleSectionChange} 
-                  currentStep={currentStep} 
-               />;
+        return (
+          <FormSection2 
+            formId={2} 
+            userData={userData} 
+            formData={formData} 
+            setFormData={setFormData} 
+            handleInputChange={handleInputChange} 
+            setCurrentSection={handleSectionChange} 
+            currentStep={currentStep} 
+          />
+        );
       case 3:
-        return <FormSection3 
-                  formId={3} 
-                  userData={userData} 
-                  formData={formData} 
-                  handleInputChange={handleInputChange} 
-                  setCurrentSection={handleSectionChange} 
-                  currentStep={currentStep}
-               />;
+        return (
+          <FormSection3 
+            formId={3} 
+            userData={userData} 
+            formData={formData} 
+            handleInputChange={handleInputChange} 
+            setCurrentSection={handleSectionChange} 
+            currentStep={currentStep}
+          />
+        );
       case 4:
-        return <FormSection4 
-                  formId={4} 
-                  userData={userData} 
-                  formData={formData}  
-                  setFormData={setFormData} 
-                  handleInputChange={handleInputChange}
-                  currentStep={currentStep}
-               />;
+        return (
+          <FormSection4 
+            formId={4} 
+            userData={userData} 
+            formData={formData}  
+            setFormData={setFormData} 
+            handleInputChange={handleInputChange} 
+            currentStep={currentStep}
+          />
+        );
       default:
         return null;
     }
   };
 
+  // Calcula los pasos completados para el FormStepper
   const calculateCompletedSteps = () => {
-    // Crear un arreglo basado en los formularios completados anteriores
     return Array.from({ length: currentSection - 1 }, (_, i) => i);
   };
 
@@ -345,7 +362,6 @@ function FormPage({ userData }) {
       maxWidth: '100%',
       padding: { xs: '0 15px', sm: '0 20px' }
     }}>
-      {/* Paso actual en el FormStepper: se pasa activeStep como número */}
       <FormStepper 
         activeStep={currentSection - 1} 
         steps={sectionShortTitles} 

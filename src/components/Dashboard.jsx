@@ -26,35 +26,39 @@ function Dashboard({ userData }) {
   });
 
   useEffect(() => {
-    if (!userData || !userData.id) {
-      console.error("No hay userData disponible.");
-    return;
-    }
     const fetchRequests = async () => {
       setLoading(true);
       try {
         const activeResponse = await axios.get(
-          'https://siac-extension-server.vercel.app/getActiveRequests', {
-            params: { userId: userData.id },
-          }
+          'https://siac-extension-server.vercel.app/getActiveRequests', // Sin /api/
+          { params: { userId: userData.id } } // El backend espera "userId" y no "id_usuario"
         );
         setActiveRequests(activeResponse.data);
       } catch (error) {
-        console.error('Error al obtener solicitudes activas:', error);
+        if (error.response?.status === 404) {
+          setActiveRequests([]);
+        } else {
+          console.error('Error al obtener solicitudes activas:', error);
+        }
       }
       try {
         const completedResponse = await axios.get(
-          'https://siac-extension-server.vercel.app/getCompletedRequests', {
-            params: { userId: userData.id },
-          }
+          'https://siac-extension-server.vercel.app/getCompletedRequests',
+          { params: { id_usuario: userData.id } }
         );
         setCompletedRequests(completedResponse.data);
       } catch (error) {
-        console.error('Error al obtener solicitudes terminadas:', error);
+        if (error.response?.status === 404) {
+          setCompletedRequests([]);
+        } else {
+          console.error('Error al obtener solicitudes terminadas:', error);
+        }
       }
       setLoading(false);
     };
-    fetchRequests();
+    if (userData && userData.id) {
+      fetchRequests();
+    }
   }, [userData]);
  
 
@@ -80,21 +84,80 @@ function Dashboard({ userData }) {
 
   const handleCreateNewRequest = async () => {
     try {
+      // 🔹 Generar SIEMPRE un nuevo ID de solicitud sin importar si hay activas
       const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
         params: { sheetName: 'SOLICITUDES2' },
       });
-
-      const nuevoId = response.data.lastId + 1;
-
-      localStorage.removeItem('id_solicitud');
+  
+      if (!response.data || response.status !== 200) {
+        throw new Error('Respuesta inesperada del servidor.');
+      }
+  
+      const nuevoId = (response.data.lastId || 0) + 1;
       localStorage.setItem('id_solicitud', nuevoId);
-
+      console.log('Nuevo ID generado:', nuevoId);
+  
       navigate(`/formulario/1?solicitud=${nuevoId}&paso=0`);
     } catch (error) {
       console.error('Error al generar el ID de la solicitud:', error);
       alert('Hubo un problema al crear la nueva solicitud. Inténtalo de nuevo.');
     }
   };
+  
+  const handleContinueRequest = async (request) => {
+    const { idSolicitud, formulario, paso } = request;
+  
+    if (!idSolicitud) {
+      console.error('Error: idSolicitud es indefinido.');
+      alert('Error: No se puede continuar sin un ID de solicitud válido.');
+      return;
+    }
+  
+    if (formulario < 1 || formulario > 4) {
+      console.error('Formulario inválido:', formulario);
+      alert('El número de formulario no es válido.');
+      return;
+    }
+    if (paso < 0) {
+      console.error('Paso inválido:', paso);
+      alert('El paso del formulario no es válido.');
+      return;
+    }
+  
+    try {
+      console.log(`🔎 Buscando datos de la solicitud con ID: ${idSolicitud}`);
+      
+      // Obtener datos actualizados desde Google Sheets
+      const response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
+        params: { id_solicitud: idSolicitud }
+      });
+  
+      if (response.status === 200 && response.data) {
+        console.log('✅ Datos de la solicitud obtenidos:', response.data);
+  
+        // Extraer los datos correctamente de `SOLICITUDES`
+        const solicitudData = response.data.SOLICITUDES || response.data;
+  
+        if (!solicitudData.id_solicitud) {
+          throw new Error("La respuesta no contiene un ID válido.");
+        }
+  
+        // Guardamos los datos en localStorage para persistencia
+        localStorage.setItem('id_solicitud', solicitudData.id_solicitud);
+        localStorage.setItem('formData', JSON.stringify(solicitudData));
+  
+        // Navegamos al formulario con los datos ya recuperados
+        navigate(`/formulario/${formulario}?solicitud=${idSolicitud}&paso=${paso}`);
+      } else {
+        throw new Error('No se encontraron datos para la solicitud.');
+      }
+    } catch (error) {
+      console.error('🚨 Error al cargar los datos de la solicitud:', error);
+      alert('Hubo un problema al cargar los datos de la solicitud. Inténtalo de nuevo.');
+    }
+  };
+  
+  
 
   const handleGenerateFormReport = async (request, formNumber) => {
     try {
@@ -126,7 +189,6 @@ function Dashboard({ userData }) {
     }
   };
   
-
   const isButtonEnabled = (request, formNumber) => {
     // Si la solicitud está terminada, todos los botones deben estar habilitados
     const isCompleted = completedRequests.some((completed) => completed.idSolicitud === request.idSolicitud);
@@ -173,7 +235,7 @@ function Dashboard({ userData }) {
               />
               <Button
                 variant="outlined"
-                onClick={() => handleContinue(request)}
+                onClick={() => handleContinueRequest(request)}
                 style={{ marginLeft: '10px', marginRight: '10px' }}
               >
                 Continuar
