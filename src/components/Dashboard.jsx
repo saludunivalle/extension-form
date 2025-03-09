@@ -63,12 +63,10 @@ function Dashboard({ userData }) {
  
   const handleCreateNewRequest = async () => {
     try {
-      console.log('🆕 Solicitando nuevo ID de solicitud...');
-      // 🧹 Limpiar cualquier dato previo en localStorage antes de crear una nueva solicitud
-      localStorage.removeItem('id_solicitud');
+      console.log('🆕 Solicitando nuevo ID de solicitud...')
+            localStorage.removeItem('id_solicitud');
       localStorage.removeItem('formData');
-
-      // Obtener el último ID registrado en la base de datos
+  
       const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
         params: { sheetName: 'SOLICITUDES' }, // Asegurar que esté consultando la hoja correcta
       });
@@ -80,8 +78,10 @@ function Dashboard({ userData }) {
       // Generar un nuevo ID sumando 1 al último ID registrado
       const nuevoId = (response.data.lastId || 0) + 1;
       console.log(`✅ Nuevo ID generado: ${nuevoId}`);
-
-      // Insertar nueva fila en Google Sheets para asegurar que el ID se guarde
+      //  Guardar el nuevo ID en localStorage
+      localStorage.setItem('id_solicitud', nuevoId);
+  
+      //Insertar la nueva fila en Google Sheets para registrar la solicitud
       await axios.post('https://siac-extension-server.vercel.app/createNewRequest', {
         id_solicitud: nuevoId,
         fecha_solicitud: new Date().toISOString().split('T')[0], // Fecha actual
@@ -90,21 +90,17 @@ function Dashboard({ userData }) {
         dependencia_tipo: '',
         nombre_dependencia: ''
       });
-      console.log(`✅ Nueva solicitud guardada con ID: ${nuevoId}`);
 
-      // Guardar el nuevo ID en localStorage
-      localStorage.setItem('id_solicitud', nuevoId);
-      
-      // Redirigir al formulario con el nuevo ID
+      console.log(`✅ Nueva solicitud guardada con ID: ${nuevoId}`);
+  
+      //Redirigir al usuario al formulario de la solicitud creada
       navigate(`/formulario/1?solicitud=${nuevoId}&paso=0`);
-      
     } catch (error) {
       console.error('🚨 Error al generar el ID de la solicitud:', error);
       alert('Hubo un problema al crear la nueva solicitud. Inténtalo de nuevo.');
     }
 };
-  
-  
+
   const handleContinueRequest = async (request) => {
     const { idSolicitud, formulario, paso } = request;
   
@@ -135,18 +131,15 @@ function Dashboard({ userData }) {
   
       if (response.status === 200 && response.data) {
         console.log('✅ Datos de la solicitud obtenidos:', response.data);
-  
         // Extraer los datos correctamente de `SOLICITUDES`
         const solicitudData = response.data.SOLICITUDES || response.data;
   
         if (!solicitudData.id_solicitud) {
           throw new Error("La respuesta no contiene un ID válido.");
         }
-  
         // Guardamos los datos en localStorage para persistencia
         localStorage.setItem('id_solicitud', solicitudData.id_solicitud);
         localStorage.setItem('formData', JSON.stringify(solicitudData));
-  
         // Navegamos al formulario con los datos ya recuperados
         navigate(`/formulario/${formulario}?solicitud=${idSolicitud}&paso=${paso}`);
       } else {
@@ -158,45 +151,51 @@ function Dashboard({ userData }) {
     }
   };
   
-  
-
   const handleGenerateFormReport = async (request, formNumber) => {
     try {
       const { idSolicitud } = request;
-  
-      console.log("idSolicitud recibido:", idSolicitud);
-      console.log("formNumber recibido:", formNumber);
-  
+
       if (!idSolicitud || !formNumber) {
-        console.error("Los parámetros solicitudId o formNumber no están definidos");
         alert("No se puede generar el informe porque falta información.");
         return;
       }
-  
+
+      console.log(`📄 Generando reporte para Solicitud ID: ${idSolicitud}, Formulario: ${formNumber}`);
+
       const response = await axios.post('https://siac-extension-server.vercel.app/generateReport', {
         solicitudId: idSolicitud,
         formNumber,
       });
-  
-      const { link } = response.data;
-  
-      if (link) {
+
+      if (response.data?.link) {
+        console.log(`✅ Reporte generado con éxito: ${response.data.link}`);
         alert(`Informe generado exitosamente para el formulario ${formNumber}`);
-        window.open(link, '_blank');
+        window.open(response.data.link, '_blank');
+      } else {
+        throw new Error('No se recibió un enlace de reporte válido.');
       }
     } catch (error) {
       console.error(`Error al generar el informe para el formulario ${formNumber}:`, error);
       alert('Hubo un problema al generar el informe.');
     }
   };
-  
-  const isButtonEnabled = (request, formNumber) => {
-    // Si la solicitud está terminada, todos los botones deben estar habilitados
+
+  const getButtonState = (request, formNumber) => {
     const isCompleted = completedRequests.some((completed) => completed.idSolicitud === request.idSolicitud);
-    
-    // Habilita todos los botones para solicitudes terminadas
-    if (isCompleted) return true;
-    return formNumber <= request.formulario;
+    const isCurrent = formNumber === request.etapa_actual; 
+    const isPast = formNumber < request.etapa_actual;
+    const isFuture = formNumber > request.etapa_actual;
+
+    if (isCompleted) {
+      return { enabled: true, color: 'primary', cursor: 'pointer' };
+    } else if (isPast) {
+      return { enabled: true, color: 'primary', cursor: 'pointer' }; 
+    } else if (isCurrent) {
+      return { enabled: false, color: '#90caf9', cursor: 'not-allowed' }; 
+    } else if (isFuture) {
+      return { enabled: false, color: '#e0e0e0', cursor: 'not-allowed' }; 
+    }
+    return { enabled: false, color: '#e0e0e0', cursor: 'not-allowed' }; 
   };
 
   if (!userData || !userData.id) {
@@ -212,7 +211,7 @@ function Dashboard({ userData }) {
       </ThemeProvider>
     );
   }
-  
+
   return (
     <ThemeProvider theme={theme}>
       <div style={{ padding: '20px', marginTop: '130px' }}>
@@ -225,57 +224,58 @@ function Dashboard({ userData }) {
         >
           Crear Nueva Solicitud
         </Button>
+
         <Typography variant="h6" style={{ marginTop: '20px' }}>
           Solicitudes en Creación:
         </Typography>
         <List>
           {activeRequests.map((request) => (
-            <ListItem key={request.idSolicitud} style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <ListItemText
-                primary={request.nombre_actividad || `Solicitud ${request.idSolicitud}`}
-              />
+            <ListItem key={request.idSolicitud} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <ListItemText primary={request.nombre_actividad || `Solicitud ${request.idSolicitud}`} />
               <Button
                 variant="outlined"
+                color="primary"
                 onClick={() => handleContinueRequest(request)}
-                style={{ marginLeft: '10px', marginRight: '10px' }}
+                style={{ marginRight: '10px' }}
               >
                 Continuar
               </Button>
               <div style={{ display: 'flex', gap: '10px' }}>
-                {[1, 2, 3, 4].map((buttonNumber) => (
-                  <Button
-                    key={buttonNumber}
-                    variant="contained"
-                    color={isButtonEnabled(request, buttonNumber) ? 'primary' : 'default'}
-                    onClick={() => isButtonEnabled(request, buttonNumber) && handleGenerateFormReport(request, buttonNumber)}
-                    disabled={!isButtonEnabled(request, buttonNumber)}
-                  >
-                    {buttonNumber}
-                  </Button>
-                ))}
+                {[1, 2, 3, 4].map((formNumber) => {
+                  const { enabled, color, cursor } = getButtonState(request, formNumber);
+                  return (
+                    <Button
+                      key={`${request.idSolicitud}-${formNumber}`}
+                      variant="contained"
+                      style={{ backgroundColor: color, cursor }}
+                      onClick={() => enabled && handleGenerateFormReport(request, formNumber)}
+                      disabled={!enabled}
+                    >
+                      {formNumber}
+                    </Button>
+                  );
+                })}
               </div>
             </ListItem>
           ))}
         </List>
-  
+
         <Typography variant="h6" style={{ marginTop: '20px' }}>
           Solicitudes Terminadas:
         </Typography>
         <List>
           {completedRequests.map((request) => (
             <ListItem key={request.idSolicitud} style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <ListItemText
-                primary={request.nombre_actividad ? request.nombre_actividad : `Solicitud ${request.idSolicitud}`}
-              />
+              <ListItemText primary={request.nombre_actividad || `Solicitud ${request.idSolicitud}`} />
               <div style={{ display: 'flex', gap: '10px' }}>
-                {[1, 2, 3, 4].map((buttonNumber) => (
+                {[1, 2, 3, 4].map((formNumber) => (
                   <Button
-                    key={`${request.idSolicitud}-${buttonNumber}`}
+                    key={`${request.idSolicitud}-${formNumber}`}
                     variant="contained"
                     color="primary"
-                    onClick={() => handleGenerateFormReport(request, buttonNumber)}
+                    onClick={() => handleGenerateFormReport(request, formNumber)}
                   >
-                    {buttonNumber}
+                    {formNumber}
                   </Button>
                 ))}
               </div>
@@ -286,6 +286,14 @@ function Dashboard({ userData }) {
     </ThemeProvider>
   );
 }
+
+Dashboard.propTypes = {
+  userData: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    name: PropTypes.string.isRequired,
+  }).isRequired,
+};
+
 
 Dashboard.propTypes = {
   userData: PropTypes.shape({

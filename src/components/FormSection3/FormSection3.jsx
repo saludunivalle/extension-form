@@ -75,6 +75,7 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
     const stepErrors = {};
   
     if (activeStep === 1) { // Paso 2 corresponde al índice 1
+     /* No son obligatorios
       const requiredFields = [
         'aplicaDiseno1',
         'aplicaDiseno2',
@@ -88,6 +89,7 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
           stepErrors[field] = "Debe seleccionar una opción";
         }
       });
+      */
     }
   
     setErrors(stepErrors);

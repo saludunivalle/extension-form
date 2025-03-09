@@ -16,7 +16,7 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               fullWidth
               name="becas_convenio"
               type="number"
-              value={formData.becas_convenio}
+              value={formData.becas_convenio ?? "0"}
               onChange={handleInputChange}
               placeholder="0"
               inputProps={{ 
@@ -36,7 +36,7 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               fullWidth
               name="becas_estudiantes"
               type="number"
-              value={formData.becas_estudiantes}
+              value={formData.becas_estudiantes ?? "0"}
               onChange={handleInputChange}
               //inputProps={{ min: "0" }} 
               inputProps={{ 
@@ -57,8 +57,8 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               fullWidth
               name="becas_docentes"
               type="number"
-              value={formData.becas_docentes}
-              onChange={handleInputChange}
+              value={formData.becas_docentes ?? "0"}
+              onChange={handleInputChange }
               //inputProps={{ min: "0" }}
               placeholder="0"
               inputProps={{ 
@@ -78,7 +78,7 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               fullWidth
               name="becas_egresados"
               type="number"
-              value={formData.becas_egresados}
+              value={formData.becas_egresados ?? "0"}
               onChange={handleInputChange}
               //inputProps={{ min: "0" }} 
               placeholder="0"
@@ -99,7 +99,7 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               fullWidth
               name="becas_funcionarios"
               type="number"
-              value={formData.becas_funcionarios}
+              value={formData.becas_funcionarios ?? "0"}
               onChange={handleInputChange}
               //inputProps={{ min: "0" }} 
               placeholder="0"
@@ -120,7 +120,7 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               fullWidth
               name="becas_otros"
               type="number"
-              value={formData.becas_otros}
+              value={formData.becas_otros ?? "0"}
               onChange={handleInputChange}
               //inputProps={{ min: "0" }} 
               placeholder="0"
