@@ -204,10 +204,13 @@
         ];
         camposBecas.forEach(campo => {
           const valor = formData[campo];
-          if (!valor && valor !== 0) { // Permitir 0 como valor válido
+          if (valor === "" || valor === undefined || valor === null) { // Permitir 0 como valor válido
               stepErrors[campo] = "Este campo es obligatorio";
-          } else if (isNaN(valor) || valor < 0) {
+          }else {
+            const numericValue = parseFloat(valor);
+            if (isNaN(numericValue) || numericValue < 0) {
               stepErrors[campo] = "Debe ser un número mayor o igual a 0";
+            }
           }
         });  
         if (!formData.periodicidad_oferta) stepErrors.periodicidad_oferta = "Debe seleccionar una periodicidad";

@@ -38,7 +38,7 @@ function FormPage({ userData }) {
     if (!solicitudId) {
       // Si no existe id en la URL, obtener un nuevo a través de getLastId con la hoja SOLICITUDES2
       axios.get('https://siac-extension-server.vercel.app/getLastId', {
-        params: { sheetName: 'ETAPAS' }
+        params: { sheetName: 'SOLICITUDES2' }
       })
       .then(response => {
         const nuevoId = response.data.lastId + 1;
