@@ -1,14 +1,22 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Button, Typography, List, ListItem, ListItemText, CircularProgress } from '@mui/material';
+import { Button, Typography, List, ListItem, ListItemText, CircularProgress, Tooltip } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from "prop-types";
+
+const sectionTitles = [
+  'Aprobación - Formulario F-05-MP-05-01-01',
+  'Presupuesto - Formulario F-06-MP-05-01-01',
+  'Riesgos Potenciales - Formulario F-08-MP-05-01-01',
+  'Identificación de Mercadeo - Formulario F-07-MP-05-01-01'
+];
 
 function Dashboard({ userData }) {
   const [activeRequests, setActiveRequests] = useState([]);
   const [completedRequests, setCompletedRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingReports, setLoadingReports] = useState({});
   const navigate = useNavigate();
 
   const theme = createTheme({
@@ -160,6 +168,8 @@ function Dashboard({ userData }) {
         return;
       }
 
+      setLoadingReports((prev) => ({ ...prev, [`${idSolicitud}-${formNumber}`]: true }));
+
       console.log(`📄 Generando reporte para Solicitud ID: ${idSolicitud}, Formulario: ${formNumber}`);
 
       const response = await axios.post('https://siac-extension-server.vercel.app/generateReport', {
@@ -169,7 +179,7 @@ function Dashboard({ userData }) {
 
       if (response.data?.link) {
         console.log(`✅ Reporte generado con éxito: ${response.data.link}`);
-        alert(`Informe generado exitosamente para el formulario ${formNumber}`);
+        alert(`Informe generado exitosamente para el formulario ${formNumber} - ${sectionTitles[formNumber - 1]}`);
         window.open(response.data.link, '_blank');
       } else {
         throw new Error('No se recibió un enlace de reporte válido.');
@@ -177,6 +187,8 @@ function Dashboard({ userData }) {
     } catch (error) {
       console.error(`Error al generar el informe para el formulario ${formNumber}:`, error);
       alert('Hubo un problema al generar el informe.');
+    } finally { 
+      setLoadingReports((prev) => ({ ...prev, [`${request.idSolicitud}-${formNumber}`]: false }));
     }
   };
 
@@ -236,23 +248,29 @@ function Dashboard({ userData }) {
                 variant="outlined"
                 color="primary"
                 onClick={() => handleContinueRequest(request)}
-                style={{ marginRight: '10px' }}
+                style={{ marginRight: '15px' }}
               >
                 Continuar
               </Button>
               <div style={{ display: 'flex', gap: '10px' }}>
                 {[1, 2, 3, 4].map((formNumber) => {
                   const { enabled, color, cursor } = getButtonState(request, formNumber);
+                  const isLoading = loadingReports[`${request.idSolicitud}-${formNumber}`];
+
                   return (
-                    <Button
-                      key={`${request.idSolicitud}-${formNumber}`}
-                      variant="contained"
-                      style={{ backgroundColor: color, cursor }}
-                      onClick={() => enabled && handleGenerateFormReport(request, formNumber)}
-                      disabled={!enabled}
+                    <Tooltip key={`${request.idSolicitud}-${formNumber}`}
+                      title={`De clic, para generar el Formato ${sectionTitles[formNumber - 1]} diligenciado.`}
+                      arrow
                     >
-                      {formNumber}
-                    </Button>
+                      <Button
+                        variant="contained"
+                        style={{ backgroundColor: color, cursor, minWidth: '100px' }}
+                        onClick={() => enabled && handleGenerateFormReport(request, formNumber)}
+                        disabled={!enabled || isLoading}
+                      >
+                        {isLoading ? <CircularProgress size={24} color="inherit" /> : formNumber}
+                      </Button>
+                    </Tooltip>
                   );
                 })}
               </div>
