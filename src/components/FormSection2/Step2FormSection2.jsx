@@ -1,7 +1,7 @@
 import React,{  useState, useEffect } from 'react';
-import { Table, TableBody, TableCell, TableHead, TableRow, TextField, Button, Box, IconButton, Typography } from '@mui/material';
+import { Table, TableBody, TableCell, TableHead, TableRow, TextField, Button, Box, IconButton, Typography, CircularProgress,Tooltip} from '@mui/material';
 import { NumericFormat } from 'react-number-format';
-import { Add, Remove } from '@mui/icons-material';
+import { Add, Remove, Delete, Restore } from '@mui/icons-material';
 import PropTypes from "prop-types";
 
 function Step2FormSection2({
@@ -10,6 +10,11 @@ function Step2FormSection2({
   updateTotalGastos // Nueva función callback para enviar el total al componente padre
 }) {
   const [expandedSections, setExpandedSections] = useState({});
+  const [hiddenConcepts, setHiddenConcepts] = useState([]);
+  const [extraExpenses, setExtraExpenses] = useState([]);
+  const [isAddingExtraExpense, setIsAddingExtraExpense] = useState(false);
+  const [loadingDeleteId, setLoadingDeleteId] = useState(null);
+  
 
   // Estructura jerárquica de gastos
   const gastosStructure = [
@@ -120,6 +125,23 @@ function Step2FormSection2({
     setExpandedSections({});
   };
 
+  const handleDeleteConcept = (key) => {
+    setLoadingDeleteId(key);
+  
+    setTimeout(() => {
+
+      setExtraExpenses((prevExpenses) => prevExpenses.filter(expense => expense.id !== key));
+  
+      setHiddenConcepts((prev) => [...prev, key]);
+  
+      setLoadingDeleteId(null);
+    }, 500);
+  };
+
+  const handleRestoreConcepts = () => {
+    setHiddenConcepts([]);
+  };
+
   // Calcular dinámicamente el total de ingresos
   const totalIngresos = (formData.ingresos_cantidad || 0) * (formData.ingresos_vr_unit || 0);
 
@@ -175,6 +197,37 @@ function Step2FormSection2({
     });
   };
 
+  const handleAddExtraExpense = () => {
+    setIsAddingExtraExpense(true);
+  
+    setTimeout(() => {
+      setExtraExpenses([
+        ...extraExpenses,
+        { id: Date.now(), name: '', cantidad: 0, vr_unit: 0 },
+      ]);
+      setIsAddingExtraExpense(false);
+    }, 500);
+  };
+  
+  
+  const handleRemoveExtraExpense = (id) => {
+    setLoadingDeleteId(id);
+  
+    setTimeout(() => {
+      setExtraExpenses(extraExpenses.filter((expense) => expense.id !== id));
+      setLoadingDeleteId(null);
+    }, 500); // Simula una pequeña espera
+  };
+  
+  const handleExtraExpenseChange = (id, field, value) => {
+    setExtraExpenses(
+      extraExpenses.map((expense) =>
+        expense.id === id ? { ...expense, [field]: value } : expense
+      )
+    );
+  };
+  
+
   // Common props for numeric inputs
   const numericInputProps = {
     inputMode: 'numeric',
@@ -202,12 +255,13 @@ function Step2FormSection2({
           <TableCell align="right" sx={{ fontWeight: 600 }}>CANTIDAD</TableCell>
           <TableCell align="right" sx={{ fontWeight: 600 }}>VALOR UNITARIO (COP)</TableCell>
           <TableCell align="right" sx={{ fontWeight: 600 }}>VALOR TOTAL (COP)</TableCell>
+          <TableCell align="center" sx={{ fontWeight: 600 }}>ACCIÓN</TableCell>
         </TableRow>
       </TableHead>
       <TableBody>
         {/* SECCIÓN INGRESOS */}
         <TableRow>
-          <TableCell colSpan={4} sx={{ 
+          <TableCell colSpan={5} sx={{ 
             backgroundColor: '#f5f5f5', borderBottom: '2px solid #e0e0e0',
             py: 1, fontWeight: 600
           }}>
@@ -222,18 +276,13 @@ function Step2FormSection2({
               name="ingresos_cantidad"
               value={formData.ingresos_cantidad || 0}
               onChange={handleNumberInputChange}
-              inputProps={{ 
-                inputMode: 'numeric',
-                min: "0",
-                pattern: '[0-9]*',
-                placeholder: '0'
-              }}
+              inputProps={numericInputProps}
               sx={{ 
                 width: 100, 
                 '& .MuiInputBase-input': { 
                   textAlign: 'right', 
                   p: '8px 10px',
-                  '&::placeholder': { opacity: 0.6 } 
+                  '&::placeholder': { opacity: 0.6 }
                 }
               }}
             />
@@ -250,23 +299,20 @@ function Step2FormSection2({
               onKeyPress={(e) => {
                 if (e.key === '.' || e.key === ',') e.preventDefault();
               }}
-              inputProps={{ 
-                inputMode: 'numeric',
-                pattern: '[0-9]*',
-                placeholder: '0'
-              }}
+              inputProps={numericInputProps}
               allowNegative={false}
-              sx={{ 
-                width: 150, 
-                '& .MuiInputBase-input': { 
-                  textAlign: 'right', 
+              sx={{
+                width: 150,
+                '& .MuiInputBase-input': {
+                  textAlign: 'right',
                   p: '8px 10px',
-                  '&::placeholder': { opacity: 0.6 } 
+                  '&::placeholder': { opacity: 0.6 }
                 }
               }}
             />
           </TableCell>
           <TableCell align="right">{formatCurrency(totalIngresos)}</TableCell>
+          <TableCell></TableCell>
         </TableRow>
         <TableRow>
           <TableCell colSpan={3} sx={{ fontWeight: 'bold' }}>TOTAL INGRESOS</TableCell>
@@ -280,117 +326,54 @@ function Step2FormSection2({
           >
             {formatCurrency(totalIngresos)}
           </TableCell>
+          <TableCell></TableCell>
         </TableRow>
-
+    
         {/* GASTOS HEADER */}
         <TableRow>
-          <TableCell colSpan={4} sx={{ 
-            backgroundColor: '#f5f5f5', borderBottom: '2px solid #e0e0e0',
+          <TableCell colSpan={5} sx={{ mr: 1, color: '#616161', borderColor: '#e0e0e0',
+                        '&:hover': { backgroundColor: '#eeeeee', borderColor: '#bdbdbd' },
             py: 1
           }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="subtitle1" fontWeight={600}>GASTOS</Typography>
-              <Box>
-                <Button 
-                  onClick={expandAll}
-                  variant="outlined"
-                  size="small"
-                  startIcon={<Add fontSize="small" />}
-                  sx={{ mr: 1, color: '#616161', borderColor: '#e0e0e0',
-                        '&:hover': { backgroundColor: '#eeeeee', borderColor: '#bdbdbd' } }}
-                >
-                  Expandir
+              <Box >
+                <Button variant="outlined" startIcon={<Add />} onClick={expandAll}>
+                  Expandir Todo
                 </Button>
-                <Button
-                  onClick={collapseAll}
-                  variant="outlined"
-                  size="small"
-                  startIcon={<Remove fontSize="small" />}
-                  sx={{ color: '#616161', borderColor: '#e0e0e0',
-                        '&:hover': { backgroundColor: '#eeeeee', borderColor: '#bdbdbd' } }}
-                >
-                  Colapsar
+                <Button variant="outlined" startIcon={<Remove />} onClick={collapseAll}>
+                  Colapsar Todo
+                </Button>
+                <Button variant="outlined" startIcon={<Restore />} onClick={handleRestoreConcepts}>
+                  Restaurar Conceptos
                 </Button>
               </Box>
             </Box>
           </TableCell>
         </TableRow>
-
+    
         {/* GASTOS ITEMS */}
         {gastosStructure.map(item => (
-          <React.Fragment key={item.key}>
-            {/* Fila principal */}
-            <TableRow sx={{ '&:hover': { backgroundColor: '#fafafa' } }}>
-              <TableCell sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Typography variant="body2" fontWeight={500}>{item.label}</Typography>
-                {item.children.length > 0 && (
-                  <IconButton
-                    onClick={() => toggleSection(item.key)}
-                    size="small"
-                    sx={{
-                      color: '#757575',
-                      backgroundColor: 'rgba(0, 0, 0, 0.05)',
-                      '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.08)' },
-                      ml: 2, p: 0, width: 32, height: 32
-                    }}
-                  >
-                    {expandedSections[item.key] ? <Remove fontSize="small" /> : <Add fontSize="small" />}
-                  </IconButton>
-                )}
-              </TableCell>
-              <TableCell align="right">
-                <TextField
-                  type="number"
-                  name={`${item.key}_cantidad`}
-                  value={formData[`${item.key}_cantidad`] || 0}
-                  onChange={handleNumberInputChange}
-                  inputProps={numericInputProps}
-                  size="small"
-                  sx={{ width: 100, '& .MuiInputBase-input': { textAlign: 'right', p: '8px 10px' } }}
-                  error={formData[`${item.key}_cantidad`] < 0}
-                  helperText={formData[`${item.key}_cantidad`] < 0 && "La cantidad no puede ser negativa"}
-                />
-              </TableCell>
-              <TableCell align="right">
-                <NumericFormat
-                  customInput={TextField}
-                  thousandSeparator="."
-                  decimalSeparator=","
-                  prefix="$ "
-                  name={`${item.key}_vr_unit`}
-                  value={formData[`${item.key}_vr_unit`] || 0}
-                  onValueChange={(values) => {
-                    handleNumberInputChange({
-                      target: { name: `${item.key}_vr_unit`, value: values.value }
-                    });
-                  }}
-                  inputProps={numericInputProps}
-                  size="small"
-                  sx={{ width: 150, '& .MuiInputBase-input': { textAlign: 'right', p: '8px 10px' } }}
-                />
-              </TableCell>
-              <TableCell align="right">
-                <Typography variant="body2">
-                  {formatCurrency(
-                    (parseFloat(formData[`${item.key}_cantidad`] || 0)) *
-                    (parseFloat(formData[`${item.key}_vr_unit`] || 0))
-                  )}
-                </Typography>
-              </TableCell>
-            </TableRow>
-            {/* Sub-items */}
-            {item.children.length > 0 && expandedSections[item.key] && item.children.map(child => (
-              <TableRow key={child.key} sx={{ backgroundColor: '#fcfcfc' }}>
-                <TableCell sx={{ pl: 4 }}>{child.label}</TableCell>
+          !hiddenConcepts.includes(item.key) && (
+            <React.Fragment key={item.key}>
+              <TableRow>
+                <TableCell>
+                  <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Typography fontWeight={500}>{item.label}</Typography>
+                    {item.children.length > 0 && (
+                      <IconButton size="small" onClick={() => toggleSection(item.key)}>
+                        {expandedSections[item.key] ? <Remove /> : <Add />}
+                      </IconButton>
+                    )}
+                  </Box>
+                </TableCell>
                 <TableCell align="right">
                   <TextField
                     type="number"
-                    name={`${child.key}_cantidad`}
-                    value={formData[`${child.key}_cantidad`] || 0}
+                    name={`${item.key}_cantidad`}
+                    value={formData[`${item.key}_cantidad`] || 0}
                     onChange={handleNumberInputChange}
-                    inputProps={numericInputProps}
                     size="small"
-                    sx={{ width: 100, '& .MuiInputBase-input': { textAlign: 'right', p: '8px 10px' } }}
                   />
                 </TableCell>
                 <TableCell align="right">
@@ -399,49 +382,170 @@ function Step2FormSection2({
                     thousandSeparator="."
                     decimalSeparator=","
                     prefix="$ "
-                    name={`${child.key}_vr_unit`}
-                    value={formData[`${child.key}_vr_unit`] || 0}
-                    onValueChange={(values) => {
-                      const cleanValue = values.value.replace(/[^0-9]/g, '');
-                      handleNumberInputChange({
-                        target: { name: `${child.key}_vr_unit`, value: cleanValue }
-                      });
-                    }}
-                    inputProps={numericInputProps}
+                    name={`${item.key}_vr_unit`}
+                    value={formData[`${item.key}_vr_unit`] || 0}
+                    onValueChange={(values) =>
+                      handleNumberInputChange({ target: { name: `${item.key}_vr_unit`, value: values.value } })
+                    }
                     size="small"
-                    sx={{ width: 150, '& .MuiInputBase-input': { textAlign: 'right', p: '8px 10px' } }}
                   />
                 </TableCell>
                 <TableCell align="right">
-                  <Typography variant="body2">
-                    {formatCurrency(
-                      (parseFloat(formData[`${child.key}_cantidad`] || 0)) *
-                      (parseFloat(formData[`${child.key}_vr_unit`] || 0))
-                    )}
-                  </Typography>
+                  {formatCurrency((formData[`${item.key}_cantidad`] || 0) * (formData[`${item.key}_vr_unit`] || 0))}
+                </TableCell>
+                <TableCell align="center">
+                  <Tooltip title="Eliminar concepto">
+                    <IconButton 
+                      color="error" 
+                      onClick={() => handleDeleteConcept(item.key)} 
+                      disabled={loadingDeleteId === item.key}>
+                      {loadingDeleteId === item.key ? <CircularProgress size={20} /> : <Delete />}
+                    </IconButton>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
-            ))}
-          </React.Fragment>
+
+              {/* Subpuntos */}
+              {item.children.length > 0 && expandedSections[item.key] && item.children.map(child => (
+                !hiddenConcepts.includes(child.key) && ( // Oculta los subpuntos correctamente
+                  <TableRow key={child.key}>
+                    <TableCell sx={{ pl: 4 }}>{child.label}</TableCell>
+                    <TableCell align="right">
+                      <TextField
+                        type="number"
+                        name={`${child.key}_cantidad`}
+                        value={formData[`${child.key}_cantidad`] || 0}
+                        onChange={handleNumberInputChange}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell align="right">
+                      <NumericFormat
+                        customInput={TextField}
+                        thousandSeparator="."
+                        decimalSeparator=","
+                        prefix="$ "
+                        name={`${child.key}_vr_unit`}
+                        value={formData[`${child.key}_vr_unit`] || 0}
+                        onValueChange={(values) =>
+                          handleNumberInputChange({ target: { name: `${child.key}_vr_unit`, value: values.value } })
+                        }
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell align="right">
+                      {formatCurrency((formData[`${child.key}_cantidad`] || 0) * (formData[`${child.key}_vr_unit`] || 0))}
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="Eliminar concepto">
+                        <IconButton 
+                          color="error" 
+                          onClick={() => handleDeleteConcept(child.key)} 
+                          disabled={loadingDeleteId === child.key}
+                        >
+                          {loadingDeleteId === child.key ? <CircularProgress size={20} /> : <Delete />}
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                )
+              ))}
+            </React.Fragment>
+          )
         ))}
 
+        {/* SECCIÓN GASTOS EXTRAS */}
+        <TableRow>
+          <TableCell colSpan={5} sx={{ backgroundColor: '#f5f5f5', borderBottom: '2px solid #e0e0e0', py: 1, fontWeight: 600 }}>
+            15. GASTOS EXTRAS
+          </TableCell>
+        </TableRow>
+
+        {extraExpenses.map((expense, index) => (
+          <TableRow key={expense.id}>
+            <TableCell>
+              <Box display="flex" alignItems="center">
+                <Typography sx={{ mr: 1, fontWeight: 500 }}>{`15.${index + 1}`}</Typography>
+                <TextField
+                  fullWidth
+                  placeholder="Nombre del gasto extra"
+                  value={expense.name}
+                  onChange={(e) => handleExtraExpenseChange(expense.id, 'name', e.target.value)}
+                />
+              </Box>
+            </TableCell>
+            <TableCell align="right">
+              <TextField
+                type="number"
+                value={expense.cantidad}
+                onChange={(e) => handleExtraExpenseChange(expense.id, 'cantidad', e.target.value)}
+                size="small"
+              />
+            </TableCell>
+            <TableCell align="right">
+              <NumericFormat
+                customInput={TextField}
+                thousandSeparator="."
+                decimalSeparator=","
+                prefix="$ "
+                value={expense.vr_unit}
+                onValueChange={(values) => handleExtraExpenseChange(expense.id, 'vr_unit', values.value)}
+                size="small"
+              />
+            </TableCell>
+            <TableCell align="right">
+              {formatCurrency(expense.cantidad * expense.vr_unit)}
+            </TableCell>
+            <TableCell align="center">
+            <Tooltip title="Eliminar gasto extra">
+              <IconButton 
+                color="error" 
+                onClick={() => handleRemoveExtraExpense(expense.id)}
+                disabled={loadingDeleteId === expense.id} // Deshabilita el botón mientras carga
+              >
+                {loadingDeleteId === expense.id ? <CircularProgress size={20} /> : <Delete />}
+              </IconButton>
+            </Tooltip>
+            </TableCell>
+          </TableRow>
+        ))}
+
+        <TableRow>
+          <TableCell colSpan={5} align="center">
+            <Button 
+              variant="outlined" 
+              startIcon={isAddingExtraExpense ? <CircularProgress size={20} /> : <Add />} 
+              onClick={handleAddExtraExpense}
+              disabled={isAddingExtraExpense} // Deshabilita el botón mientras carga
+            >
+              Agregar Gasto Extra
+            </Button>
+          </TableCell>
+        </TableRow>
+    
         {/* TOTALES */}
-        <TableRow sx={{ '& td': { borderBottom: 'none' } }}>
+        <TableRow>
           <TableCell colSpan={3} sx={{ fontWeight: 600, borderTop: '1px solid #e0e0e0', pt: 2 }}>
-            SUB TOTAL GASTOS
+            SUBTOTAL GASTOS
           </TableCell>
           <TableCell align="right" sx={{ fontWeight: 600, borderTop: '1px solid #e0e0e0', pt: 2 }}>
             {formatCurrency(subtotalGastos)}
           </TableCell>
+          <TableCell></TableCell>
         </TableRow>
-        <TableRow sx={{ '& td': { borderBottom: 'none' } }}>
+
+        {/* Imprevistos (3%) */}
+        <TableRow>
           <TableCell colSpan={3} sx={{ fontWeight: 600 }}>
             Imprevistos (3%)
           </TableCell>
           <TableCell align="right" sx={{ fontWeight: 600 }}>
             {formatCurrency(imprevistos)}
           </TableCell>
+          <TableCell></TableCell>
         </TableRow>
+
+        {/* Total Gastos + Imprevistos con color */}
         <TableRow>
           <TableCell colSpan={3} sx={{ fontWeight: 600, backgroundColor: '#f5f5f5' }}>
             TOTAL GASTOS + IMPREVISTOS
@@ -456,11 +560,13 @@ function Step2FormSection2({
           >
             {formatCurrency(totalGastosImprevistos)}
           </TableCell>
+          <TableCell></TableCell>
         </TableRow>
       </TableBody>
     </Table>
   );
-}
+  }
+  
 
 Step2FormSection2.propTypes = {
   formData: PropTypes.shape({
