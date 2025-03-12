@@ -262,6 +262,7 @@ function Dashboard({ userData }) {
                       title={`De clic, para generar el Formato ${sectionTitles[formNumber - 1]} diligenciado.`}
                       arrow
                     >
+                      <span>
                       <Button
                         variant="contained"
                         style={{ backgroundColor: color, cursor, minWidth: '100px' }}
@@ -270,6 +271,7 @@ function Dashboard({ userData }) {
                       >
                         {isLoading ? <CircularProgress size={24} color="inherit" /> : formNumber}
                       </Button>
+                      </span>
                     </Tooltip>
                   );
                 })}

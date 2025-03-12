@@ -132,37 +132,34 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
       { id_conceptos: '13', label: 'Imprevistos (Max 5% del 1 al 8)' },
       { id_conceptos: '14', label: 'Costos Administrativos del proyecto' },
       { id_conceptos: '15', label: 'Gasto Extra 1' },
-      { id_conceptos: '15,1', label: 'Gasto Extra 2' },
-      { id_conceptos: '15,2', label: 'Gasto Extra 3' },
-      { id_conceptos: '15,3', label: 'Gasto Extra 4' },
     ];
 
     // En handleSaveGastos
     const handleSaveGastos = async () => {
-      // Gastos regulares (considerando los ids con comas, por ejemplo "1,1")
+      // Gastos regulares: usar directamente el id_conceptos definido en la estructura (por ejemplo "1", "1.1", "1.2", etc.)
       const gastosRegulares = gastosStructure2.map(item => {
-        // Usar el id tal cual, sin reemplazar la coma
-        const key = item.id_conceptos;
+        const idKey = item.id_conceptos; // Usa la clave tal cual, sin reemplazos
         return {
-          id_conceptos: key,
-          cantidad: parseFloat(formData[`${key}_cantidad`] || 0),
-          valor_unit: parseFloat(formData[`${key}_vr_unit`] || 0),
-          valor_total: (formData[`${key}_cantidad`] || 0) * (formData[`${key}_vr_unit`] || 0)
+          id_conceptos: idKey,
+          cantidad: parseFloat(formData[`${idKey}_cantidad`] || 0),
+          valor_unit: parseFloat(formData[`${idKey}_vr_unit`] || 0),
+          valor_total: (formData[`${idKey}_cantidad`] || 0) * (formData[`${idKey}_vr_unit`] || 0)
         };
       });
-      
-      // Gastos extras mediante extraExpenses
-      const gastosExtras = extraExpenses.filter(expense => isValidExpense(expense))
-        .map(expense => ({
-          id_conceptos: '15',
-          cantidad: expense.cantidad,
-          valor_unit: expense.vr_unit,
-          valor_total: expense.cantidad * expense.vr_unit
+    
+      // Gastos extras: se crean con IDs específicos, por ejemplo "15.1", "15.2", etc.
+      const gastosExtras = extraExpenses
+        .filter(expense => isValidExpense(expense))
+        .map((expense, index) => ({
+          id_conceptos: `15.${index + 1}`,  // Se usan puntos, tal cual se capturan desde los TextFields
+          cantidad: parseFloat(expense.cantidad),
+          valor_unit: parseFloat(expense.vr_unit),
+          valor_total: parseFloat(expense.cantidad) * parseFloat(expense.vr_unit)
         }));
-      
-      // Combinar ambos conjuntos de gastos
-      const todosLosGastos = [...gastosRegulares, ...gastosExtras].filter(g => g.id_conceptos);
-      
+    
+      const todosLosGastos = [...gastosRegulares, ...gastosExtras]
+        .filter(g => g.cantidad > 0 && g.valor_unit > 0);
+
       try {
         const response = await axios.post('https://siac-extension-server.vercel.app/guardarGastos', {
           id_solicitud: formData.id_solicitud.toString(),
@@ -202,7 +199,7 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
                   fecha_solicitud: formData.fecha_solicitud || '',
               };
               break;
-          case 1:
+          case 1: {
               // Ingresos y Gastos (Paso 2)
               pasoData = {
                   // Ingresos
@@ -335,8 +332,7 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
                       }))
                     : [],
               };
-              const posiblesIDsExtras = ['15', '15,1', '15,2', '15,3'];
-
+              const posiblesIDsExtras = ['15', '15,1', '15,2', '15,3', '15,14'];
               const gastosExtras = extraExpenses
                 .filter(expense => isValidExpense(expense))
                 .map((expense, index) => {
@@ -350,11 +346,11 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
                     valor_total: cantidad * valor_unit,
                   };
                 });
-              
               if (gastosExtras.length > 0) {
                 pasoData.extraGastos = gastosExtras;
               }
-              break;        
+              break; 
+            }       
           case 2:
               // Resumen Financiero
               pasoData = {

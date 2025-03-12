@@ -111,9 +111,6 @@ function Step2FormSection2({
       label: '15. Gastos Extras',
       key: '15',
       children: [
-        { label: '15,1.  Gastos Extras', key: '15,1' },
-        { label: '15,2.  Gastos Extras', key: '15,2' },
-        { label: '15,3.  Gastos Extras', key: '15,3' },
       ],
     },
   ];
@@ -456,18 +453,18 @@ function Step2FormSection2({
               {/* Subpuntos */}
               {item.children.length > 0 && expandedSections[item.key] && item.children.map(child => (
                 !hiddenConcepts.includes(child.key) && ( // Oculta los subpuntos correctamente
-                  <TableRow key={child.key}>
-                    <TableCell sx={{ pl: 4 }}>{child.label}</TableCell>
-                    <TableCell align="right">
-                      <TextField
-                        type="number"
-                        name={`${child.key}_cantidad`}
-                        value={formData[`${child.key}_cantidad`]}
-                        onChange={handleNumberInputChange}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell align="right">
+            <TableRow key={child.key}>
+              <TableCell sx={{ pl: 4 }}>{child.label}</TableCell>
+              <TableCell align="right">
+                <TextField
+                  type="number"
+                  name={`${child.key}_cantidad`} // Ej: using child.key for unique name
+                  value={formData[`${child.key}_cantidad`]}
+                  onChange={handleNumberInputChange}
+                  size="small"
+                />
+              </TableCell>
+              <TableCell align="right">
                       <NumericFormat
                         customInput={TextField}
                         thousandSeparator="."
