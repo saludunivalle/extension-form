@@ -48,6 +48,7 @@ import { styled } from '@mui/system';
 function FormSection2({ formData, handleInputChange, setCurrentSection, userData, totalAportesUnivalle, currentStep }) {
   
   const [activeStep, setActiveStep] = useState(currentStep);  
+  const [extraExpenses, setExtraExpenses] = useState([]); 
   const id_usuario = userData?.id_usuario;
   const location = useLocation();
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); 
@@ -55,6 +56,8 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   const [showModal, setShowModal] = useState(false);
   const [completedSteps, setCompletedSteps] = useState([]);
   const [highestStepReached, setHighestStepReached] = useState(0); 
+
+
 
   const steps = ['Datos Generales', 'Ingresos y Gastos', 'Resumen Financiero'];
 
@@ -91,6 +94,98 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
     - Envía los datos al servidor usando `axios` y maneja errores de la solicitud.
     - Si el envío es exitoso, marca el paso como completado, avanza al siguiente y actualiza el estado del progreso.
   */
+
+    const isValidExpense = (expense) => {
+      const cantidad = parseFloat(expense.cantidad) || 0;
+      const vr_unit  = parseFloat(expense.vr_unit) || 0;
+      return cantidad > 0 && vr_unit > 0;
+    };
+
+    const gastosStructure2 = [
+      { id_conceptos: '1', label: 'Costos de Personal' },
+      { id_conceptos: '1,1', label: 'Personal Nombrado de la Universidad (Max 70%)' },
+      { id_conceptos: '1,2', label: 'Honorarios Docentes Externos (Horas)' },
+      { id_conceptos: '1.3', label: 'Otro Personal - Subcontratos' },
+      { id_conceptos: '2', label: 'Materiales y Suministros' },
+      { id_conceptos: '3', label: 'Gastos de Alojamiento' },
+      { id_conceptos: '4', label: 'Gastos de Alimentación' },
+      { id_conceptos: '5', label: 'Gastos de Transporte' },
+      { id_conceptos: '6', label: 'Equipos Alquiler o Compra' },
+      { id_conceptos: '7', label: 'Dotación Participantes' },
+      { id_conceptos: '7,1', label: 'Carpetas' },
+      { id_conceptos: '7,2', label: 'Libretas' },
+      { id_conceptos: '7,3', label: 'Lapiceros' },
+      { id_conceptos: '7,4', label: 'Memorias' },
+      { id_conceptos: '7,5', label: 'Marcadores, papel, etc,' },
+      { id_conceptos: '8', label: 'Impresos' },
+      { id_conceptos: '8,1', label: 'Labels' },
+      { id_conceptos: '8,2', label: 'Certificados' },
+      { id_conceptos: '8,3', label: 'Escarapelas' },
+      { id_conceptos: '8,4', label: 'Fotocopias' },
+      { id_conceptos: '9', label: 'Impresos' },
+      { id_conceptos: '9,1', label: 'Estación de café' },
+      { id_conceptos: '9,2', label: 'Transporte de mensaje' },
+      { id_conceptos: '9,3', label: 'Refrigerios' },
+      { id_conceptos: '10', label: 'Inversión en Infraestructura Física' },
+      { id_conceptos: '11', label: 'Gastos Generales' },
+      { id_conceptos: '12', label: 'Valor Infraestructura Universitaria' },
+      { id_conceptos: '13', label: 'Imprevistos (Max 5% del 1 al 8)' },
+      { id_conceptos: '14', label: 'Costos Administrativos del proyecto' },
+      { id_conceptos: '15', label: 'Gasto Extra 1' },
+      { id_conceptos: '15,1', label: 'Gasto Extra 2' },
+      { id_conceptos: '15,2', label: 'Gasto Extra 3' },
+      { id_conceptos: '15,3', label: 'Gasto Extra 4' },
+    ];
+
+    // En handleSaveGastos
+    const handleSaveGastos = async () => {
+      // Gastos regulares (considerando los ids con comas, por ejemplo "1,1")
+      const gastosRegulares = gastosStructure2.map(item => {
+        // Usar el id tal cual, sin reemplazar la coma
+        const key = item.id_conceptos;
+        return {
+          id_conceptos: key,
+          cantidad: parseFloat(formData[`${key}_cantidad`] || 0),
+          valor_unit: parseFloat(formData[`${key}_vr_unit`] || 0),
+          valor_total: (formData[`${key}_cantidad`] || 0) * (formData[`${key}_vr_unit`] || 0)
+        };
+      });
+      
+      // Gastos extras mediante extraExpenses
+      const gastosExtras = extraExpenses.filter(expense => isValidExpense(expense))
+        .map(expense => ({
+          id_conceptos: '15',
+          cantidad: expense.cantidad,
+          valor_unit: expense.vr_unit,
+          valor_total: expense.cantidad * expense.vr_unit
+        }));
+      
+      // Combinar ambos conjuntos de gastos
+      const todosLosGastos = [...gastosRegulares, ...gastosExtras].filter(g => g.id_conceptos);
+      
+      try {
+        const response = await axios.post('https://siac-extension-server.vercel.app/guardarGastos', {
+          id_solicitud: formData.id_solicitud.toString(),
+          gastos: todosLosGastos
+        });
+        
+        if (response.data.success) {
+          alert("✅ Gastos registrados (incluyendo extras)");
+          // Resetear campos
+          const newFormData = { ...formData };
+          gastosStructure2.forEach(item => {
+            const key = item.id_conceptos; // Usar el id original (con comas)
+            delete newFormData[`${key}_cantidad`];
+            delete newFormData[`${key}_vr_unit`];
+          });
+          handleInputChange({ target: { name: 'reset', value: newFormData } });
+          setExtraExpenses([]); // Reinicia los gastos extras
+        }
+      } catch (error) {
+        console.error("Error:", error.response?.data);
+        alert(`🚨 Error: ${error.response?.data?.error || error.message}`);
+      }
+    };
   
   const handleNext = async () => {
     if (activeStep < steps.length - 1) {
@@ -116,116 +211,149 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
                   total_ingresos: (formData.ingresos_cantidad || 0) * (formData.ingresos_vr_unit || 0),
                 
                   // Gastos
-                  costos_personal_cantidad: formData.costos_personal_cantidad || '',
-                  costos_personal_vr_unit: formData.costos_personal_vr_unit || '',
-                  total_costos_personal: (formData.costos_personal_cantidad || 0) * (formData.costos_personal_vr_unit || 0),
+                  '1_cantidad': formData['1_cantidad'] || '',
+                  '1_vr_unit': formData['1_vr_unit'] || '',
+                  total_costos_personal: (formData['1_cantidad'] || 0) * (formData['1_vr_unit'] || 0),
                 
-                  personal_universidad_cantidad: formData.personal_universidad_cantidad || '',
-                  personal_universidad_vr_unit: formData.personal_universidad_vr_unit || '',
-                  total_personal_universidad: (formData.personal_universidad_cantidad || 0) * (formData.personal_universidad_vr_unit || 0),
+                  '1.1_cantidad': formData['1.1_cantidad'] || '',
+                  '1.1_vr_unit': formData['1.1_vr_unit']  || '',
+                  total_personal_universidad: (formData['1.1_cantidad'] || 0) * (formData['1.1_vr_unit'] || 0),
                 
-                  honorarios_docentes_cantidad: formData.honorarios_docentes_cantidad || '',
-                  honorarios_docentes_vr_unit: formData.honorarios_docentes_vr_unit || '',
-                  total_honorarios_docentes: (formData.honorarios_docentes_cantidad || 0) * (formData.honorarios_docentes_vr_unit || 0),
+                  '1.2_cantidad': formData['1.2_cantidad'] || '',
+                  '1.2_vr_unit': formData['1.2_vr_unit']  || '',
+                  total_honorarios_docentes: (formData['1.2_cantidad'] || 0) * (formData['1.2_vr_unit'] || 0),
                 
-                  otro_personal_cantidad: formData.otro_personal_cantidad || '',
-                  otro_personal_vr_unit: formData.otro_personal_vr_unit || '',
-                  total_otro_personal: (formData.otro_personal_cantidad || 0) * (formData.otro_personal_vr_unit || 0),
+                  '1.3_cantidad': formData['1.3_cantidad'] || '',
+                  '1.3_vr_unit': formData['1.3_vr_unit']  || '',
+                  total_otro_personal: (formData['1.3_cantidad'] || 0) * (formData['1.3_vr_unit'] || 0),
                 
-                  materiales_sumi_cantidad: formData.materiales_sumi_cantidad || '',
-                  materiales_sumi_vr_unit: formData.materiales_sumi_vr_unit || '',
-                  total_materiales_sumi: (formData.materiales_sumi_cantidad || 0) * (formData.materiales_sumi_vr_unit || 0),
+                  '2_cantidad': formData['2_cantidad'] || '',
+                  '2_vr_unit': formData['2_vr_unit'] || '',
+                  total_materiales_sumi: (formData['2_cantidad'] || 0) * (formData['2_vr_unit'] || 0),
                 
-                  gastos_alojamiento_cantidad: formData.gastos_alojamiento_cantidad || '',
-                  gastos_alojamiento_vr_unit: formData.gastos_alojamiento_vr_unit || '',
-                  total_gastos_alojamiento: (formData.gastos_alojamiento_cantidad || 0) * (formData.gastos_alojamiento_vr_unit || 0),
+                  '3_cantidad': formData['3_cantidad'] || '',
+                  '3_vr_unit': formData['3_vr_unit'] || '',
+                  total_gastos_alojamiento: (formData['3_cantidad'] || 0) * (formData['3_vr_unit'] || 0),
                 
-                  gastos_alimentacion_cantidad: formData.gastos_alimentacion_cantidad || '',
-                  gastos_alimentacion_vr_unit: formData.gastos_alimentacion_vr_unit || '',
-                  total_gastos_alimentacion: (formData.gastos_alimentacion_cantidad || 0) * (formData.gastos_alimentacion_vr_unit || 0),
+                  '4_cantidad': formData['4_cantidad'] || '',
+                  '4_vr_unit': formData['4_vr_unit'] || '',
+                  total_gastos_alimentacion: (formData['4_cantidad'] || 0) * (formData['4_vr_unit'] || 0),
                 
-                  gastos_transporte_cantidad: formData.gastos_transporte_cantidad || '',
-                  gastos_transporte_vr_unit: formData.gastos_transporte_vr_unit || '',
-                  total_gastos_transporte: (formData.gastos_transporte_cantidad || 0) * (formData.gastos_transporte_vr_unit || 0),
+                  '5_cantidad': formData['5_cantidad'] || '',
+                  '5_vr_unit': formData['5_vr_unit'] || '',
+                  total_gastos_transporte: (formData['5_cantidad'] || 0) * (formData['5_vr_unit'] || 0),
                 
-                  equipos_alquiler_compra_cantidad: formData.equipos_alquiler_compra_cantidad || '',
-                  equipos_alquiler_compra_vr_unit: formData.equipos_alquiler_compra_vr_unit || '',
-                  total_equipos_alquiler_compra: (formData.equipos_alquiler_compra_cantidad || 0) * (formData.equipos_alquiler_compra_vr_unit || 0),
+                  '6_cantidad': formData['6_cantidad'] || '',
+                  '6_vr_unit': formData['6_vr_unit'] || '',
+                  total_equipos_alquiler_compra: (formData['6_cantidad'] || 0) * (formData['6_vr_unit'] || 0),
                 
-                  dotacion_participantes_cantidad: formData.dotacion_participantes_cantidad || '',
-                  dotacion_participantes_vr_unit: formData.dotacion_participantes_vr_unit || '',
-                  total_dotacion_participantes: (formData.dotacion_participantes_cantidad || 0) * (formData.dotacion_participantes_vr_unit || 0),
+                  '7_cantidad': formData['7_cantidad'] || '',
+                  '7_vr_unit': formData['7_vr_unit'] || '',
+                  total_dotacion_participantes: (formData['7_cantidad'] || 0) * (formData['7_vr_unit'] || 0),
                 
-                  carpetas_cantidad: formData.carpetas_cantidad || '',
-                  carpetas_vr_unit: formData.carpetas_vr_unit || '',
-                  total_carpetas: (formData.carpetas_cantidad || 0) * (formData.carpetas_vr_unit || 0),
+                  '7.1_cantidad': formData['7.1_cantidad'] || '',
+                  '7.1_vr_unit': formData['7.1_vr_unit'] || '',
+                  total_carpetas: (formData['7.1_cantidad'] || 0) * (formData['7.1_vr_unit'] || 0),
                 
-                  libretas_cantidad: formData.libretas_cantidad || '',
-                  libretas_vr_unit: formData.libretas_vr_unit || '',
-                  total_libretas: (formData.libretas_cantidad || 0) * (formData.libretas_vr_unit || 0),
+                  '7.2_cantidad': formData['7.2_cantidad'] || '',
+                  '7.2_vr_unit': formData['7.2_vr_unit'] || '',
+                  total_libretas: (formData['7.2_cantidad'] || 0) * (formData['7.2_vr_unit'] || 0),
                 
-                  lapiceros_cantidad: formData.lapiceros_cantidad || '',
-                  lapiceros_vr_unit: formData.lapiceros_vr_unit || '',
-                  total_lapiceros: (formData.lapiceros_cantidad || 0) * (formData.lapiceros_vr_unit || 0),
+                  '7.3_cantidad': formData['7.3_cantidad'] || '',
+                  '7.3_vr_unit': formData['7.3_vr_unit'] || '',
+                  total_lapiceros: (formData['7.3_cantidad'] || 0) * (formData['7.3_vr_unit'] || 0),
                 
-                  memorias_cantidad: formData.memorias_cantidad || '',
-                  memorias_vr_unit: formData.memorias_vr_unit || '',
-                  total_memorias: (formData.memorias_cantidad || 0) * (formData.memorias_vr_unit || 0),
+                  '7.4_cantidad': formData['7.4_cantidad'] || '',
+                  '7.4_vr_unit': formData['7.4_vr_unit'] || '',
+                  total_memorias: (formData['7.4_cantidad'] || 0) * (formData['7.4_vr_unit'] || 0),
                 
-                  marcadores_papel_otros_cantidad: formData.marcadores_papel_otros_cantidad || '',
-                  marcadores_papel_otros_vr_unit: formData.marcadores_papel_otros_vr_unit || '',
-                  total_marcadores_papel_otros: (formData.marcadores_papel_otros_cantidad || 0) * (formData.marcadores_papel_otros_vr_unit || 0),
+                  '7.5_cantidad': formData['7.5_cantidad'] || '',
+                  '7.5_vr_unit': formData['7.5_vr_unit'] || '',
+                  total_marcadores_papel_otros: (formData['7.5_cantidad'] || 0) * (formData['7.5_vr_unit'] || 0),
                 
-                  impresos_cantidad: formData.impresos_cantidad || '',
-                  impresos_vr_unit: formData.impresos_vr_unit || '',
-                  total_impresos: (formData.impresos_cantidad || 0) * (formData.impresos_vr_unit || 0),
+                  '8_cantidad': formData['8_cantidad'] || '',
+                  '8_vr_unit': formData['8_vr_unit'] || '',
+                  total_impresos: (formData['8_cantidad'] || 0) * (formData['8_vr_unit'] || 0),
                 
-                  labels_cantidad: formData.labels_cantidad || '',
-                  labels_vr_unit: formData.labels_vr_unit || '',
-                  total_labels: (formData.labels_cantidad || 0) * (formData.labels_vr_unit || 0),
+                  '8.1_cantidad': formData['8.1_cantidad'] || '',
+                  '8.1_vr_unit': formData['8.1_vr_unit'] || '',
+                  total_labels: (formData['8.1_cantidad'] || 0) * (formData['8.1_vr_unit'] || 0),
                 
-                  certificados_cantidad: formData.certificados_cantidad || '',
-                  certificados_vr_unit: formData.certificados_vr_unit || '',
-                  total_certificados: (formData.certificados_cantidad || 0) * (formData.certificados_vr_unit || 0),
+                  '8.2_cantidad': formData['8.2_cantidad'] || '',
+                  '8.2_vr_unit': formData['8.2_vr_unit'] || '',
+                  total_certificados: (formData['8.2_cantidad'] || 0) * (formData['8.2_vr_unit'] || 0),
                 
-                  escarapelas_cantidad: formData.escarapelas_cantidad || '',
-                  escarapelas_vr_unit: formData.escarapelas_vr_unit || '',
-                  total_escarapelas: (formData.escarapelas_cantidad || 0) * (formData.escarapelas_vr_unit || 0),
+                  '8.3_cantidad': formData['8.3_cantidad'] || '',
+                  '8.3_vr_unit': formData['8.3_vr_unit'] || '',
+                  total_escarapelas: (formData['8.3_cantidad'] || 0) * (formData['8.3_vr_unit'] || 0),
                 
-                  fotocopias_cantidad: formData.fotocopias_cantidad || '',
-                  fotocopias_vr_unit: formData.fotocopias_vr_unit || '',
-                  total_fotocopias: (formData.fotocopias_cantidad || 0) * (formData.fotocopias_vr_unit || 0),
+                  '8.4_cantidad': formData['8.4_cantidad'] || '',
+                  '8.4_vr_unit': formData['8.4_vr_unit'] || '',
+                  total_fotocopias: (formData['8.4_cantidad'] || 0) * (formData['8.4_vr_unit'] || 0),
+
+                  '9_cantidad': formData['9_cantidad'] || '',
+                  '9_vr_unit': formData['9_vr_unit'] || '',
+                  total_impresos2: (formData['9_cantidad'] || 0) * (formData['9_vr_unit'] || 0),
+
+                  '9.1_cantidad': formData['9.1_cantidad'] || '',
+                  '9.1_vr_unit': formData['9.1_vr_unit'] || '',
+                  total_estacion_cafe: (formData['9.1_cantidad'] || 0) * (formData['9.1_vr_unit'] || 0),
                 
-                  estacion_cafe_cantidad: formData.estacion_cafe_cantidad || '',
-                  estacion_cafe_vr_unit: formData.estacion_cafe_vr_unit || '',
-                  total_estacion_cafe: (formData.estacion_cafe_cantidad || 0) * (formData.estacion_cafe_vr_unit || 0),
+                  '9.2_cantidad': formData['9.2_cantidad'] || '',
+                  '9.2_vr_unit': formData['9.2_vr_unit'] || '',
+                  total_transporte_mensaje: (formData['9.2_cantidad'] || 0) * (formData['9.2_vr_unit'] || 0),
                 
-                  transporte_mensaje_cantidad: formData.transporte_mensaje_cantidad || '',
-                  transporte_mensaje_vr_unit: formData.transporte_mensaje_vr_unit || '',
-                  total_transporte_mensaje: (formData.transporte_mensaje_cantidad || 0) * (formData.transporte_mensaje_vr_unit || 0),
+                  '9.3_cantidad': formData['9.3_cantidad'] || '',
+                  '9.3_vr_unit': formData['9.3_vr_unit'] || '',
+                  total_refrigerios: (formData['9.3_cantidad'] || 0) * (formData['9.3_vr_unit'] || 0),
                 
-                  refrigerios_cantidad: formData.refrigerios_cantidad || '',
-                  refrigerios_vr_unit: formData.refrigerios_vr_unit || '',
-                  total_refrigerios: (formData.refrigerios_cantidad || 0) * (formData.refrigerios_vr_unit || 0),
+                  '10_cantidad': formData['10_cantidad'] || '',
+                  '10_vr_unit': formData['10_vr_unit'] || '',
+                  total_infraestructura_fisica: (formData['10_cantidad'] || 0) * (formData['10_vr_unit'] || 0),
                 
-                  infraestructura_fisica_cantidad: formData.infraestructura_fisica_cantidad || '',
-                  infraestructura_fisica_vr_unit: formData.infraestructura_fisica_vr_unit || '',
-                  total_infraestructura_fisica: (formData.infraestructura_fisica_cantidad || 0) * (formData.infraestructura_fisica_vr_unit || 0),
+                  '11_cantidad': formData['11_cantidad'] || '',
+                  '11_vr_unit': formData['11_vr_unit'] || '',
+                  total_gastos_generales: (formData['11_cantidad'] || 0) * (formData['11_vr_unit'] || 0),
                 
-                  gastos_generales_cantidad: formData.gastos_generales_cantidad || '',
-                  gastos_generales_vr_unit: formData.gastos_generales_vr_unit || '',
-                  total_gastos_generales: (formData.gastos_generales_cantidad || 0) * (formData.gastos_generales_vr_unit || 0),
+                  '12_cantidad': formData['12_cantidad'] || '',
+                  '12_vr_unit': formData['12_vr_unit'] || '',
+                  total_infraestructura_universitaria: (formData['12_cantidad'] || 0) * (formData['12_vr_unit'] || 0),
                 
-                  infraestructura_universitaria_cantidad: formData.infraestructura_universitaria_cantidad || '',
-                  infraestructura_universitaria_vr_unit: formData.infraestructura_universitaria_vr_unit || '',
-                  total_infraestructura_universitaria: (formData.infraestructura_universitaria_cantidad || 0) * (formData.infraestructura_universitaria_vr_unit || 0),
-                
-                  imprevistos: formData.imprevistos || '',
+                  imprevistos: formData['13_cantidad'] || '',
                 
                   // Aportes Univalle
-                  escuela_departamento_porcentaje: formData.escuela_departamento_porcentaje || '',
-                  total_aportes_univalle: totalAportesUnivalle || ''
-              };        
+                  escuela_departamento_porcentaje: formData['14_cantidad'] || '',
+                  total_aportes_univalle: totalAportesUnivalle || '',
+
+                  // Gastos Extra
+                  extraExpenses: formData.extraExpenses
+                    ? formData.extraExpenses.map(expense => ({
+                        name: expense.name || '',
+                        cantidad: parseFloat(expense.cantidad) || 0,
+                        vr_unit: parseFloat(expense.vr_unit) || 0,
+                        total: (parseFloat(expense.cantidad) || 0) * (parseFloat(expense.vr_unit) || 0)
+                      }))
+                    : [],
+              };
+              const posiblesIDsExtras = ['15', '15,1', '15,2', '15,3'];
+
+              const gastosExtras = extraExpenses
+                .filter(expense => isValidExpense(expense))
+                .map((expense, index) => {
+                  const id_conceptos = expense.id_conceptos || posiblesIDsExtras[index % posiblesIDsExtras.length];
+                  const cantidad = parseFloat(expense.cantidad) || 0;
+                  const valor_unit = parseFloat(expense.vr_unit) || 0;
+                  return {
+                    id_conceptos,
+                    cantidad,
+                    valor_unit,
+                    valor_total: cantidad * valor_unit,
+                  };
+                });
+              
+              if (gastosExtras.length > 0) {
+                pasoData.extraGastos = gastosExtras;
+              }
               break;        
           case 2:
               // Resumen Financiero
@@ -262,7 +390,11 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
               newCompleted.push(activeStep);
             }
             return newCompleted;
-          });                  
+          });         
+          
+          if (activeStep === 1) {
+            await handleSaveGastos();
+          }
         
           setActiveStep((prevActiveStep) => prevActiveStep + 1);
           setHighestStepReached((prev) => Math.max(prev, activeStep + 1));
@@ -440,7 +572,6 @@ FormSection2.propTypes = {
     name: PropTypes.string,
   }).isRequired,
   totalAportesUnivalle: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-  currentStep: PropTypes.number.isRequired,
 };
 
 export default FormSection2;
