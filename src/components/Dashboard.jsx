@@ -110,51 +110,25 @@ function Dashboard({ userData }) {
 };
 
   const handleContinueRequest = async (request) => {
-    const { idSolicitud, formulario, paso } = request;
-  
-    if (!idSolicitud) {
-      console.error('Error: idSolicitud es indefinido.');
-      alert('Error: No se puede continuar sin un ID de solicitud válido.');
-      return;
-    }
-  
-    if (formulario < 1 || formulario > 4) {
-      console.error('Formulario inválido:', formulario);
-      alert('El número de formulario no es válido.');
-      return;
-    }
-    if (paso < 0) {
-      console.error('Paso inválido:', paso);
-      alert('El paso del formulario no es válido.');
-      return;
-    }
-  
     try {
-      console.log(`🔎 Buscando datos de la solicitud con ID: ${idSolicitud}`);
-      
-      // Obtener datos actualizados desde Google Sheets
+      console.log(`🔎 Buscando datos actualizados para la solicitud con ID: ${request.idSolicitud}`);
       const response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
-        params: { id_solicitud: idSolicitud }
+        params: { id_solicitud: request.idSolicitud }
       });
-  
-      if (response.status === 200 && response.data) {
-        console.log('✅ Datos de la solicitud obtenidos:', response.data);
-        // Extraer los datos correctamente de `SOLICITUDES`
-        const solicitudData = response.data.SOLICITUDES || response.data;
-  
-        if (!solicitudData.id_solicitud) {
-          throw new Error("La respuesta no contiene un ID válido.");
-        }
-        // Guardamos los datos en localStorage para persistencia
-        localStorage.setItem('id_solicitud', solicitudData.id_solicitud);
-        localStorage.setItem('formData', JSON.stringify(solicitudData));
-        // Navegamos al formulario con los datos ya recuperados
-        navigate(`/formulario/${formulario}?solicitud=${idSolicitud}&paso=${paso}`);
-      } else {
-        throw new Error('No se encontraron datos para la solicitud.');
-      }
+      
+      // Obtener datos de la hoja SOLICITUDES que contiene ETAPAS
+      const solicitudData = response.data.SOLICITUDES || response.data;
+      
+      // Extraer etapa_actual y paso de los datos de SOLICITUDES
+      const etapa_actual = solicitudData.etapa_actual || request.formulario;
+      const paso = solicitudData.paso || 0;
+      
+      localStorage.setItem('id_solicitud', solicitudData.id_solicitud);
+      localStorage.setItem('formData', JSON.stringify(solicitudData));
+      
+      navigate(`/formulario/${etapa_actual}?solicitud=${request.idSolicitud}&paso=${paso}`);
     } catch (error) {
-      console.error('🚨 Error al cargar los datos de la solicitud:', error);
+      console.error('🚨 Error al continuar la solicitud:', error);
       alert('Hubo un problema al cargar los datos de la solicitud. Inténtalo de nuevo.');
     }
   };
@@ -193,21 +167,37 @@ function Dashboard({ userData }) {
   };
 
   const getButtonState = (request, formNumber) => {
-    const isCompleted = completedRequests.some((completed) => completed.idSolicitud === request.idSolicitud);
-    const isCurrent = formNumber === request.etapa_actual; 
-    const isPast = formNumber < request.etapa_actual;
-    const isFuture = formNumber > request.etapa_actual;
-
-    if (isCompleted) {
+    // Definir la cantidad máxima de pasos por formulario
+    const maxPasosPorFormulario = {
+      1: 5,  // Formulario 1 tiene 5 pasos
+      2: 3,  // Formulario 2 tiene 3 pasos
+      3: 5,  // Formulario 3 tiene 5 pasos
+      4: 5   // Formulario 4 tiene 5 pasos
+    };
+  
+    const isCompleted = completedRequests.some(
+      (completed) => completed.idSolicitud === request.idSolicitud
+    );
+  
+    // Determinar si el formulario actual está completado
+    const isFormCompleted = 
+      request.formulario === formNumber && 
+      request.paso >= maxPasosPorFormulario[formNumber];
+  
+    // Determinar si es un formulario anterior ya completado
+    const isPastForm = request.formulario > formNumber;
+  
+    if (isCompleted || isFormCompleted || isPastForm) {
       return { enabled: true, color: 'primary', cursor: 'pointer' };
-    } else if (isPast) {
-      return { enabled: true, color: 'primary', cursor: 'pointer' }; 
-    } else if (isCurrent) {
-      return { enabled: false, color: '#90caf9', cursor: 'not-allowed' }; 
-    } else if (isFuture) {
-      return { enabled: false, color: '#e0e0e0', cursor: 'not-allowed' }; 
     }
-    return { enabled: false, color: '#e0e0e0', cursor: 'not-allowed' }; 
+  
+    // Si es el formulario actual pero no está completado
+    if (request.formulario === formNumber) {
+      return { enabled: false, color: '#90caf9', cursor: 'not-allowed' };
+    }
+  
+    // Formularios futuros
+    return { enabled: false, color: '#e0e0e0', cursor: 'not-allowed' };
   };
 
   if (!userData || !userData.id) {
@@ -258,10 +248,15 @@ function Dashboard({ userData }) {
                   const isLoading = loadingReports[`${request.idSolicitud}-${formNumber}`];
 
                   return (
-                    <Tooltip key={`${request.idSolicitud}-${formNumber}`}
-                      title={`De clic, para generar el Formato ${sectionTitles[formNumber - 1]} diligenciado.`}
+                    <Tooltip
+                      key={`${request.idSolicitud}-${formNumber}`}
+                      title={
+                        enabled
+                          ? `Generar ${sectionTitles[formNumber - 1]}`
+                          : 'Complete el formulario para generar el reporte'
+                      }
                       arrow
-                    >
+                >
                       <span>
                       <Button
                         variant="contained"
@@ -295,6 +290,7 @@ function Dashboard({ userData }) {
                     color="primary"
                     onClick={() => handleGenerateFormReport(request, formNumber)}
                   >
+                    
                     {formNumber}
                   </Button>
                 ))}
