@@ -52,7 +52,7 @@ function Dashboard({ userData }) {
       try {
         const completedResponse = await axios.get(
           'https://siac-extension-server.vercel.app/getCompletedRequests',
-          { params: { id_usuario: userData.id } }
+          { params: { userId: userData.id } }
         );
         setCompletedRequests(completedResponse.data);
       } catch (error) {
@@ -109,29 +109,29 @@ function Dashboard({ userData }) {
     }
 };
 
-  const handleContinueRequest = async (request) => {
-    try {
-      console.log(`🔎 Buscando datos actualizados para la solicitud con ID: ${request.idSolicitud}`);
-      const response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
-        params: { id_solicitud: request.idSolicitud }
-      });
-      
-      // Obtener datos de la hoja SOLICITUDES que contiene ETAPAS
-      const solicitudData = response.data.SOLICITUDES || response.data;
-      
-      // Extraer etapa_actual y paso de los datos de SOLICITUDES
-      const etapa_actual = solicitudData.etapa_actual || request.formulario;
-      const paso = solicitudData.paso || 0;
-      
-      localStorage.setItem('id_solicitud', solicitudData.id_solicitud);
-      localStorage.setItem('formData', JSON.stringify(solicitudData));
-      
-      navigate(`/formulario/${etapa_actual}?solicitud=${request.idSolicitud}&paso=${paso}`);
-    } catch (error) {
-      console.error('🚨 Error al continuar la solicitud:', error);
-      alert('Hubo un problema al cargar los datos de la solicitud. Inténtalo de nuevo.');
-    }
-  };
+const handleContinueRequest = async (request) => {
+  try {
+    console.log(`🔎 Buscando datos actualizados para la solicitud con ID: ${request.idSolicitud}`);
+    const response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
+      params: { id_solicitud: request.idSolicitud }
+    });
+    
+    // Obtener datos de la hoja SOLICITUDES que contiene ETAPAS
+    const solicitudData = response.data.SOLICITUDES || response.data;
+    
+    // Extraer etapa_actual y paso de los datos de SOLICITUDES
+    const etapa_actual = solicitudData.etapa_actual || request.formulario;
+    const paso = solicitudData.paso || 0;
+    
+    localStorage.setItem('id_solicitud', solicitudData.id_solicitud);
+    localStorage.setItem('formData', JSON.stringify(solicitudData));
+    
+    navigate(`/formulario/${etapa_actual}?solicitud=${request.idSolicitud}&paso=${paso}`);
+  } catch (error) {
+    console.error('🚨 Error al continuar la solicitud:', error);
+    alert('Hubo un problema al cargar los datos de la solicitud. Inténtalo de nuevo.');
+  }
+};
   
   const handleGenerateFormReport = async (request, formNumber) => {
     try {
@@ -163,6 +163,29 @@ function Dashboard({ userData }) {
       alert('Hubo un problema al generar el informe.');
     } finally { 
       setLoadingReports((prev) => ({ ...prev, [`${request.idSolicitud}-${formNumber}`]: false }));
+    }
+  };
+
+  const handleDownloadForm = async (request, formNumber) => {
+    try {
+      const response = await axios.post(
+        'https://siac-extension-server.vercel.app/downloadForm',
+        {
+          solicitudId: request.idSolicitud,
+          formNumber,
+        },
+        { responseType: 'blob' }
+      );
+  
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Formulario_${formNumber}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+    } catch (error) {
+      console.error('Error al descargar formulario:', error);
+      alert('Error al descargar el formulario');
     }
   };
 
@@ -262,6 +285,7 @@ function Dashboard({ userData }) {
                         variant="contained"
                         style={{ backgroundColor: color, cursor, minWidth: '100px' }}
                         onClick={() => enabled && handleGenerateFormReport(request, formNumber)}
+                        onDoubleClick={() => enabled && handleDownloadForm(request, formNumber)}
                         disabled={!enabled || isLoading}
                       >
                         {isLoading ? <CircularProgress size={24} color="inherit" /> : formNumber}
