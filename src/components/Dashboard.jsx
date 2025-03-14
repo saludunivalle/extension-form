@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Button, Typography, List, ListItem, ListItemText, CircularProgress, Tooltip } from '@mui/material';
+import { Button, Typography, List, ListItem, ListItemText, CircularProgress, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+import { Close, Download, Visibility } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from "prop-types";
 
@@ -18,6 +19,14 @@ function Dashboard({ userData }) {
   const [loading, setLoading] = useState(true);
   const [loadingReports, setLoadingReports] = useState({});
   const navigate = useNavigate();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedReportLink, setSelectedReportLink] = useState('');
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [selectedFormData, setSelectedFormData] = useState({ // Nuevo estado para datos del formulario
+    idSolicitud: null,
+    formNumber: null,
+    reportLink: null
+  });
 
   const theme = createTheme({
     palette: {
@@ -33,6 +42,66 @@ function Dashboard({ userData }) {
     },
   });
 
+  const dialogStyles = {
+    paper: {
+      borderRadius: '16px',
+      padding: '20px',
+      boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.1)',
+      minWidth: '320px'
+    },
+    title: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '16px 24px',
+      borderBottom: '1px solid #eee'
+    },
+    content: {
+      padding: '24px',
+      textAlign: 'center'
+    },
+    actionButton: {
+      margin: '8px',
+      padding: '12px 24px',
+      borderRadius: '8px',
+      transition: 'all 0.3s ease',
+      '&:hover': {
+        transform: 'translateY(-2px)'
+      }
+    }
+  };
+
+  const [reportLinks, setReportLinks] = useState({
+    view: '',
+    download: '',
+    edit: ''
+  });
+
+  const handleOpenDialog = (request, formNumber) => {
+    setDialogOpen(true); // Abrir diálogo inmediatamente
+    setSelectedRequest(request);
+    setSelectedFormData(prev => ({
+      ...prev,
+      idSolicitud: request.idSolicitud,
+      formNumber: formNumber,
+      reportLink: null // Resetear el link mientras carga
+    }));
+    handleGenerateFormReport(request, formNumber); // Cargar datos en segundo plano
+  };
+  
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setSelectedReportLink('');
+    setSelectedForm(null);
+  };
+
+  const handleOpenReport = () => {
+    if (selectedReportLink) {
+      window.open(selectedReportLink, '_blank');
+      handleCloseDialog();
+    }
+  };
+  
   useEffect(() => {
     const fetchRequests = async () => {
       setLoading(true);
@@ -133,61 +202,65 @@ const handleContinueRequest = async (request) => {
   }
 };
   
-  const handleGenerateFormReport = async (request, formNumber) => {
-    try {
-      const { idSolicitud } = request;
+const handleGenerateFormReport = async (request, formNumber) => {
+  try {
+    const { idSolicitud } = request;
 
-      if (!idSolicitud || !formNumber) {
-        alert("No se puede generar el informe porque falta información.");
-        return;
-      }
+    if (!idSolicitud || !formNumber) {
+      alert("No se puede generar el informe porque falta información.");
+      return;
+    }
 
-      setLoadingReports((prev) => ({ ...prev, [`${idSolicitud}-${formNumber}`]: true }));
+    setLoadingReports((prev) => ({ ...prev, [`${idSolicitud}-${formNumber}`]: true }));
 
-      console.log(`📄 Generando reporte para Solicitud ID: ${idSolicitud}, Formulario: ${formNumber}`);
+    const response = await axios.post('https://siac-extension-server.vercel.app/generateReport', {
+      solicitudId: idSolicitud,
+      formNumber,
+    });
 
-      const response = await axios.post('https://siac-extension-server.vercel.app/generateReport', {
-        solicitudId: idSolicitud,
+    if (response.data?.link) {
+      setSelectedFormData({
+        idSolicitud,
         formNumber,
+        reportLink: response.data.link
       });
-
-      if (response.data?.link) {
-        console.log(`✅ Reporte generado con éxito: ${response.data.link}`);
-        alert(`Informe generado exitosamente para el formulario ${formNumber} - ${sectionTitles[formNumber - 1]}`);
-        window.open(response.data.link, '_blank');
-      } else {
-        throw new Error('No se recibió un enlace de reporte válido.');
-      }
-    } catch (error) {
-      console.error(`Error al generar el informe para el formulario ${formNumber}:`, error);
-      alert('Hubo un problema al generar el informe.');
-    } finally { 
-      setLoadingReports((prev) => ({ ...prev, [`${request.idSolicitud}-${formNumber}`]: false }));
+      setDialogOpen(true);
     }
-  };
+  } catch (error) {
+    console.error(`Error al generar el informe:`, error);
+    alert('Hubo un problema al generar el informe.');
+  } finally { 
+    setLoadingReports((prev) => ({ ...prev, [`${request.idSolicitud}-${formNumber}`]: false }));
+  }
+};
 
-  const handleDownloadForm = async (request, formNumber) => {
-    try {
-      const response = await axios.post(
-        'https://siac-extension-server.vercel.app/downloadForm',
-        {
-          solicitudId: request.idSolicitud,
-          formNumber,
-        },
-        { responseType: 'blob' }
-      );
-  
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Formulario_${formNumber}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-    } catch (error) {
-      console.error('Error al descargar formulario:', error);
-      alert('Error al descargar el formulario');
-    }
-  };
+const handleDownloadReport = async () => {
+  try {
+    const { idSolicitud, formNumber } = selectedFormData;
+    
+    const response = await axios.post(
+      'https://siac-extension-server.vercel.app/downloadReport',
+      { solicitudId: idSolicitud, formNumber },
+      { responseType: 'blob' } // Crucial para manejar archivos binarios
+    );
+
+    // Crear enlace de descarga
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Reporte_Formulario_${formNumber}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    
+    // Limpiar
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(link);
+
+  } catch (error) {
+    console.error('Error descargando reporte:', error);
+    alert('Error al descargar el reporte');
+  }
+};
 
   const getButtonState = (request, formNumber) => {
     // Definir la cantidad máxima de pasos por formulario
@@ -250,6 +323,7 @@ const handleContinueRequest = async (request) => {
           Crear Nueva Solicitud
         </Button>
 
+        {/* Solicitudes en Creación */}
         <Typography variant="h6" style={{ marginTop: '20px' }}>
           Solicitudes en Creación:
         </Typography>
@@ -269,7 +343,6 @@ const handleContinueRequest = async (request) => {
                 {[1, 2, 3, 4].map((formNumber) => {
                   const { enabled, color, cursor } = getButtonState(request, formNumber);
                   const isLoading = loadingReports[`${request.idSolicitud}-${formNumber}`];
-
                   return (
                     <Tooltip
                       key={`${request.idSolicitud}-${formNumber}`}
@@ -279,17 +352,16 @@ const handleContinueRequest = async (request) => {
                           : 'Complete el formulario para generar el reporte'
                       }
                       arrow
-                >
+                    >
                       <span>
-                      <Button
-                        variant="contained"
-                        style={{ backgroundColor: color, cursor, minWidth: '100px' }}
-                        onClick={() => enabled && handleGenerateFormReport(request, formNumber)}
-                        onDoubleClick={() => enabled && handleDownloadForm(request, formNumber)}
-                        disabled={!enabled || isLoading}
-                      >
-                        {isLoading ? <CircularProgress size={24} color="inherit" /> : formNumber}
-                      </Button>
+                        <Button
+                          variant="contained"
+                          style={{ backgroundColor: color, cursor, minWidth: '100px' }}
+                          onClick={() => handleOpenDialog(request, formNumber)}
+                          disabled={!enabled || isLoading}
+                        >
+                          {isLoading ? <CircularProgress size={24} color="inherit" /> : formNumber}
+                        </Button>
                       </span>
                     </Tooltip>
                   );
@@ -299,6 +371,7 @@ const handleContinueRequest = async (request) => {
           ))}
         </List>
 
+        {/* Solicitudes Terminadas */}
         <Typography variant="h6" style={{ marginTop: '20px' }}>
           Solicitudes Terminadas:
         </Typography>
@@ -314,7 +387,6 @@ const handleContinueRequest = async (request) => {
                     color="primary"
                     onClick={() => handleGenerateFormReport(request, formNumber)}
                   >
-                    
                     {formNumber}
                   </Button>
                 ))}
@@ -323,6 +395,56 @@ const handleContinueRequest = async (request) => {
           ))}
         </List>
       </div>
+
+      {/* Diálogo para opciones del formulario */}
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        PaperProps={{ sx: dialogStyles.paper }}
+      >
+        <DialogTitle sx={dialogStyles.title}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Opciones del Formulario</Typography>
+            <IconButton onClick={handleCloseDialog}>
+              <Close />
+            </IconButton>
+          </div>
+        </DialogTitle>
+        <DialogContent sx={dialogStyles.content}>
+          <Typography component="p" variant="body1" color="textSecondary" paragraph>
+            Formulario {selectedFormData.formNumber} - {sectionTitles[selectedFormData.formNumber - 1]}
+          </Typography>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '24px' }}>
+            <Button
+              variant="outlined"
+              startIcon={<Visibility />}
+              onClick={() => window.open(selectedFormData.reportLink, '_blank')}
+              sx={{
+                ...dialogStyles.actionButton,
+                borderColor: '#1976d2',
+                color: '#1976d2',
+                '&:hover': { backgroundColor: '#1976d210' }
+              }}
+            >
+              Ver Reporte
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Download />}
+              onClick={handleDownloadReport}
+              sx={{
+                ...dialogStyles.actionButton,
+                backgroundColor: '#4CAF50',
+                '&:hover': { backgroundColor: '#45a049' }
+              }}
+              
+            >
+              Descargar Excel
+              
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </ThemeProvider>
   );
 }
