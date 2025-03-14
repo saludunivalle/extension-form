@@ -78,15 +78,8 @@ function Dashboard({ userData }) {
   });
 
   const handleOpenDialog = (request, formNumber) => {
-    setDialogOpen(true); // Abrir diálogo inmediatamente
     setSelectedRequest(request);
-    setSelectedFormData(prev => ({
-      ...prev,
-      idSolicitud: request.idSolicitud,
-      formNumber: formNumber,
-      reportLink: null // Resetear el link mientras carga
-    }));
-    handleGenerateFormReport(request, formNumber); // Cargar datos en segundo plano
+    handleGenerateFormReport(request, formNumber);
   };
   
   const handleCloseDialog = () => {
@@ -241,10 +234,10 @@ const handleDownloadReport = async () => {
     const response = await axios.post(
       'https://siac-extension-server.vercel.app/downloadReport',
       { solicitudId: idSolicitud, formNumber },
-      { responseType: 'blob' } // Crucial para manejar archivos binarios
+      { responseType: 'blob' } // Indicar que esperamos un archivo binario
     );
 
-    // Crear enlace de descarga
+    // Crear enlace de descarga temporal
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
@@ -437,10 +430,8 @@ const handleDownloadReport = async () => {
                 backgroundColor: '#4CAF50',
                 '&:hover': { backgroundColor: '#45a049' }
               }}
-              
             >
               Descargar Excel
-              
             </Button>
           </div>
         </DialogContent>
