@@ -206,24 +206,28 @@ const handleGenerateFormReport = async (request, formNumber) => {
 
     setLoadingReports((prev) => ({ ...prev, [`${idSolicitud}-${formNumber}`]: true }));
 
-    const response = await axios.post('https://siac-extension-server.vercel.app/generateReport', {
+    const response = await axios.post('/generateReport', {
       solicitudId: idSolicitud,
       formNumber,
     });
 
-    if (response.data?.link) {
+    // Verificar si la respuesta es exitosa y tiene un enlace
+    if (response.data.success && response.data.link) {
       setSelectedFormData({
         idSolicitud,
         formNumber,
-        reportLink: response.data.link
+        reportLink: response.data.link,
       });
       setDialogOpen(true);
+    } else {
+      alert('Error al generar el reporte: ' + (response.data.error || ''));
     }
+
   } catch (error) {
-    console.error(`Error al generar el informe:`, error);
-    alert('Hubo un problema al generar el informe.');
-  } finally { 
-    setLoadingReports((prev) => ({ ...prev, [`${request.idSolicitud}-${formNumber}`]: false }));
+    console.error('Error:', error);
+    alert('Error al generar el reporte: ' + error.message);
+  } finally {
+    setLoadingReports((prev) => ({ ...prev, [`${request.idSolicitud}-${formNumber}`: false }));
   }
 };
 
