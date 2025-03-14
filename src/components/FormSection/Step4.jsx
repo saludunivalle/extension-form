@@ -102,12 +102,12 @@ function Step4({ formData, handleInputChange, errors }) {
               fullWidth
               multiline
               rows={4}
-              name="perfil_competencia"
-              value={formData.perfil_competencia}
+              name="pefil_competencia"
+              value={formData.pefil_competencia}
               onChange={handleInputChange}
               required
-              error={!!errors.perfil_competencia}
-              helperText={errors.perfil_competencia}
+              error={!!errors.pefil_competencia}
+              helperText={errors.pefil_competencia}
             />
           </Grid>
           <Grid item xs={6}>
@@ -212,7 +212,7 @@ Step4.propTypes = {
     nombre_coordinador: PropTypes.string,
     correo_coordinador: PropTypes.string,
     tel_coordinador: PropTypes.string,
-    perfil_competencia: PropTypes.string,
+    pefil_competencia: PropTypes.string,
     formas_evaluacion: PropTypes.string,
     certificado_solicitado: PropTypes.string,
     calificacion_minima: PropTypes.string,
@@ -224,7 +224,7 @@ Step4.propTypes = {
     nombre_coordinador: PropTypes.string,
     correo_coordinador: PropTypes.string,
     tel_coordinador: PropTypes.string,
-    perfil_competencia: PropTypes.string,
+    pefil_competencia: PropTypes.string,
     formas_evaluacion: PropTypes.string,
     certificado_solicitado: PropTypes.string,
     calificacion_minima: PropTypes.string,
