@@ -22,10 +22,12 @@ function Dashboard({ userData }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedReportLink, setSelectedReportLink] = useState('');
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const [selectedFormData, setSelectedFormData] = useState({ // Nuevo estado para datos del formulario
+  const [selectedFormData, setSelectedFormData] = useState({
     idSolicitud: null,
     formNumber: null,
-    reportLink: null
+    reportLink: null,
+    loading: false,
+    error: null
   });
 
   const theme = createTheme({
@@ -77,21 +79,55 @@ function Dashboard({ userData }) {
     edit: ''
   });
 
-  const handleOpenDialog = (request, formNumber) => {
-    setSelectedRequest(request);
-    handleGenerateFormReport(request, formNumber);
+  const handleOpenDialog = async (request, formNumber) => {
+    try {
+      // 1. Iniciar estado de carga
+      setSelectedFormData({
+        idSolicitud: request.idSolicitud,
+        formNumber: formNumber,
+        reportLink: null,
+        loading: true,
+        error: null
+      });
+      
+      // 2. Generar reporte primero
+      const response = await axios.post(`https://siac-extension-server.vercel.app/generateReport`, {
+        solicitudId: request.idSolicitud,
+        formNumber
+      });
+  
+      // 3. Si hay enlace, abrir diálogo
+      if (response.data?.link) {
+        setDialogOpen(true);
+        setSelectedFormData(prev => ({
+          ...prev,
+          reportLink: response.data.link,
+          loading: false
+        }));
+      }
+      
+    } catch (error) {
+      setSelectedFormData(prev => ({
+        ...prev,
+        loading: false,
+        error: 'Error generando reporte'
+      }));
+    }
   };
+  
   
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setSelectedReportLink('');
-    setSelectedForm(null);
+    setSelectedRequest(null); // Limpiar el request seleccionado
   };
-
+  
   const handleOpenReport = () => {
-    if (selectedReportLink) {
-      window.open(selectedReportLink, '_blank');
+    if (selectedFormData.reportLink && selectedFormData.reportLink !== '') {
+      window.open(selectedFormData.reportLink, '_blank');
       handleCloseDialog();
+    } else {
+      alert('No se encontró el enlace del reporte.');
     }
   };
   
@@ -206,7 +242,7 @@ const handleGenerateFormReport = async (request, formNumber) => {
 
     setLoadingReports((prev) => ({ ...prev, [`${idSolicitud}-${formNumber}`]: true }));
 
-    const response = await axios.post('/generateReport', {
+    const response = await axios.post('https://siac-extension-server.vercel.app/generateReport', {
       solicitudId: idSolicitud,
       formNumber,
     });
@@ -227,7 +263,7 @@ const handleGenerateFormReport = async (request, formNumber) => {
     console.error('Error:', error);
     alert('Error al generar el reporte: ' + error.message);
   } finally {
-    setLoadingReports((prev) => ({ ...prev, [`${request.idSolicitud}-${formNumber}`: false }));
+    setLoadingReports((prev) => ({ ...prev, [`${request.idSolicitud}-${formNumber}`]: false }));
   }
 };
 
