@@ -6,8 +6,12 @@ import Step3FormSection2 from './Step3FormSection2';
 import axios from 'axios'; 
 import { useLocation } from 'react-router-dom';
 import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
-import PropTypes from "prop-types";
-
+import { openFormReport } from '../../services/reportServices';
+import PrintIcon from '@mui/icons-material/Print';
+import PropTypes from 'prop-types';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CheckIcon from '@mui/icons-material/Check'; 
 import { styled } from '@mui/system';
 
@@ -48,13 +52,17 @@ import { styled } from '@mui/system';
 function FormSection2({ formData, handleInputChange, setCurrentSection, userData, totalAportesUnivalle, currentStep }) {
   
   const [activeStep, setActiveStep] = useState(currentStep);  
+  const [extraExpenses, setExtraExpenses] = useState([]); 
   const id_usuario = userData?.id_usuario;
   const location = useLocation();
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); 
   const [isLoading, setIsLoading] = useState(false); 
   const [showModal, setShowModal] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [completedSteps, setCompletedSteps] = useState([]);
   const [highestStepReached, setHighestStepReached] = useState(0); 
+
+
 
   const steps = ['Datos Generales', 'Ingresos y Gastos', 'Resumen Financiero'];
 
@@ -91,6 +99,77 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
     - Envía los datos al servidor usando `axios` y maneja errores de la solicitud.
     - Si el envío es exitoso, marca el paso como completado, avanza al siguiente y actualiza el estado del progreso.
   */
+
+    const isValidExpense = (expense) => {
+      const cantidad = parseFloat(expense.cantidad) || 0;
+      const vr_unit  = parseFloat(expense.vr_unit) || 0;
+      return cantidad > 0 && vr_unit > 0;
+    };
+
+    const gastosStructure2 = [
+      { id_conceptos: '1', label: 'Costos de Personal' },
+      { id_conceptos: '1,1', label: 'Personal Nombrado de la Universidad (Max 70%)' },
+      { id_conceptos: '1,2', label: 'Honorarios Docentes Externos (Horas)' },
+      { id_conceptos: '1.3', label: 'Otro Personal - Subcontratos' },
+      { id_conceptos: '2', label: 'Materiales y Suministros' },
+      { id_conceptos: '3', label: 'Gastos de Alojamiento' },
+      { id_conceptos: '4', label: 'Gastos de Alimentación' },
+      { id_conceptos: '5', label: 'Gastos de Transporte' },
+      { id_conceptos: '6', label: 'Equipos Alquiler o Compra' },
+      { id_conceptos: '7', label: 'Dotación Participantes' },
+      { id_conceptos: '7,1', label: 'Carpetas' },
+      { id_conceptos: '7,2', label: 'Libretas' },
+      { id_conceptos: '7,3', label: 'Lapiceros' },
+      { id_conceptos: '7,4', label: 'Memorias' },
+      { id_conceptos: '7,5', label: 'Marcadores, papel, etc,' },
+      { id_conceptos: '8', label: 'Impresos' },
+      { id_conceptos: '8,1', label: 'Labels' },
+      { id_conceptos: '8,2', label: 'Certificados' },
+      { id_conceptos: '8,3', label: 'Escarapelas' },
+      { id_conceptos: '8,4', label: 'Fotocopias' },
+      { id_conceptos: '9', label: 'Impresos' },
+      { id_conceptos: '9,1', label: 'Estación de café' },
+      { id_conceptos: '9,2', label: 'Transporte de mensaje' },
+      { id_conceptos: '9,3', label: 'Refrigerios' },
+      { id_conceptos: '10', label: 'Inversión en Infraestructura Física' },
+      { id_conceptos: '11', label: 'Gastos Generales' },
+      { id_conceptos: '12', label: 'Valor Infraestructura Universitaria' },
+      { id_conceptos: '13', label: 'Imprevistos (Max 5% del 1 al 8)' },
+      { id_conceptos: '14', label: 'Costos Administrativos del proyecto' },
+      { id_conceptos: '15', label: 'Gastos Extras' },
+    ];
+
+    // En handleSaveGastos
+    const handleSaveGastos = async () => {
+      // Gastos regulares
+      const gastosRegulares = gastosStructure2.map(item => {
+        const idKey = item.id_conceptos; // Usa la clave tal cual
+        return {
+          id_conceptos: idKey,
+          cantidad: parseFloat(formData[`${idKey}_cantidad`] || 0),
+          valor_unit: parseFloat(formData[`${idKey}_vr_unit`] || 0),
+          valor_total: (formData[`${idKey}_cantidad`] || 0) * (formData[`${idKey}_vr_unit`] || 0)
+        };
+      });
+    
+      // Ya no necesitamos procesar gastos extras de forma separada
+      const todosLosGastos = gastosRegulares.filter(g => g.cantidad > 0 && g.valor_unit > 0);
+    
+      try {
+        const response = await axios.post('https://siac-extension-server.vercel.app/guardarGastos', {
+          id_solicitud: formData.id_solicitud.toString(),
+          gastos: todosLosGastos
+        });
+        
+        if (response.data.success) {
+          alert("✅ Gastos registrados correctamente");
+          // Resto del código de manejo de respuesta...
+        }
+      } catch (error) {
+        console.error("Error:", error.response?.data);
+        alert(`🚨 Error: ${error.response?.data?.error || error.message}`);
+      }
+    };
   
   const handleNext = async () => {
     if (activeStep < steps.length - 1) {
@@ -107,126 +186,174 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
                   fecha_solicitud: formData.fecha_solicitud || '',
               };
               break;
-          case 1:
-              // Ingresos y Gastos (Paso 2)
-              pasoData = {
+              case 1: {
+                // Ingresos y Gastos (Paso 2)
+                pasoData = {
                   // Ingresos
                   ingresos_cantidad: formData.ingresos_cantidad || '',
                   ingresos_vr_unit: formData.ingresos_vr_unit || '',
-                  total_ingresos: (formData.ingresos_cantidad || 0) * (formData.ingresos_vr_unit || 0),
-                
-                  // Gastos
-                  costos_personal_cantidad: formData.costos_personal_cantidad || '',
-                  costos_personal_vr_unit: formData.costos_personal_vr_unit || '',
-                  total_costos_personal: (formData.costos_personal_cantidad || 0) * (formData.costos_personal_vr_unit || 0),
-                
-                  personal_universidad_cantidad: formData.personal_universidad_cantidad || '',
-                  personal_universidad_vr_unit: formData.personal_universidad_vr_unit || '',
-                  total_personal_universidad: (formData.personal_universidad_cantidad || 0) * (formData.personal_universidad_vr_unit || 0),
-                
-                  honorarios_docentes_cantidad: formData.honorarios_docentes_cantidad || '',
-                  honorarios_docentes_vr_unit: formData.honorarios_docentes_vr_unit || '',
-                  total_honorarios_docentes: (formData.honorarios_docentes_cantidad || 0) * (formData.honorarios_docentes_vr_unit || 0),
-                
-                  otro_personal_cantidad: formData.otro_personal_cantidad || '',
-                  otro_personal_vr_unit: formData.otro_personal_vr_unit || '',
-                  total_otro_personal: (formData.otro_personal_cantidad || 0) * (formData.otro_personal_vr_unit || 0),
-                
-                  materiales_sumi_cantidad: formData.materiales_sumi_cantidad || '',
-                  materiales_sumi_vr_unit: formData.materiales_sumi_vr_unit || '',
-                  total_materiales_sumi: (formData.materiales_sumi_cantidad || 0) * (formData.materiales_sumi_vr_unit || 0),
-                
-                  gastos_alojamiento_cantidad: formData.gastos_alojamiento_cantidad || '',
-                  gastos_alojamiento_vr_unit: formData.gastos_alojamiento_vr_unit || '',
-                  total_gastos_alojamiento: (formData.gastos_alojamiento_cantidad || 0) * (formData.gastos_alojamiento_vr_unit || 0),
-                
-                  gastos_alimentacion_cantidad: formData.gastos_alimentacion_cantidad || '',
-                  gastos_alimentacion_vr_unit: formData.gastos_alimentacion_vr_unit || '',
-                  total_gastos_alimentacion: (formData.gastos_alimentacion_cantidad || 0) * (formData.gastos_alimentacion_vr_unit || 0),
-                
-                  gastos_transporte_cantidad: formData.gastos_transporte_cantidad || '',
-                  gastos_transporte_vr_unit: formData.gastos_transporte_vr_unit || '',
-                  total_gastos_transporte: (formData.gastos_transporte_cantidad || 0) * (formData.gastos_transporte_vr_unit || 0),
-                
-                  equipos_alquiler_compra_cantidad: formData.equipos_alquiler_compra_cantidad || '',
-                  equipos_alquiler_compra_vr_unit: formData.equipos_alquiler_compra_vr_unit || '',
-                  total_equipos_alquiler_compra: (formData.equipos_alquiler_compra_cantidad || 0) * (formData.equipos_alquiler_compra_vr_unit || 0),
-                
-                  dotacion_participantes_cantidad: formData.dotacion_participantes_cantidad || '',
-                  dotacion_participantes_vr_unit: formData.dotacion_participantes_vr_unit || '',
-                  total_dotacion_participantes: (formData.dotacion_participantes_cantidad || 0) * (formData.dotacion_participantes_vr_unit || 0),
-                
-                  carpetas_cantidad: formData.carpetas_cantidad || '',
-                  carpetas_vr_unit: formData.carpetas_vr_unit || '',
-                  total_carpetas: (formData.carpetas_cantidad || 0) * (formData.carpetas_vr_unit || 0),
-                
-                  libretas_cantidad: formData.libretas_cantidad || '',
-                  libretas_vr_unit: formData.libretas_vr_unit || '',
-                  total_libretas: (formData.libretas_cantidad || 0) * (formData.libretas_vr_unit || 0),
-                
-                  lapiceros_cantidad: formData.lapiceros_cantidad || '',
-                  lapiceros_vr_unit: formData.lapiceros_vr_unit || '',
-                  total_lapiceros: (formData.lapiceros_cantidad || 0) * (formData.lapiceros_vr_unit || 0),
-                
-                  memorias_cantidad: formData.memorias_cantidad || '',
-                  memorias_vr_unit: formData.memorias_vr_unit || '',
-                  total_memorias: (formData.memorias_cantidad || 0) * (formData.memorias_vr_unit || 0),
-                
-                  marcadores_papel_otros_cantidad: formData.marcadores_papel_otros_cantidad || '',
-                  marcadores_papel_otros_vr_unit: formData.marcadores_papel_otros_vr_unit || '',
-                  total_marcadores_papel_otros: (formData.marcadores_papel_otros_cantidad || 0) * (formData.marcadores_papel_otros_vr_unit || 0),
-                
-                  impresos_cantidad: formData.impresos_cantidad || '',
-                  impresos_vr_unit: formData.impresos_vr_unit || '',
-                  total_impresos: (formData.impresos_cantidad || 0) * (formData.impresos_vr_unit || 0),
-                
-                  labels_cantidad: formData.labels_cantidad || '',
-                  labels_vr_unit: formData.labels_vr_unit || '',
-                  total_labels: (formData.labels_cantidad || 0) * (formData.labels_vr_unit || 0),
-                
-                  certificados_cantidad: formData.certificados_cantidad || '',
-                  certificados_vr_unit: formData.certificados_vr_unit || '',
-                  total_certificados: (formData.certificados_cantidad || 0) * (formData.certificados_vr_unit || 0),
-                
-                  escarapelas_cantidad: formData.escarapelas_cantidad || '',
-                  escarapelas_vr_unit: formData.escarapelas_vr_unit || '',
-                  total_escarapelas: (formData.escarapelas_cantidad || 0) * (formData.escarapelas_vr_unit || 0),
-                
-                  fotocopias_cantidad: formData.fotocopias_cantidad || '',
-                  fotocopias_vr_unit: formData.fotocopias_vr_unit || '',
-                  total_fotocopias: (formData.fotocopias_cantidad || 0) * (formData.fotocopias_vr_unit || 0),
-                
-                  estacion_cafe_cantidad: formData.estacion_cafe_cantidad || '',
-                  estacion_cafe_vr_unit: formData.estacion_cafe_vr_unit || '',
-                  total_estacion_cafe: (formData.estacion_cafe_cantidad || 0) * (formData.estacion_cafe_vr_unit || 0),
-                
-                  transporte_mensaje_cantidad: formData.transporte_mensaje_cantidad || '',
-                  transporte_mensaje_vr_unit: formData.transporte_mensaje_vr_unit || '',
-                  total_transporte_mensaje: (formData.transporte_mensaje_cantidad || 0) * (formData.transporte_mensaje_vr_unit || 0),
-                
-                  refrigerios_cantidad: formData.refrigerios_cantidad || '',
-                  refrigerios_vr_unit: formData.refrigerios_vr_unit || '',
-                  total_refrigerios: (formData.refrigerios_cantidad || 0) * (formData.refrigerios_vr_unit || 0),
-                
-                  infraestructura_fisica_cantidad: formData.infraestructura_fisica_cantidad || '',
-                  infraestructura_fisica_vr_unit: formData.infraestructura_fisica_vr_unit || '',
-                  total_infraestructura_fisica: (formData.infraestructura_fisica_cantidad || 0) * (formData.infraestructura_fisica_vr_unit || 0),
-                
-                  gastos_generales_cantidad: formData.gastos_generales_cantidad || '',
-                  gastos_generales_vr_unit: formData.gastos_generales_vr_unit || '',
-                  total_gastos_generales: (formData.gastos_generales_cantidad || 0) * (formData.gastos_generales_vr_unit || 0),
-                
-                  infraestructura_universitaria_cantidad: formData.infraestructura_universitaria_cantidad || '',
-                  infraestructura_universitaria_vr_unit: formData.infraestructura_universitaria_vr_unit || '',
-                  total_infraestructura_universitaria: (formData.infraestructura_universitaria_cantidad || 0) * (formData.infraestructura_universitaria_vr_unit || 0),
-                
-                  imprevistos: formData.imprevistos || '',
-                
+                  total_ingresos: (parseFloat(formData.ingresos_cantidad) || 0) * (parseFloat(formData.ingresos_vr_unit) || 0),
+
+                  costos_personal_cantidad: formData['1_cantidad'] || '',
+                  costos_personal_vr_unit: formData['1_vr_unit'] || '',
+                  total_costos_personal: (parseFloat(formData['1_cantidad']) || 0) * (parseFloat(formData['1_vr_unit']) || 0),
+
+                  personal_universidad_cantidad: formData['1.1_cantidad'] || '',
+                  personal_universidad_vr_unit: formData['1.1_vr_unit'] || '',
+                  total_personal_universidad: (parseFloat(formData['1.1_cantidad']) || 0) * (parseFloat(formData['1.1_vr_unit']) || 0),
+                  
+                  honorarios_docentes_cantidad: formData['1.2_cantidad'] || '',
+                  honorarios_docentes_vr_unit: formData['1.2_vr_unit'] || '',
+                  total_honorarios_docentes: (parseFloat(formData['1.2_cantidad']) || 0) * (parseFloat(formData['1.2_vr_unit']) || 0),
+
+                  otro_personal_cantidad: formData['1.3_cantidad'] || '',
+                  otro_personal_vr_unit: formData['1.3_vr_unit'] || '',
+                  total_otro_personal: (parseFloat(formData['1.3_cantidad']) || 0) * (parseFloat(formData['1.3_vr_unit']) || 0),
+
+                  materiales_sumi_cantidad: formData['2_cantidad'] || '',
+                  materiales_sumi_vr_unit: formData['2_vr_unit'] || '',
+                  total_materiales_sumi: (parseFloat(formData['2_cantidad']) || 0) * (parseFloat(formData['2_vr_unit']) || 0),
+
+                  gastos_alojamiento_cantidad: formData['3_cantidad'] || '',
+                  gastos_alojamiento_vr_unit: formData['3_vr_unit'] || '',
+                  total_gastos_alojamiento: (parseFloat(formData['3_cantidad']) || 0) * (parseFloat(formData['3_vr_unit']) || 0),
+
+                  gastos_alimentacion_cantidad: formData['4_cantidad'] || '',
+                  gastos_alimentacion_vr_unit: formData['4_vr_unit'] || '',
+                  total_gastos_alimentacion: (parseFloat(formData['4_cantidad']) || 0) * (parseFloat(formData['4_vr_unit']) || 0),
+
+                  // Categoría: Gastos de Transporte
+                  gastos_transporte_cantidad: formData['5_cantidad'] || '',
+                  gastos_transporte_vr_unit: formData['5_vr_unit'] || '',
+                  total_gastos_transporte: (parseFloat(formData['5_cantidad']) || 0) * (parseFloat(formData['5_vr_unit']) || 0),
+
+                  // Categoría: Equipos (Alquiler/Compra)
+                  equipos_alquiler_compra_cantidad: formData['6_cantidad'] || '',
+                  equipos_alquiler_compra_vr_unit: formData['6_vr_unit'] || '',
+                  total_equipos_alquiler_compra: (parseFloat(formData['6_cantidad']) || 0) * (parseFloat(formData['6_vr_unit']) || 0),
+
+                  // Categoría: Dotación de Participantes
+                  dotacion_participantes_cantidad: formData['7_cantidad'] || '',
+                  dotacion_participantes_vr_unit: formData['7_vr_unit'] || '',
+                  total_dotacion_participantes: (parseFloat(formData['7_cantidad']) || 0) * (parseFloat(formData['7_vr_unit']) || 0),
+
+                  // Subcategorías de Dotación de Participantes
+                  // Carpetas
+                  carpetas_cantidad: formData['7.1_cantidad'] || '',
+                  carpetas_vr_unit: formData['7.1_vr_unit'] || '',
+                  total_carpetas: (parseFloat(formData['7.1_cantidad']) || 0) * (parseFloat(formData['7.1_vr_unit']) || 0),
+
+                  // Libretas
+                  libretas_cantidad: formData['7.2_cantidad'] || '',
+                  libretas_vr_unit: formData['7.2_vr_unit'] || '',
+                  total_libretas: (parseFloat(formData['7.2_cantidad']) || 0) * (parseFloat(formData['7.2_vr_unit']) || 0),
+
+                  // Lapiceros
+                  lapiceros_cantidad: formData['7.3_cantidad'] || '',
+                  lapiceros_vr_unit: formData['7.3_vr_unit'] || '',
+                  total_lapiceros: (parseFloat(formData['7.3_cantidad']) || 0) * (parseFloat(formData['7.3_vr_unit']) || 0),
+
+                  // Memorias
+                  memorias_cantidad: formData['7.4_cantidad'] || '',
+                  memorias_vr_unit: formData['7.4_vr_unit'] || '',
+                  total_memorias: (parseFloat(formData['7.4_cantidad']) || 0) * (parseFloat(formData['7.4_vr_unit']) || 0),
+
+                  // Marcadores, papel y otros
+                  marcadores_papel_otros_cantidad: formData['7.5_cantidad'] || '',
+                  marcadores_papel_otros_vr_unit: formData['7.5_vr_unit'] || '',
+                  total_marcadores_papel_otros: (parseFloat(formData['7.5_cantidad']) || 0) * (parseFloat(formData['7.5_vr_unit']) || 0),
+
+                  // Categoría: Impresos
+                  impresos_cantidad: formData['8_cantidad'] || '',
+                  impresos_vr_unit: formData['8_vr_unit'] || '',
+                  total_impresos: (parseFloat(formData['8_cantidad']) || 0) * (parseFloat(formData['8_vr_unit']) || 0),
+
+                  // Subcategorías de Impresos
+                  // Labels
+                  labels_cantidad: formData['8.1_cantidad'] || '',
+                  labels_vr_unit: formData['8.1_vr_unit'] || '',
+                  total_labels: (parseFloat(formData['8.1_cantidad']) || 0) * (parseFloat(formData['8.1_vr_unit']) || 0),
+
+                  // Certificados
+                  certificados_cantidad: formData['8.2_cantidad'] || '',
+                  certificados_vr_unit: formData['8.2_vr_unit'] || '',
+                  total_certificados: (parseFloat(formData['8.2_cantidad']) || 0) * (parseFloat(formData['8.2_vr_unit']) || 0),
+
+                  // Escarapelas
+                  escarapelas_cantidad: formData['8.3_cantidad'] || '',
+                  escarapelas_vr_unit: formData['8.3_vr_unit'] || '',
+                  total_escarapelas: (parseFloat(formData['8.3_cantidad']) || 0) * (parseFloat(formData['8.3_vr_unit']) || 0),
+
+                  // Fotocopias
+                  fotocopias_cantidad: formData['8.4_cantidad'] || '',
+                  fotocopias_vr_unit: formData['8.4_vr_unit'] || '',
+                  total_fotocopias: (parseFloat(formData['8.4_cantidad']) || 0) * (parseFloat(formData['8.4_vr_unit']) || 0),
+
+                  // Categoría: Otros Impresos
+                  otros_impresos_cantidad: formData['9_cantidad'] || '',
+                  otros_impresos_vr_unit: formData['9_vr_unit'] || '',
+                  total_otros_impresos: (parseFloat(formData['9_cantidad']) || 0) * (parseFloat(formData['9_vr_unit']) || 0),
+
+                  // Subcategorías de Otros Impresos
+                  // Estación de Café
+                  estacion_cafe_cantidad: formData['9.1_cantidad'] || '',
+                  estacion_cafe_vr_unit: formData['9.1_vr_unit'] || '',
+                  total_estacion_cafe: (parseFloat(formData['9.1_cantidad']) || 0) * (parseFloat(formData['9.1_vr_unit']) || 0),
+
+                  // Transporte y Mensajería
+                  transporte_mensajeria_cantidad: formData['9.2_cantidad'] || '',
+                  transporte_mensajeria_vr_unit: formData['9.2_vr_unit'] || '',
+                  total_transporte_mensajeria: (parseFloat(formData['9.2_cantidad']) || 0) * (parseFloat(formData['9.2_vr_unit']) || 0),
+
+                  // Refrigerios
+                  refrigerios_cantidad: formData['9.3_cantidad'] || '',
+                  refrigerios_vr_unit: formData['9.3_vr_unit'] || '',
+                  total_refrigerios: (parseFloat(formData['9.3_cantidad']) || 0) * (parseFloat(formData['9.3_vr_unit']) || 0),
+
+                  // Categoría: Infraestructura Física
+                  infraestructura_fisica_cantidad: formData['10_cantidad'] || '',
+                  infraestructura_fisica_vr_unit: formData['10_vr_unit'] || '',
+                  total_infraestructura_fisica: (parseFloat(formData['10_cantidad']) || 0) * (parseFloat(formData['10_vr_unit']) || 0),
+
+                  // Categoría: Gastos Generales
+                  gastos_generales_cantidad: formData['11_cantidad'] || '',
+                  gastos_generales_vr_unit: formData['11_vr_unit'] || '',
+                  total_gastos_generales: (parseFloat(formData['11_cantidad']) || 0) * (parseFloat(formData['11_vr_unit']) || 0),
+
+                  // Categoría: Infraestructura Universitaria
+                  infraestructura_universitaria_cantidad: formData['12_cantidad'] || '',
+                  infraestructura_universitaria_vr_unit: formData['12_vr_unit'] || '',
+                  total_infraestructura_universitaria: (parseFloat(formData['12_cantidad']) || 0) * (parseFloat(formData['12_vr_unit']) || 0),
+
+                  // Imprevistos
+                  imprevistos_cantidad: formData['13_cantidad'] || '',
+                  imprevistos_vr_unit: formData['13_vr_unit'] || '',
+                  total_imprevistos: (parseFloat(formData['13_cantidad']) || 0) * (parseFloat(formData['13_vr_unit']) || 0),
+
                   // Aportes Univalle
-                  escuela_departamento_porcentaje: formData.escuela_departamento_porcentaje || '',
-                  total_aportes_univalle: totalAportesUnivalle || ''
-              };        
-              break;        
+                  costos_administrativos_cantidad: formData['14_cantidad'] || '',
+                  costos_administrativos_vr_unit: formData['14_vr_unit'] || '',
+                  total_costos_administrativos: (parseFloat(formData['14_cantidad']) || 0) * (parseFloat(formData['14_vr_unit']) || 0),
+
+                  // Gastos Extras
+                  gastos_extras: formData['15_cantidad'] || '',
+                  gastos_extras_vr_unit: formData['15_vr_unit'] || '',
+                  total_gastos_extras: (parseFloat(formData['15_cantidad']) || 0) * (parseFloat(formData['15_vr_unit']) || 0),
+
+                  // Campos calculados (nombre correcto para imprevistos_3%)
+                  subtotal_gastos: totalGastos || 0,
+                  "imprevistos_3%": (totalGastos * 0.03) || 0,  // Nombre correcto con %
+                  total_gastos_imprevistos: (totalGastos * 1.03) || 0,
+                  
+                  // Distribución de recursos (sin duplicado)
+                  fondo_comun_porcentaje: formData.fondo_comun_porcentaje || 30,
+                  facultadad_instituto_porcentaje: 5,
+                  escuela_departamento_porcentaje: formData.escuela_departamento_porcentaje || 0,
+                  total_recursos: totalAportesUnivalle || 0,
+                };
+                break; 
+            
+            }       
           case 2:
               // Resumen Financiero
               pasoData = {
@@ -262,7 +389,11 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
               newCompleted.push(activeStep);
             }
             return newCompleted;
-          });                  
+          });         
+          
+          if (activeStep === 1) {
+            await handleSaveGastos();
+          }
         
           setActiveStep((prevActiveStep) => prevActiveStep + 1);
           setHighestStepReached((prev) => Math.max(prev, activeStep + 1));
@@ -338,8 +469,52 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
     }
   };
 
+  const PrintReportButton = () => {
+    const isFormCompleted = activeStep === steps.length - 1 || completedSteps.includes(steps.length - 1);
+    
+    const handleGenerateReport = async () => {
+      try {
+        setIsGeneratingReport(true);
+        const idSolicitud = localStorage.getItem('id_solicitud');
+        await openFormReport(idSolicitud, 2); // 2 para el formulario de presupuesto
+      } catch (error) {
+        console.error('Error al generar el reporte:', error);
+        alert('Hubo un problema al generar el reporte');
+      } finally {
+        setIsGeneratingReport(false);
+      }
+    };
+    
+    return (
+      <Box sx={{ 
+        position: 'absolute', 
+        top: '-60px', 
+        right: '10px', 
+        zIndex: 1000 
+      }}>
+        <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
+          <span>
+            <IconButton 
+              color="primary" 
+              onClick={handleGenerateReport}
+              disabled={!isFormCompleted || isGeneratingReport}
+              size="large"
+            >
+              {isGeneratingReport ? 
+                <CircularProgress size={24} color="inherit" /> : 
+                <PrintIcon />
+              }
+            </IconButton>
+          </span>
+        </Tooltip>
+      </Box>
+    );
+  };
+  
+
   return (
-    <Box>
+    <Box sx={{ position: 'relative' }}>
+    <PrintReportButton />
         <Stepper
           activeStep={activeStep}
           sx={{
@@ -395,23 +570,72 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
         <Button variant="contained" color="primary" onClick={activeStep === steps.length - 1 ? () => setShowModal(true) : handleNext} disabled={isLoading} startIcon={isLoading ? <CircularProgress size={20} /> : null}>
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>
-        <Dialog open={showModal} onClose={() => setShowModal(false)}>
-          <DialogTitle>Formulario Presupuesto Completado</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-             Los datos del Formulario Presupuesto han sido guardados, ¿Desea continuar con el siguiente formulario?
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setCurrentSection(3)} color="primary">
-              Continuar
-            </Button>
-            <Button onClick={() => window.location.href = '/'} color="secondary">
-              Salir
-            </Button>
-          </DialogActions>
-        </Dialog>
-
+          <Dialog 
+            open={showModal} 
+            onClose={() => setShowModal(false)}
+            PaperProps={{
+              sx: {
+                borderRadius: '12px',
+                minWidth: '320px',
+                maxWidth: '450px',
+              }
+            }}
+          >
+            <DialogTitle sx={{ 
+              borderBottom: '1px solid #f0f0f0', 
+              pb: 2,
+              backgroundColor: '#f9f9f9',
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              <CheckCircleOutlineIcon color="success" sx={{ mr: 1 }} />
+              Formulario Completado
+            </DialogTitle>
+            
+            <DialogContent sx={{ pt: 3, pb: 2 }}>
+              <DialogContentText sx={{ mb: 2 }}>
+                Los datos del formulario han sido guardados correctamente. ¿Qué desea hacer a continuación?
+              </DialogContentText>
+            </DialogContent>
+            
+            <DialogActions sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              p: 2,
+              borderTop: '1px solid #f0f0f0',
+              gap: 1
+            }}>
+              <Button onClick={() => window.location.href = '/'} color="secondary" variant="outlined">
+                Salir
+              </Button>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button onClick={() => setCurrentSection(2)} color="primary" variant="outlined">
+                  Continuar
+                </Button>
+                <Button 
+                  onClick={async () => {
+                    try {
+                      setIsGeneratingReport(true);
+                      const idSolicitud = localStorage.getItem('id_solicitud');
+                      await openFormReport(idSolicitud, 2);
+                      setCurrentSection(2);
+                    } catch (error) {
+                      console.error('Error al generar el reporte:', error);
+                      alert('Hubo un problema al generar el reporte');
+                    } finally {
+                      setIsGeneratingReport(false);
+                    }
+                  }} 
+                  color="primary" 
+                  variant="contained"
+                  disabled={isGeneratingReport}
+                  startIcon={isGeneratingReport ? <CircularProgress size={20} color="inherit" /> : <PrintIcon />}
+                >
+                  {isGeneratingReport ? 'Generando...' : 'Generar y continuar'}
+                </Button>
+              </Box>
+            </DialogActions>
+          </Dialog>
       </Box>
     </Box>
   );
@@ -440,7 +664,6 @@ FormSection2.propTypes = {
     name: PropTypes.string,
   }).isRequired,
   totalAportesUnivalle: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-  currentStep: PropTypes.number.isRequired,
 };
 
 export default FormSection2;

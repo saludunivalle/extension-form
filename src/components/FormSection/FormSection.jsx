@@ -10,7 +10,12 @@
   import { useNavigate } from 'react-router-dom';
   import CheckIcon from '@mui/icons-material/Check'; 
   import { styled } from '@mui/system';
+  import { openFormReport } from '../../services/reportServices';
+  import PrintIcon from '@mui/icons-material/Print';
+  import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
   import PropTypes from 'prop-types';
+  import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
   /* 
   Este componente se encarga de cambiar el color de fondo, el color del texto y otros estilos visuales del ícono:
@@ -69,6 +74,7 @@
     const [idSolicitud] = useState(localStorage.getItem('id_solicitud')); 
     const [showModal, setShowModal] = useState(false); 
     const [isLoading, setIsLoading] = useState(false); 
+    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
     const navigate = useNavigate();
     const [completedSteps, setCompletedSteps] = useState([]);
     const [highestStepReached, setHighestStepReached] = useState(0); 
@@ -528,8 +534,52 @@
       }
     };
 
+    const PrintReportButton = () => {
+      const isFormCompleted = activeStep === steps.length - 1 || completedSteps.includes(steps.length - 1);
+      
+      const handleGenerateReport = async () => {
+        try {
+          setIsGeneratingReport(true);
+          const idSolicitud = localStorage.getItem('id_solicitud');
+          await openFormReport(idSolicitud, 1); // 1 para el formulario de datos básicos
+        } catch (error) {
+          console.error('Error al generar el reporte:', error);
+          alert('Hubo un problema al generar el reporte');
+        } finally {
+          setIsGeneratingReport(false);
+        }
+      };
+      
+      return (
+        <Box sx={{ 
+          position: 'absolute', 
+          top: '-60px', 
+          right: '10px', 
+          zIndex: 1000 
+        }}>
+          <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
+            <span>
+              <IconButton 
+                color="primary" 
+                onClick={handleGenerateReport}
+                disabled={!isFormCompleted || isGeneratingReport}
+                size="large"
+              >
+                {isGeneratingReport ? 
+                  <CircularProgress size={24} color="inherit" /> : 
+                  <PrintIcon />
+                }
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Box>
+      );
+    };
+    
+
     return (
-      <Box sx={{ padding: isVerySmallScreen ? '10px' : isSmallScreen ? '15px' : '20px', width: '100%'}}>
+      <Box sx={{ padding: isVerySmallScreen ? '10px' : isSmallScreen ? '15px' : '20px', width: '100%', position: 'relative' }}>
+      <PrintReportButton />
         <Stepper
           activeStep={activeStep}
           sx={{
@@ -593,20 +643,70 @@
           </Button>
         </Box>
 
-        <Dialog open={showModal} onClose={() => setShowModal(false)}>
-          <DialogTitle>Formulario Aprobación Finalizado</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              Los datos del Formulario Aprobación han sido guardados, ¿Desea continuar con el siguiente formulario?
+        <Dialog 
+          open={showModal} 
+          onClose={() => setShowModal(false)}
+          PaperProps={{
+            sx: {
+              borderRadius: '12px',
+              minWidth: '320px',
+              maxWidth: '450px',
+            }
+          }}
+        >
+          <DialogTitle sx={{ 
+            borderBottom: '1px solid #f0f0f0', 
+            pb: 2,
+            backgroundColor: '#f9f9f9',
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            <CheckCircleOutlineIcon color="success" sx={{ mr: 1 }} />
+            Formulario Completado
+          </DialogTitle>
+          
+          <DialogContent sx={{ pt: 3, pb: 2 }}>
+            <DialogContentText sx={{ mb: 2 }}>
+              Los datos del formulario han sido guardados correctamente. ¿Qué desea hacer a continuación?
             </DialogContentText>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setCurrentSection(2)} color="primary">
-              Continuar
-            </Button>
-            <Button onClick={() => window.location.href = '/'} color="secondary">
+          
+          <DialogActions sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            p: 2,
+            borderTop: '1px solid #f0f0f0',
+            gap: 1
+          }}>
+            <Button onClick={() => window.location.href = '/'} color="secondary" variant="outlined">
               Salir
             </Button>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button onClick={() => setCurrentSection(2)} color="primary" variant="outlined">
+                Continuar
+              </Button>
+              <Button 
+                onClick={async () => {
+                  try {
+                    setIsGeneratingReport(true);
+                    const idSolicitud = localStorage.getItem('id_solicitud');
+                    await openFormReport(idSolicitud, 1);
+                    setCurrentSection(2);
+                  } catch (error) {
+                    console.error('Error al generar el reporte:', error);
+                    alert('Hubo un problema al generar el reporte');
+                  } finally {
+                    setIsGeneratingReport(false);
+                  }
+                }} 
+                color="primary" 
+                variant="contained"
+                disabled={isGeneratingReport}
+                startIcon={isGeneratingReport ? <CircularProgress size={20} color="inherit" /> : <PrintIcon />}
+              >
+                {isGeneratingReport ? 'Generando...' : 'Generar y continuar'}
+              </Button>
+            </Box>
           </DialogActions>
         </Dialog>
       </Box>
