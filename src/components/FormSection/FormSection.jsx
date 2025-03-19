@@ -179,7 +179,7 @@ import Tooltip from '@mui/material/Tooltip';
         } else if (!/^\d{7,15}$/.test(formData.tel_coordinador)) {
           stepErrors.tel_coordinador = "Debe tener entre 7 y 15 dígitos";
         }
-        if (!formData.perfil_competencia) stepErrors.perfil_competencia = "Este campo es obligatorio";
+        if (!formData.pefil_competencia) stepErrors.pefil_competencia = "Este campo es obligatorio";
         if (!formData.formas_evaluacion) stepErrors.formas_evaluacion = "Este campo es obligatorio";
         
         if (!formData.certificado_solicitado) {
@@ -292,10 +292,11 @@ import Tooltip from '@mui/material/Tooltip';
           let pasoData = {};
 
           switch (activeStep) {
-              case 0:
-                  pasoData = {
+              case 0:{
+                const fecha = new Date(formData.fecha_solicitud);
+                    pasoData = {
                       id_solicitud: idSolicitud,
-                      fecha_solicitud: formData.fecha_solicitud || 'N/A',
+                      fecha_solicitud: fecha.toISOString().split('T')[0],
                       nombre_actividad: formData.nombre_actividad || 'N/A',
                       nombre_solicitante: formData.nombre_solicitante || 'N/A',
                       dependencia_tipo: formData.dependencia_tipo || 'N/A',
@@ -304,6 +305,7 @@ import Tooltip from '@mui/material/Tooltip';
                       nombre_seccion: formData.nombre_seccion || 'N/A',
                       nombre_dependencia: formData.nombre_dependencia || 'N/A',
                   };
+                }
                   break;
               case 1:
                   pasoData = {
@@ -334,7 +336,7 @@ import Tooltip from '@mui/material/Tooltip';
                       nombre_coordinador: formData.nombre_coordinador || 'N/A',
                       correo_coordinador: formData.correo_coordinador || 'N/A',
                       tel_coordinador: formData.tel_coordinador || 'N/A',
-                      perfil_competencia: formData.perfil_competencia || 'N/A',
+                      pefil_competencia: formData.pefil_competencia || 'N/A',
                       formas_evaluacion: formData.formas_evaluacion || 'N/A',
                       certificado_solicitado: formData.certificado_solicitado || 'N/A',
                       calificacion_minima: formData.calificacion_minima || 'N/A',
@@ -342,7 +344,15 @@ import Tooltip from '@mui/material/Tooltip';
                       valor_inscripcion: formData.valor_inscripcion || 'N/A',
                   };
                   break;
-              case 4:
+              case 4: {
+                const totalBecas = (
+                  parseInt(formData.becas_convenio || 0) +
+                  parseInt(formData.becas_estudiantes || 0) +
+                  parseInt(formData.becas_docentes || 0) +
+                  parseInt(formData.becas_egresados || 0) +
+                  parseInt(formData.becas_funcionarios || 0) +
+                  parseInt(formData.becas_otros || 0)
+              );
                   pasoData = {
                       becas_convenio: formData.becas_convenio || 'N/A',
                       becas_estudiantes: formData.becas_estudiantes || 'N/A',
@@ -350,6 +360,7 @@ import Tooltip from '@mui/material/Tooltip';
                       becas_egresados: formData.becas_egresados || 'N/A',
                       becas_funcionarios: formData.becas_funcionarios || 'N/A',
                       becas_otros: formData.becas_otros || 'N/A',
+                      becas_total: totalBecas.toString(),
                       periodicidad_oferta: formData.periodicidad_oferta || 'N/A',
                       organizacion_actividad: formData.organizacion_actividad || 'N/A',
                       otro_tipo_act: formData.otro_tipo_act || 'N/A',
@@ -357,6 +368,7 @@ import Tooltip from '@mui/material/Tooltip';
                       costo_extension_solidaria: formData.costo_extension_solidaria || 'N/A',
                       personal_externo: formData.personal_externo || 'N/A',
                   };
+                }
                   break;
               default:
                   break;

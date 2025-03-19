@@ -1,15 +1,36 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Button, Typography, List, ListItem, ListItemText, CircularProgress, Box } from '@mui/material';
+
+import { Button, Typography, List, ListItem, ListItemText, CircularProgress, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
+
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+import { Close, Download, Visibility } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from "prop-types";
+
+const sectionTitles = [
+  'Aprobación - Formulario F-05-MP-05-01-01',
+  'Presupuesto - Formulario F-06-MP-05-01-01',
+  'Riesgos Potenciales - Formulario F-08-MP-05-01-01',
+  'Identificación de Mercadeo - Formulario F-07-MP-05-01-01'
+];
 
 function Dashboard({ userData }) {
   const [activeRequests, setActiveRequests] = useState([]);
   const [completedRequests, setCompletedRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingReports, setLoadingReports] = useState({});
   const navigate = useNavigate();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedReportLink, setSelectedReportLink] = useState('');
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [selectedFormData, setSelectedFormData] = useState({
+    idSolicitud: null,
+    formNumber: null,
+    reportLink: null,
+    loading: false,
+    error: null
+  });
 
   const theme = createTheme({
     palette: {
@@ -25,6 +46,93 @@ function Dashboard({ userData }) {
     },
   });
 
+  const dialogStyles = {
+    paper: {
+      borderRadius: '16px',
+      padding: '20px',
+      boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.1)',
+      minWidth: '320px'
+    },
+    title: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '16px 24px',
+      borderBottom: '1px solid #eee'
+    },
+    content: {
+      padding: '24px',
+      textAlign: 'center'
+    },
+    actionButton: {
+      margin: '8px',
+      padding: '12px 24px',
+      borderRadius: '8px',
+      transition: 'all 0.3s ease',
+      '&:hover': {
+        transform: 'translateY(-2px)'
+      }
+    }
+  };
+
+  const [reportLinks, setReportLinks] = useState({
+    view: '',
+    download: '',
+    edit: ''
+  });
+
+  const handleOpenDialog = async (request, formNumber) => {
+    try {
+      // 1. Iniciar estado de carga
+      setSelectedFormData({
+        idSolicitud: request.idSolicitud,
+        formNumber: formNumber,
+        reportLink: null,
+        loading: true,
+        error: null
+      });
+      
+      // 2. Generar reporte primero
+      const response = await axios.post(`https://siac-extension-server.vercel.app/generateReport`, {
+        solicitudId: request.idSolicitud,
+        formNumber
+      });
+  
+      // 3. Si hay enlace, abrir diálogo
+      if (response.data?.link) {
+        setDialogOpen(true);
+        setSelectedFormData(prev => ({
+          ...prev,
+          reportLink: response.data.link,
+          loading: false
+        }));
+      }
+      
+    } catch (error) {
+      setSelectedFormData(prev => ({
+        ...prev,
+        loading: false,
+        error: 'Error generando reporte'
+      }));
+    }
+  };
+  
+  
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setSelectedReportLink('');
+    setSelectedRequest(null); // Limpiar el request seleccionado
+  };
+  
+  const handleOpenReport = () => {
+    if (selectedFormData.reportLink && selectedFormData.reportLink !== '') {
+      window.open(selectedFormData.reportLink, '_blank');
+      handleCloseDialog();
+    } else {
+      alert('No se encontró el enlace del reporte.');
+    }
+  };
+  
   useEffect(() => {
     const fetchRequests = async () => {
       setLoading(true);
@@ -34,6 +142,7 @@ function Dashboard({ userData }) {
           'https://siac-extension-server.vercel.app/getActiveRequests',
           { params: { userId: userData.id } }
         );
+
         
         const requests = activeResponse.data;
         
@@ -45,6 +154,7 @@ function Dashboard({ userData }) {
         
         setActiveRequests(requestsWithStages);
         console.log("Solicitudes con etapas:", requestsWithStages);
+
       } catch (error) {
         if (error.response?.status === 404) {
           setCompletedRequests([]);
@@ -110,25 +220,39 @@ function Dashboard({ userData }) {
     }
 };
 
-  const handleContinueRequest = async (request) => {
-    const { idSolicitud, formulario, paso } = request;
+const handleContinueRequest = async (request) => {
+  try {
+    console.log(`🔎 Buscando datos actualizados para la solicitud con ID: ${request.idSolicitud}`);
+    const response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
+      params: { id_solicitud: request.idSolicitud }
+    });
+    
+    // Obtener datos de la hoja SOLICITUDES que contiene ETAPAS
+    const solicitudData = response.data.SOLICITUDES || response.data;
+    
+    // Extraer etapa_actual y paso de los datos de SOLICITUDES
+    const etapa_actual = solicitudData.etapa_actual || request.formulario;
+    const paso = solicitudData.paso || 0;
+    
+    localStorage.setItem('id_solicitud', solicitudData.id_solicitud);
+    localStorage.setItem('formData', JSON.stringify(solicitudData));
+    
+    navigate(`/formulario/${etapa_actual}?solicitud=${request.idSolicitud}&paso=${paso}`);
+  } catch (error) {
+    console.error('🚨 Error al continuar la solicitud:', error);
+    alert('Hubo un problema al cargar los datos de la solicitud. Inténtalo de nuevo.');
+  }
+};
   
-    if (!idSolicitud) {
-      console.error('Error: idSolicitud es indefinido.');
-      alert('Error: No se puede continuar sin un ID de solicitud válido.');
+const handleGenerateFormReport = async (request, formNumber) => {
+  try {
+    const { idSolicitud } = request;
+
+    if (!idSolicitud || !formNumber) {
+      alert("No se puede generar el informe porque falta información.");
       return;
     }
-  
-    if (formulario < 1 || formulario > 4) {
-      console.error('Formulario inválido:', formulario);
-      alert('El número de formulario no es válido.');
-      return;
-    }
-    if (paso < 0) {
-      console.error('Paso inválido:', paso);
-      alert('El paso del formulario no es válido.');
-      return;
-    }
+
   
     try {
       console.log(`🔎 Buscando datos de la solicitud con ID: ${idSolicitud}`);
@@ -225,6 +349,7 @@ function Dashboard({ userData }) {
       // Etapas futuras deshabilitadas
       return { enabled: false, color: '#e0e0e0', cursor: 'not-allowed', progress: 0 };
     }
+
   };
 
   if (!userData || !userData.id) {
@@ -254,6 +379,7 @@ function Dashboard({ userData }) {
           Crear Nueva Solicitud
         </Button>
 
+        {/* Solicitudes en Creación */}
         <Typography variant="h6" style={{ marginTop: '20px' }}>
           Solicitudes en Creación:
         </Typography>
@@ -265,7 +391,7 @@ function Dashboard({ userData }) {
                 variant="outlined"
                 color="primary"
                 onClick={() => handleContinueRequest(request)}
-                style={{ marginRight: '10px' }}
+                style={{ marginRight: '15px' }}
               >
                 Continuar
               </Button>
@@ -289,6 +415,7 @@ function Dashboard({ userData }) {
                         {formNumber}
                       </Button>
                     </div>
+
                   );
                 })}
               </div>
@@ -296,6 +423,7 @@ function Dashboard({ userData }) {
           ))}
         </List>
 
+        {/* Solicitudes Terminadas */}
         <Typography variant="h6" style={{ marginTop: '20px' }}>
           Solicitudes Terminadas:
         </Typography>
@@ -339,6 +467,54 @@ function Dashboard({ userData }) {
         ))}
         </List>
       </div>
+
+      {/* Diálogo para opciones del formulario */}
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        PaperProps={{ sx: dialogStyles.paper }}
+      >
+        <DialogTitle sx={dialogStyles.title}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Opciones del Formulario</Typography>
+            <IconButton onClick={handleCloseDialog}>
+              <Close />
+            </IconButton>
+          </div>
+        </DialogTitle>
+        <DialogContent sx={dialogStyles.content}>
+          <Typography component="p" variant="body1" color="textSecondary" paragraph>
+            Formulario {selectedFormData.formNumber} - {sectionTitles[selectedFormData.formNumber - 1]}
+          </Typography>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '24px' }}>
+            <Button
+              variant="outlined"
+              startIcon={<Visibility />}
+              onClick={() => window.open(selectedFormData.reportLink, '_blank')}
+              sx={{
+                ...dialogStyles.actionButton,
+                borderColor: '#1976d2',
+                color: '#1976d2',
+                '&:hover': { backgroundColor: '#1976d210' }
+              }}
+            >
+              Ver Reporte
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Download />}
+              onClick={handleDownloadReport}
+              sx={{
+                ...dialogStyles.actionButton,
+                backgroundColor: '#4CAF50',
+                '&:hover': { backgroundColor: '#45a049' }
+              }}
+            >
+              Descargar Excel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </ThemeProvider>
   );
 }

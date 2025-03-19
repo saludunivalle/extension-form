@@ -256,18 +256,18 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
       await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
         id_solicitud: idSolicitud,
         formData: pasoDataCompleto,
-        paso: 5,
+        paso: 0,
+        etapa_actual: 4,
         hoja,
         userData: {
           id_usuario,
           name: userData.name,
         }
+        
       });
 
-      // Abrir el modal de confirmación
-      setIsLoading(false); // Iniciar el loading
-
-      setOpenModal(true);
+      setCurrentSection(4);
+      navigate(`/formulario/4?solicitud=${idSolicitud}&paso=0`);
     } catch (error) {
       console.error('Error al guardar los datos del último paso:', error);
     }
@@ -406,7 +406,6 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>
       </Box>
-
       <Dialog 
         open={showModal} 
         onClose={() => setShowModal(false)}

@@ -151,7 +151,7 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
           valor_total: (formData[`${idKey}_cantidad`] || 0) * (formData[`${idKey}_vr_unit`] || 0)
         };
       });
-    
+   
       // Ya no necesitamos procesar gastos extras de forma separada
       const todosLosGastos = gastosRegulares.filter(g => g.cantidad > 0 && g.valor_unit > 0);
     
@@ -163,7 +163,6 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
         
         if (response.data.success) {
           alert("✅ Gastos registrados correctamente");
-          // Resto del código de manejo de respuesta...
         }
       } catch (error) {
         console.error("Error:", error.response?.data);
@@ -352,7 +351,6 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
                   total_recursos: totalAportesUnivalle || 0,
                 };
                 break; 
-            
             }       
           case 2:
               // Resumen Financiero

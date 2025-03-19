@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Stepper, Step, StepLabel, Box, useMediaQuery } from '@mui/material';
 import { styled } from '@mui/system';
 import CheckIcon from '@mui/icons-material/Check'; // Icono para los pasos completados

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Container, Typography, Grid, Link, Button, CircularProgress, Paper } from '@mui/material';
+import { Typography, Grid, Link, Button, CircularProgress, Paper } from '@mui/material';
 import { styled } from '@mui/system';
 
 const StyledContainer = styled(Paper)({
@@ -85,6 +85,7 @@ function ResultsPage() {
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Correo del Coordinador:</strong> {formData.correo_coordinador}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Teléfono del Coordinador:</strong> {formData.tel_coordinador}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Profesor Participante:</strong> {formData.profesor_participante}</Typography></StyledGridItem>
+        <StyledGridItem item xs={12}><Typography variant="body1"><strong>Perfil de Competencia:</strong> {formData.pefil_competencia}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Formas de Evaluación:</strong> {formData.formas_evaluacion}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Certificado Solicitado:</strong> {formData.certificado_solicitado}</Typography></StyledGridItem>
         <StyledGridItem item xs={12}><Typography variant="body1"><strong>Calificación Mínima:</strong> {formData.calificacion_minima}</Typography></StyledGridItem>
