@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react';
 import { Box, Button, Stepper, Step, StepLabel, CircularProgress, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom'; // Cambia useHistory por useNavigate
 import axios from 'axios';
-import PropTypes from "prop-types";
+import { openFormReport } from '../../services/reportServices';
+import PrintIcon from '@mui/icons-material/Print';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
+import PropTypes from 'prop-types';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
 // Importa las secciones de los pasos
 import Step1FormSection3 from './Step1FormSection3';
@@ -56,6 +61,7 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
   const location = useLocation(); // Obtener la ubicación actual
   const [isLoading, setIsLoading] = useState(false); // Estado para manejar el loading del botón
   const [showModal, setShowModal] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [completedSteps, setCompletedSteps] = useState([]);
   const [highestStepReached, setHighestStepReached] = useState(0); // Máximo paso alcanzado
 
@@ -301,10 +307,52 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
       setActiveStep(stepIndex); // Cambiar al paso clicado si es alcanzado
     }
   };
-  
 
+  const PrintReportButton = () => {
+    const isFormCompleted = activeStep === steps.length - 1 || completedSteps.includes(steps.length - 1);
+    
+    const handleGenerateReport = async () => {
+      try {
+        setIsGeneratingReport(true);
+        const idSolicitud = localStorage.getItem('id_solicitud');
+        await openFormReport(idSolicitud, 3); // 3 para el formulario de matriz de riesgos
+      } catch (error) {
+        console.error('Error al generar el reporte:', error);
+        alert('Hubo un problema al generar el reporte');
+      } finally {
+        setIsGeneratingReport(false);
+      }
+    };
+    
+    return (
+      <Box sx={{ 
+        position: 'absolute', 
+        top: '-60px', 
+        right: '10px', 
+        zIndex: 1000 
+      }}>
+        <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
+          <span>
+            <IconButton 
+              color="primary" 
+              onClick={handleGenerateReport}
+              disabled={!isFormCompleted || isGeneratingReport}
+              size="large"
+            >
+              {isGeneratingReport ? 
+                <CircularProgress size={24} color="inherit" /> : 
+                <PrintIcon />
+              }
+            </IconButton>
+          </span>
+        </Tooltip>
+      </Box>
+    );
+  };
+  
   return (
-    <Box>
+    <Box sx={{ position: 'relative' }}>
+      <PrintReportButton />
         <Stepper
           activeStep={activeStep}
           sx={{
@@ -358,26 +406,72 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>
       </Box>
-
-      <Dialog open={showModal} onClose={() => setShowModal(false)}>
-          <DialogTitle>Formulario Riesgos Potenciales</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-             Los datos del Formulario Riesgos Potenciales han sido guardados, ¿Desea continuar con el siguiente formulario?
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-          <Button onClick={async () => {
-            await handleSubmit();
-            setShowModal(false);
-          }}>
+      <Dialog 
+        open={showModal} 
+        onClose={() => setShowModal(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: '12px',
+            minWidth: '320px',
+            maxWidth: '450px',
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          borderBottom: '1px solid #f0f0f0', 
+          pb: 2,
+          backgroundColor: '#f9f9f9',
+          display: 'flex',
+          alignItems: 'center'
+        }}>
+          <CheckCircleOutlineIcon color="success" sx={{ mr: 1 }} />
+          Formulario Completado
+        </DialogTitle>
+        
+        <DialogContent sx={{ pt: 3, pb: 2 }}>
+          <DialogContentText sx={{ mb: 2 }}>
+            Los datos del formulario han sido guardados correctamente. ¿Qué desea hacer a continuación?
+          </DialogContentText>
+        </DialogContent>
+        
+        <DialogActions sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          p: 2,
+          borderTop: '1px solid #f0f0f0',
+          gap: 1
+        }}>
+          <Button onClick={() => window.location.href = '/'} color="secondary" variant="outlined">
+            Salir
+          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button onClick={() => setCurrentSection(2)} color="primary" variant="outlined">
               Continuar
             </Button>
-            <Button onClick={() => navigate('/')}>
-              Salir
+            <Button 
+              onClick={async () => {
+                try {
+                  setIsGeneratingReport(true);
+                  const idSolicitud = localStorage.getItem('id_solicitud');
+                  await openFormReport(idSolicitud, 3);
+                  setCurrentSection(2);
+                } catch (error) {
+                  console.error('Error al generar el reporte:', error);
+                  alert('Hubo un problema al generar el reporte');
+                } finally {
+                  setIsGeneratingReport(false);
+                }
+              }} 
+              color="primary" 
+              variant="contained"
+              disabled={isGeneratingReport}
+              startIcon={isGeneratingReport ? <CircularProgress size={20} color="inherit" /> : <PrintIcon />}
+            >
+              {isGeneratingReport ? 'Generando...' : 'Generar y continuar'}
             </Button>
-          </DialogActions>
-        </Dialog>
+          </Box>
+        </DialogActions>
+      </Dialog>
 
     </Box>
   );

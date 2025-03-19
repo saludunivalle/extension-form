@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Box, Button, Stepper, Step, StepLabel, Typography, Modal, CircularProgress } from '@mui/material';
+import {  Box, Button, Stepper, Step, StepLabel, Typography, Modal, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios'; // Importa Axios para realizar la solicitud de guardado
-import PropTypes from "prop-types";
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
+import { openFormReport } from '../../services/reportServices';
+import PrintIcon from '@mui/icons-material/Print';
+import PropTypes from 'prop-types';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
 import Step1FormSection4 from './Step1FormSection4';
 import Step2FormSection4 from './Step2FormSection4';
@@ -54,6 +59,8 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
   const navigate = useNavigate(); // Cambia useHistory por useNavigate
   const location = useLocation(); // Obtener la ubicación actual
   const [isLoading, setIsLoading] = useState(false); // Estado para manejar el loading del botón
+  const [exitDialogOpen, setExitDialogOpen] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [completedSteps, setCompletedSteps] = useState([]);
   const [highestStepReached, setHighestStepReached] = useState(0); // Máximo paso alcanzado
 
@@ -476,12 +483,36 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
     }
   };
 
-  
 
   const handleCloseModal = () => {
-    setOpenModal(false); // Cerrar el modal
-    navigate('/'); // Navegar al inicio
+    setOpenModal(false);
+    navigate('/');
   };
+  
+  const handleExitClick = () => {
+    setExitDialogOpen(true);
+  };
+
+  const handleCloseExitDialog = () => {
+    setExitDialogOpen(false);
+  };
+
+  const handleExitWithReport = async () => {
+    try {
+      setIsGeneratingReport(true);
+      const idSolicitud = localStorage.getItem('id_solicitud');
+      await openFormReport(idSolicitud, 4); // 4 corresponde al formulario de mercadeo
+      navigate('/');
+    } catch (error) {
+      console.error('Error al generar el reporte:', error);
+      alert('Hubo un problema al generar el reporte');
+    } finally {
+      setIsGeneratingReport(false);
+      setExitDialogOpen(false);
+    }
+  };
+
+  
 
   const renderStepContent = (step) => {
     switch (step) {
@@ -500,8 +531,52 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
     }
   };
 
+  const PrintReportButton = () => {
+    // Determinar si el formulario está completado (último paso completado)
+    const isFormCompleted = activeStep === steps.length - 1 || completedSteps.includes(steps.length - 1);
+    
+    const handleGenerateReport = async () => {
+      try {
+        setIsGeneratingReport(true);
+        const idSolicitud = localStorage.getItem('id_solicitud');
+        await openFormReport(idSolicitud, 4); // 4 para el formulario de mercadeo
+      } catch (error) {
+        console.error('Error al generar el reporte:', error);
+        alert('Hubo un problema al generar el reporte');
+      } finally {
+        setIsGeneratingReport(false);
+      }
+    };
+    
+    return (
+      <Box sx={{ 
+        position: 'absolute', 
+        top: '-60px', 
+        right: '10px', 
+        zIndex: 1000 
+      }}>
+        <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
+          <span>
+            <IconButton 
+              color="primary" 
+              onClick={handleGenerateReport}
+              disabled={!isFormCompleted || isGeneratingReport}
+              size="large"
+            >
+              {isGeneratingReport ? 
+                <CircularProgress size={24} color="inherit" /> : 
+                <PrintIcon />
+              }
+            </IconButton>
+          </span>
+        </Tooltip>
+      </Box>
+    );
+  };
+
   return (
-    <Box>
+    <Box sx={{ position: 'relative' }}>
+    <PrintReportButton />
       <Stepper
           activeStep={activeStep}
           sx={{
@@ -550,20 +625,121 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
       {renderStepContent(activeStep)}
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', marginBottom: '20px' }}>
-        <Button disabled={activeStep === 0} onClick={handleBack}>
-          Atrás
-        </Button>
-        <Button variant="contained" color="primary" onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}disabled={isLoading} startIcon={isLoading ? <CircularProgress size={20} /> : null}>
+        {activeStep === 0 ? (
+          <Button onClick={handleExitClick}>
+            Salir
+          </Button>
+        ) : (
+          <Button onClick={handleBack}>
+            Atrás
+          </Button>
+        )}
+        <Button 
+          variant="contained" 
+          color="primary" 
+          onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
+          disabled={isLoading} 
+          startIcon={isLoading ? <CircularProgress size={20} /> : null}
+        >
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>
       </Box>
 
+      <Dialog
+        open={exitDialogOpen}
+        onClose={handleCloseExitDialog}
+        PaperProps={{
+          sx: {
+            borderRadius: '12px',
+            minWidth: '320px',
+            maxWidth: '450px',
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          borderBottom: '1px solid #f0f0f0', 
+          pb: 2,
+          backgroundColor: '#f9f9f9',
+          display: 'flex',
+          alignItems: 'center'
+        }}>
+          ¿Salir del formulario?
+        </DialogTitle>
+        
+        <DialogContent sx={{ pt: 3, pb: 2 }}>
+          <DialogContentText sx={{ mb: 2 }}>
+            ¿Deseas salir del formulario? Los datos guardados se mantendrán.
+          </DialogContentText>
+        </DialogContent>
+        
+        <DialogActions sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          p: 2,
+          borderTop: '1px solid #f0f0f0',
+          gap: 1
+        }}>
+          <Button onClick={handleCloseExitDialog} color="primary" variant="outlined">
+            Cancelar
+          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button onClick={() => navigate('/')} color="secondary" variant="outlined">
+              Volver al inicio
+            </Button>
+            <Button 
+              onClick={handleExitWithReport} 
+              color="primary" 
+              variant="contained"
+              disabled={isGeneratingReport}
+              startIcon={isGeneratingReport ? <CircularProgress size={20} color="inherit" /> : <PrintIcon />}
+            >
+              {isGeneratingReport ? 'Generando...' : 'Generar y volver'}
+            </Button>
+          </Box>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal existente para finalización del formulario */}
       <Modal open={openModal} onClose={handleCloseModal}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-          <Box sx={{ backgroundColor: 'white', padding: '20px', textAlign: 'center' }}>
-            <Typography variant="h6">Se ha enviado todos los formularios con éxito</Typography>
-            <Button variant="contained" onClick={handleCloseModal} sx={{ marginTop: '10px' }}>
-              Salir al inicio
+        <Box sx={{ 
+          backgroundColor: 'white', 
+          padding: '20px', 
+          borderRadius: '12px',
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '80%',
+          maxWidth: '500px',
+          boxShadow: 24,
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+            <CheckCircleOutlineIcon color="success" sx={{ mr: 1, fontSize: '28px' }} />
+            <Typography variant="h6">Formulario completado con éxito</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
+            <Button onClick={() => navigate('/')} color="secondary" variant="outlined">
+              Volver al inicio
+            </Button>
+            <Button 
+              onClick={async () => {
+                try {
+                  setIsGeneratingReport(true);
+                  const idSolicitud = localStorage.getItem('id_solicitud');
+                  await openFormReport(idSolicitud, 4);
+                  navigate('/');
+                } catch (error) {
+                  console.error('Error al generar el reporte:', error);
+                } finally {
+                  setIsGeneratingReport(false);
+                }
+              }} 
+              color="primary" 
+              variant="contained"
+              disabled={isGeneratingReport}
+              startIcon={isGeneratingReport ? <CircularProgress size={20} color="inherit" /> : <PrintIcon />}
+            >
+              {isGeneratingReport ? 'Generando...' : 'Generar y volver'}
             </Button>
           </Box>
         </Box>

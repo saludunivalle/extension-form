@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+
 import { Button, Typography, List, ListItem, ListItemText, CircularProgress, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
+
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { Close, Download, Visibility } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -135,24 +137,24 @@ function Dashboard({ userData }) {
     const fetchRequests = async () => {
       setLoading(true);
       try {
+        // Obtener solicitudes activas
         const activeResponse = await axios.get(
-          'https://siac-extension-server.vercel.app/getActiveRequests', // Sin /api/
-          { params: { userId: userData.id } } // El backend espera "userId" y no "id_usuario"
-        );
-        setActiveRequests(activeResponse.data);
-      } catch (error) {
-        if (error.response?.status === 404) {
-          setActiveRequests([]);
-        } else {
-          console.error('Error al obtener solicitudes activas:', error);
-        }
-      }
-      try {
-        const completedResponse = await axios.get(
-          'https://siac-extension-server.vercel.app/getCompletedRequests',
+          'https://siac-extension-server.vercel.app/getActiveRequests',
           { params: { userId: userData.id } }
         );
-        setCompletedRequests(completedResponse.data);
+
+        
+        const requests = activeResponse.data;
+        
+        // Asignar etapa_actual desde formulario
+        const requestsWithStages = requests.map((request) => ({
+          ...request,
+          etapa_actual: Number(request.formulario) || 0,
+        }));
+        
+        setActiveRequests(requestsWithStages);
+        console.log("Solicitudes con etapas:", requestsWithStages);
+
       } catch (error) {
         if (error.response?.status === 404) {
           setCompletedRequests([]);
@@ -166,6 +168,17 @@ function Dashboard({ userData }) {
       fetchRequests();
     }
   }, [userData]);
+
+  useEffect(() => {
+    if (activeRequests.length > 0) {
+      console.log("Datos de solicitudes activas:", activeRequests);
+      console.log("Valores de etapa_actual:", activeRequests.map(r => ({
+        id: r.idSolicitud,
+        etapa: r.etapa_actual,
+        nombre: r.nombre_actividad
+      })));
+    }
+  }, [activeRequests]);
  
   const handleCreateNewRequest = async () => {
     try {
@@ -240,93 +253,103 @@ const handleGenerateFormReport = async (request, formNumber) => {
       return;
     }
 
-    setLoadingReports((prev) => ({ ...prev, [`${idSolicitud}-${formNumber}`]: true }));
-
-    const response = await axios.post('https://siac-extension-server.vercel.app/generateReport', {
-      solicitudId: idSolicitud,
-      formNumber,
-    });
-
-    // Verificar si la respuesta es exitosa y tiene un enlace
-    if (response.data.success && response.data.link) {
-      setSelectedFormData({
-        idSolicitud,
-        formNumber,
-        reportLink: response.data.link,
+  
+    try {
+      console.log(`🔎 Buscando datos de la solicitud con ID: ${idSolicitud}`);
+      
+      // Obtener datos actualizados desde Google Sheets
+      const response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
+        params: { id_solicitud: idSolicitud }
       });
-      setDialogOpen(true);
-    } else {
-      alert('Error al generar el reporte: ' + (response.data.error || ''));
+  
+      if (response.status === 200 && response.data) {
+        console.log('✅ Datos de la solicitud obtenidos:', response.data);
+        // Extraer los datos correctamente de `SOLICITUDES`
+        const solicitudData = response.data.SOLICITUDES || response.data;
+  
+        if (!solicitudData.id_solicitud) {
+          throw new Error("La respuesta no contiene un ID válido.");
+        }
+        // Guardamos los datos en localStorage para persistencia
+        localStorage.setItem('id_solicitud', solicitudData.id_solicitud);
+        localStorage.setItem('formData', JSON.stringify(solicitudData));
+        // Navegamos al formulario con los datos ya recuperados
+        navigate(`/formulario/${formulario}?solicitud=${idSolicitud}&paso=${paso}`);
+      } else {
+        throw new Error('No se encontraron datos para la solicitud.');
+      }
+    } catch (error) {
+      console.error('🚨 Error al cargar los datos de la solicitud:', error);
+      alert('Hubo un problema al cargar los datos de la solicitud. Inténtalo de nuevo.');
     }
+  };
 
-  } catch (error) {
-    console.error('Error:', error);
-    alert('Error al generar el reporte: ' + error.message);
-  } finally {
-    setLoadingReports((prev) => ({ ...prev, [`${request.idSolicitud}-${formNumber}`]: false }));
-  }
-};
 
-const handleDownloadReport = async () => {
-  try {
-    const { idSolicitud, formNumber } = selectedFormData;
-    
-    const response = await axios.post(
-      'https://siac-extension-server.vercel.app/downloadReport',
-      { solicitudId: idSolicitud, formNumber },
-      { responseType: 'blob' } // Indicar que esperamos un archivo binario
-    );
-
-    // Crear enlace de descarga temporal
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Reporte_Formulario_${formNumber}.xlsx`);
-    document.body.appendChild(link);
-    link.click();
-    
-    // Limpiar
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(link);
-
-  } catch (error) {
-    console.error('Error descargando reporte:', error);
-    alert('Error al descargar el reporte');
-  }
-};
+  const handleNavigateToForm = async (request, formNumber) => {
+    try {
+      const { idSolicitud } = request;
+      
+      // Limpiar localStorage antes de la navegación
+      localStorage.removeItem('formData');
+      localStorage.setItem('id_solicitud', idSolicitud);
+      
+      // Obtener datos actualizados de la solicitud
+      console.log(`🔎 Cargando datos para solicitud ${idSolicitud}, formulario ${formNumber}`);
+      const response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
+        params: { id_solicitud: idSolicitud }
+      });
+      
+      if (response.status === 200 && response.data) {
+        // Guardar los datos actualizados en localStorage
+        const solicitudData = response.data.SOLICITUDES || response.data;
+        localStorage.setItem('formData', JSON.stringify(solicitudData));
+        console.log(`✅ Datos cargados correctamente para solicitud ${idSolicitud}`);
+        
+        // Navegar al formulario
+        navigate(`/formulario/${formNumber}?solicitud=${idSolicitud}&paso=0`);
+      } else {
+        throw new Error('No se encontraron datos para esta solicitud');
+      }
+    } catch (error) {
+      console.error('Error al cargar los datos de la solicitud:', error);
+      alert('Hubo un problema al cargar los datos de la solicitud seleccionada.');
+    }
+  };
+ 
+  const formNames = [
+    "Datos básicos", 
+    "Presupuesto", 
+    "Matriz de riesgos", 
+    "Mercadeo"
+  ];
 
   const getButtonState = (request, formNumber) => {
-    // Definir la cantidad máxima de pasos por formulario
-    const maxPasosPorFormulario = {
-      1: 5,  // Formulario 1 tiene 5 pasos
-      2: 3,  // Formulario 2 tiene 3 pasos
-      3: 5,  // Formulario 3 tiene 5 pasos
-      4: 5   // Formulario 4 tiene 5 pasos
-    };
-  
+    const currentStage = Number(request.etapa_actual) || 0;
+    
     const isCompleted = completedRequests.some(
       (completed) => completed.idSolicitud === request.idSolicitud
     );
+    
+    const isPast = formNumber < currentStage;
+    const isCurrent = formNumber === currentStage;
+    const isFuture = formNumber > currentStage;
   
-    // Determinar si el formulario actual está completado
-    const isFormCompleted = 
-      request.formulario === formNumber && 
-      request.paso >= maxPasosPorFormulario[formNumber];
+    console.log(`Solicitud ${request.idSolicitud}, Formulario ${formNumber}:`, { 
+      currentStage, isCompleted, isPast, isCurrent, isFuture 
+    });
   
-    // Determinar si es un formulario anterior ya completado
-    const isPastForm = request.formulario > formNumber;
-  
-    if (isCompleted || isFormCompleted || isPastForm) {
-      return { enabled: true, color: 'primary', cursor: 'pointer' };
+    if (isCompleted) {
+      return { enabled: true, color: '#1976d2', cursor: 'pointer', progress: 100 };
+    } else if (isPast) {
+      return { enabled: true, color: '#1976d2', cursor: 'pointer', progress: 100 };
+    } else if (isCurrent) {
+      // La etapa en progreso debe estar deshabilitada pero con color distintivo
+      return { enabled: false, color: '#90caf9', cursor: 'not-allowed', progress: 50 };
+    } else {
+      // Etapas futuras deshabilitadas
+      return { enabled: false, color: '#e0e0e0', cursor: 'not-allowed', progress: 0 };
     }
-  
-    // Si es el formulario actual pero no está completado
-    if (request.formulario === formNumber) {
-      return { enabled: false, color: '#90caf9', cursor: 'not-allowed' };
-    }
-  
-    // Formularios futuros
-    return { enabled: false, color: '#e0e0e0', cursor: 'not-allowed' };
+
   };
 
   if (!userData || !userData.id) {
@@ -374,29 +397,25 @@ const handleDownloadReport = async () => {
               </Button>
               <div style={{ display: 'flex', gap: '10px' }}>
                 {[1, 2, 3, 4].map((formNumber) => {
-                  const { enabled, color, cursor } = getButtonState(request, formNumber);
-                  const isLoading = loadingReports[`${request.idSolicitud}-${formNumber}`];
+                  const { enabled, color } = getButtonState(request, formNumber);
+                  const buttonStyles = {
+                    backgroundColor: color,
+                    cursor: enabled ? 'pointer' : 'not-allowed',
+                  };
                   return (
-                    <Tooltip
-                      key={`${request.idSolicitud}-${formNumber}`}
-                      title={
-                        enabled
-                          ? `Generar ${sectionTitles[formNumber - 1]}`
-                          : 'Complete el formulario para generar el reporte'
-                      }
-                      arrow
-                    >
-                      <span>
-                        <Button
-                          variant="contained"
-                          style={{ backgroundColor: color, cursor, minWidth: '100px' }}
-                          onClick={() => handleOpenDialog(request, formNumber)}
-                          disabled={!enabled || isLoading}
-                        >
-                          {isLoading ? <CircularProgress size={24} color="inherit" /> : formNumber}
-                        </Button>
-                      </span>
-                    </Tooltip>
+                    <div key={`container-${request.idSolicitud}-${formNumber}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+                      <Typography variant="body2" align="center">{formNames[formNumber - 1]}</Typography>
+                      <Button
+                        key={`${request.idSolicitud}-${formNumber}`}
+                        variant="contained"
+                        style={buttonStyles}
+                        onClick={() => handleNavigateToForm(request, formNumber)}
+                        disabled={!enabled}
+                      >
+                        {formNumber}
+                      </Button>
+                    </div>
+
                   );
                 })}
               </div>
@@ -409,23 +428,43 @@ const handleDownloadReport = async () => {
           Solicitudes Terminadas:
         </Typography>
         <List>
-          {completedRequests.map((request) => (
-            <ListItem key={request.idSolicitud} style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <ListItemText primary={request.nombre_actividad || `Solicitud ${request.idSolicitud}`} />
-              <div style={{ display: 'flex', gap: '10px' }}>
-                {[1, 2, 3, 4].map((formNumber) => (
-                  <Button
-                    key={`${request.idSolicitud}-${formNumber}`}
-                    variant="contained"
-                    color="primary"
-                    onClick={() => handleGenerateFormReport(request, formNumber)}
-                  >
-                    {formNumber}
-                  </Button>
-                ))}
-              </div>
-            </ListItem>
-          ))}
+        {completedRequests.map((request) => (
+          <ListItem key={request.idSolicitud} style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <ListItemText primary={request.nombre_actividad || `Solicitud ${request.idSolicitud}`} />
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {[1, 2, 3, 4].map((formNumber) => {
+                const index = formNumber - 1; // Ajustar índice para el array
+                
+                return (
+                  <div key={`container-${request.idSolicitud}-${formNumber}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+                    <Typography 
+                      variant="caption" 
+                      align="center" 
+                      style={{ 
+                        color: '#1976d2',
+                        fontWeight: 'bold',
+                        width: '100px',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}
+                    >
+                      {formNames[index]}
+                    </Typography>
+                    <Button
+                      key={`${request.idSolicitud}-${formNumber}`}
+                      variant="contained"
+                      style={{ backgroundColor: '#1976d2' }}
+                      onClick={() => handleNavigateToForm(request, formNumber)}
+                    >
+                      {formNumber}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </ListItem>
+        ))}
         </List>
       </div>
 
