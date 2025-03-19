@@ -87,7 +87,7 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
 
   useEffect(() => {
     if (!idSolicitud || isNaN(parseInt(idSolicitud, 10))) {
-      alert('No se encontró un ID válido para esta solicitud. Por favor, vuelve al dashboard.');
+      console.log('No se encontró un ID válido para esta solicitud. Por favor, vuelve al dashboard.');
       window.location.href = '/';
     }
   }, [idSolicitud]);
@@ -162,11 +162,11 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
         });
         
         if (response.data.success) {
-          alert("✅ Gastos registrados correctamente");
+          console.log("✅ Gastos registrados correctamente");
         }
       } catch (error) {
         console.error("Error:", error.response?.data);
-        alert(`🚨 Error: ${error.response?.data?.error || error.message}`);
+        console.log(`🚨 Error: ${error.response?.data?.error || error.message}`);
       }
     };
   

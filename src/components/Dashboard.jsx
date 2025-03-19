@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-
+import { openFormReport } from '../services/reportServices';
 import { Button, Typography, List, ListItem, ListItemText, CircularProgress, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
 
 import { createTheme, ThemeProvider } from '@mui/material/styles';
@@ -253,68 +253,66 @@ const handleGenerateFormReport = async (request, formNumber) => {
       return;
     }
 
-  
-    try {
-      console.log(`🔎 Buscando datos de la solicitud con ID: ${idSolicitud}`);
+    console.log(`🔎 Buscando datos de la solicitud con ID: ${idSolicitud}`);
+    
+    // 1. Obtener datos actualizados desde Google Sheets
+    const response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
+      params: { id_solicitud: idSolicitud }
+    });
+
+    if (response.status === 200 && response.data) {
+      // 2. Extraer y guardar los datos
+      const solicitudData = response.data.SOLICITUDES || response.data;
       
-      // Obtener datos actualizados desde Google Sheets
-      const response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
-        params: { id_solicitud: idSolicitud }
-      });
-  
-      if (response.status === 200 && response.data) {
-        console.log('✅ Datos de la solicitud obtenidos:', response.data);
-        // Extraer los datos correctamente de `SOLICITUDES`
-        const solicitudData = response.data.SOLICITUDES || response.data;
-  
-        if (!solicitudData.id_solicitud) {
-          throw new Error("La respuesta no contiene un ID válido.");
-        }
-        // Guardamos los datos en localStorage para persistencia
-        localStorage.setItem('id_solicitud', solicitudData.id_solicitud);
-        localStorage.setItem('formData', JSON.stringify(solicitudData));
-        // Navegamos al formulario con los datos ya recuperados
-        navigate(`/formulario/${formulario}?solicitud=${idSolicitud}&paso=${paso}`);
-      } else {
-        throw new Error('No se encontraron datos para la solicitud.');
+      if (!solicitudData.id_solicitud) {
+        throw new Error("La respuesta no contiene un ID válido.");
       }
-    } catch (error) {
-      console.error('🚨 Error al cargar los datos de la solicitud:', error);
-      alert('Hubo un problema al cargar los datos de la solicitud. Inténtalo de nuevo.');
+      
+      localStorage.setItem('id_solicitud', solicitudData.id_solicitud);
+      localStorage.setItem('formData', JSON.stringify(solicitudData));
+      
+      // 3. Utilizar el servicio existente
+      await openFormReport(idSolicitud, formNumber);
+    } else {
+      throw new Error('No se encontraron datos para la solicitud.');
     }
-  };
+  } catch (error) {
+    console.error('🚨 Error al generar el reporte del formulario:', error);
+    alert('Hubo un problema al generar el reporte. Inténtalo de nuevo.');
+  }
+};
 
 
-  const handleNavigateToForm = async (request, formNumber) => {
-    try {
-      const { idSolicitud } = request;
+const handleNavigateToForm = async (request, formNumber) => {
+  try {
+    const { idSolicitud } = request;
+    
+    // Limpiar localStorage antes de la navegación
+    localStorage.removeItem('formData');
+    localStorage.setItem('id_solicitud', idSolicitud);
+    
+    // Obtener datos actualizados de la solicitud
+    console.log(`🔎 Cargando datos para solicitud ${idSolicitud}, formulario ${formNumber}`);
+    const response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
+      params: { id_solicitud: idSolicitud }
+    });
+    
+    if (response.status === 200 && response.data) {
+      // Guardar los datos actualizados en localStorage
+      const solicitudData = response.data.SOLICITUDES || response.data;
+      localStorage.setItem('formData', JSON.stringify(solicitudData));
+      console.log(`✅ Datos cargados correctamente para solicitud ${idSolicitud}`);
       
-      // Limpiar localStorage antes de la navegación
-      localStorage.removeItem('formData');
-      localStorage.setItem('id_solicitud', idSolicitud);
-      
-      // Obtener datos actualizados de la solicitud
-      console.log(`🔎 Cargando datos para solicitud ${idSolicitud}, formulario ${formNumber}`);
-      const response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
-        params: { id_solicitud: idSolicitud }
-      });
-      
-      if (response.status === 200 && response.data) {
-        // Guardar los datos actualizados en localStorage
-        const solicitudData = response.data.SOLICITUDES || response.data;
-        localStorage.setItem('formData', JSON.stringify(solicitudData));
-        console.log(`✅ Datos cargados correctamente para solicitud ${idSolicitud}`);
-        
-        // Navegar al formulario
-        navigate(`/formulario/${formNumber}?solicitud=${idSolicitud}&paso=0`);
-      } else {
-        throw new Error('No se encontraron datos para esta solicitud');
-      }
-    } catch (error) {
-      console.error('Error al cargar los datos de la solicitud:', error);
-      alert('Hubo un problema al cargar los datos de la solicitud seleccionada.');
+      // Navegar al formulario
+      navigate(`/formulario/${formNumber}?solicitud=${idSolicitud}&paso=0`);
+    } else {
+      throw new Error('No se encontraron datos para esta solicitud');
     }
-  };
+  } catch (error) {
+    console.error('Error al cargar los datos de la solicitud:', error);
+    alert('Hubo un problema al cargar los datos de la solicitud seleccionada.');
+  }
+};
  
   const formNames = [
     "Datos básicos", 
@@ -467,54 +465,6 @@ const handleGenerateFormReport = async (request, formNumber) => {
         ))}
         </List>
       </div>
-
-      {/* Diálogo para opciones del formulario */}
-      <Dialog
-        open={dialogOpen}
-        onClose={handleCloseDialog}
-        PaperProps={{ sx: dialogStyles.paper }}
-      >
-        <DialogTitle sx={dialogStyles.title}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Opciones del Formulario</Typography>
-            <IconButton onClick={handleCloseDialog}>
-              <Close />
-            </IconButton>
-          </div>
-        </DialogTitle>
-        <DialogContent sx={dialogStyles.content}>
-          <Typography component="p" variant="body1" color="textSecondary" paragraph>
-            Formulario {selectedFormData.formNumber} - {sectionTitles[selectedFormData.formNumber - 1]}
-          </Typography>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '24px' }}>
-            <Button
-              variant="outlined"
-              startIcon={<Visibility />}
-              onClick={() => window.open(selectedFormData.reportLink, '_blank')}
-              sx={{
-                ...dialogStyles.actionButton,
-                borderColor: '#1976d2',
-                color: '#1976d2',
-                '&:hover': { backgroundColor: '#1976d210' }
-              }}
-            >
-              Ver Reporte
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<Download />}
-              onClick={handleDownloadReport}
-              sx={{
-                ...dialogStyles.actionButton,
-                backgroundColor: '#4CAF50',
-                '&:hover': { backgroundColor: '#45a049' }
-              }}
-            >
-              Descargar Excel
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </ThemeProvider>
   );
 }
@@ -527,11 +477,5 @@ Dashboard.propTypes = {
 };
 
 
-Dashboard.propTypes = {
-  userData: PropTypes.shape({
-    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-    name: PropTypes.string.isRequired,
-  }).isRequired,
-};
 
 export default Dashboard;
