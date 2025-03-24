@@ -381,6 +381,40 @@ const handleNavigateToForm = async (request, formNumber) => {
         <Typography variant="h6" style={{ marginTop: '20px' }}>
           Solicitudes en Creación:
         </Typography>
+
+        {activeRequests.length > 0 && (
+          <div style={{ 
+            display: 'flex', 
+            marginTop: '10px',
+            marginLeft: '42%', // Alineamos con los botones de las solicitudes
+          }}>
+            <div style={{ width: '80px' }}></div> {/* Espacio para el botón "Continuar" */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {formNames.map((name, index) => (
+                <div key={`form-name-${index}`} style={{ 
+                  width: '100px', 
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  color: '#1976d2' 
+                }}>
+                  <Typography 
+                    variant="body2" 
+                    align="center"
+                    style={{
+                      fontSize: '0.75rem',       // Texto más pequeño
+                      whiteSpace: 'nowrap',      // Fuerza una sola línea
+                      overflow: 'hidden',        // Oculta el desbordamiento
+                      textOverflow: 'ellipsis',  // Muestra puntos suspensivos si es necesario
+                    }}
+                    title={name}  // Muestra el nombre completo al pasar el mouse
+                  >
+                    {name}
+                  </Typography>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <List>
           {activeRequests.map((request) => (
             <ListItem key={request.idSolicitud} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -401,8 +435,13 @@ const handleNavigateToForm = async (request, formNumber) => {
                     cursor: enabled ? 'pointer' : 'not-allowed',
                   };
                   return (
-                    <div key={`container-${request.idSolicitud}-${formNumber}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-                      <Typography variant="body2" align="center">{formNames[formNumber - 1]}</Typography>
+                    <div key={`container-${request.idSolicitud}-${formNumber}`} style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      alignItems: 'center',
+                      width: '100px' 
+                    }}>
+                      {/* Eliminamos el Typography con los nombres de los formularios aquí */}
                       <Button
                         key={`${request.idSolicitud}-${formNumber}`}
                         variant="contained"
@@ -413,14 +452,12 @@ const handleNavigateToForm = async (request, formNumber) => {
                         {formNumber}
                       </Button>
                     </div>
-
                   );
                 })}
               </div>
             </ListItem>
           ))}
         </List>
-
         {/* Solicitudes Terminadas */}
         <Typography variant="h6" style={{ marginTop: '20px' }}>
           Solicitudes Terminadas:
