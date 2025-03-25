@@ -533,7 +533,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
 
   const PrintReportButton = () => {
     // Determinar si el formulario está completado (último paso completado)
-    const isFormCompleted = activeStep === steps.length - 1 || completedSteps.includes(steps.length - 1);
+    const isFormCompleted = completedSteps.includes(steps.length - 1);
     
     const handleGenerateReport = async () => {
       try {
@@ -553,7 +553,10 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
         position: 'absolute', 
         top: '-60px', 
         right: '10px', 
-        zIndex: 1000 
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
       }}>
         <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
           <span>
@@ -570,6 +573,19 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
             </IconButton>
           </span>
         </Tooltip>
+        <Typography 
+        variant="caption" 
+        color="primary" 
+        sx={{ 
+          fontSize: '10px', 
+          fontWeight: 'bold',
+          marginBottom: '10px',
+          marginTop: '-10px',
+          opacity: !isFormCompleted || isGeneratingReport ? 0.5 : 1 
+        }}
+      >
+        {isGeneratingReport ? 'Generando...' : 'Generar reporte'}
+      </Typography>
       </Box>
     );
   };

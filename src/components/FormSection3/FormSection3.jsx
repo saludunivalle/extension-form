@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Box, Button, Stepper, Step, StepLabel, CircularProgress, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
+import { Box, Button, Stepper, Step, StepLabel, CircularProgress, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Typography } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom'; // Cambia useHistory por useNavigate
 import axios from 'axios';
 import { openFormReport } from '../../services/reportServices';
@@ -309,7 +309,7 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
   };
 
   const PrintReportButton = () => {
-    const isFormCompleted = activeStep === steps.length - 1 || completedSteps.includes(steps.length - 1);
+    const isFormCompleted = completedSteps.includes(steps.length - 1);
     
     const handleGenerateReport = async () => {
       try {
@@ -329,7 +329,10 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
         position: 'absolute', 
         top: '-60px', 
         right: '10px', 
-        zIndex: 1000 
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
       }}>
         <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
           <span>
@@ -346,6 +349,19 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
             </IconButton>
           </span>
         </Tooltip>
+        <Typography 
+        variant="caption" 
+        color="primary" 
+        sx={{ 
+          fontSize: '10px', 
+          fontWeight: 'bold',
+          marginBottom: '10px',
+          marginTop: '-10px',
+          opacity: !isFormCompleted || isGeneratingReport ? 0.5 : 1 
+        }}
+      >
+        {isGeneratingReport ? 'Generando...' : 'Generar reporte'}
+      </Typography>
       </Box>
     );
   };
