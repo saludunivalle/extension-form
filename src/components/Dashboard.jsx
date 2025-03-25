@@ -381,7 +381,6 @@ const handleNavigateToForm = async (request, formNumber) => {
         <Typography variant="h6" style={{ marginTop: '20px' }}>
           Solicitudes en Creación:
         </Typography>
-
         {activeRequests.length > 0 && (
           <div style={{ 
             display: 'flex', 
@@ -427,6 +426,7 @@ const handleNavigateToForm = async (request, formNumber) => {
               >
                 Continuar
               </Button>
+              
               <div style={{ display: 'flex', gap: '10px' }}>
                 {[1, 2, 3, 4].map((formNumber) => {
                   const { enabled, color } = getButtonState(request, formNumber);
@@ -441,7 +441,6 @@ const handleNavigateToForm = async (request, formNumber) => {
                       alignItems: 'center',
                       width: '100px' 
                     }}>
-                      {/* Eliminamos el Typography con los nombres de los formularios aquí */}
                       <Button
                         key={`${request.idSolicitud}-${formNumber}`}
                         variant="contained"

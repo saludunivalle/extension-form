@@ -82,6 +82,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
   function FormSection({ 
     formData,
     setFormData, 
+    currentSection,
     handleInputChange, 
     setCurrentSection, 
     escuelas, 
@@ -359,6 +360,14 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
       }
     }, [currentStep, steps.length]);
 
+    useEffect(() => {
+      // Si estamos cambiando a otro formulario, guardar que llegamos a este punto
+      const currentMaxFormId = parseInt(localStorage.getItem('maxFormIdVisited') || '1');
+      if (currentSection > currentMaxFormId) {
+        localStorage.setItem('maxFormIdVisited', currentSection.toString());
+      }
+    }, [currentSection]);
+
     /*
     Lógica del botón "Siguiente"
     - Valida los campos del paso actual. Si hay errores, detiene el avance.
@@ -385,10 +394,23 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
           switch (activeStep) {
               case 0:{
-                const fecha = new Date(formData.fecha_solicitud);
-                    pasoData = {
+                let formattedDate;
+                try {
+                  if (formData.fecha_solicitud && formData.fecha_solicitud !== "FALSE") {
+                    const fecha = new Date(formData.fecha_solicitud);
+                    formattedDate = !isNaN(fecha.getTime()) 
+                      ? fecha.toISOString().split('T')[0] 
+                      : new Date().toISOString().split('T')[0];
+                  } else {
+                    formattedDate = new Date().toISOString().split('T')[0];
+                  }
+                } catch (e) {
+                  console.error("Error al formatear la fecha:", e);
+                  formattedDate = new Date().toISOString().split('T')[0]; 
+                }
+                      pasoData = {
                       id_solicitud: idSolicitud,
-                      fecha_solicitud: fecha.toISOString().split('T')[0],
+                      fecha_solicitud: formattedDate,
                       nombre_actividad: formData.nombre_actividad || 'N/A',
                       nombre_solicitante: formData.nombre_solicitante || 'N/A',
                       dependencia_tipo: formData.dependencia_tipo || 'N/A',
@@ -868,6 +890,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
     setFormData: PropTypes.func.isRequired,
     handleInputChange: PropTypes.func.isRequired,
     setCurrentSection: PropTypes.func.isRequired,
+    currentSection: PropTypes.number.isRequired,
     escuelas: PropTypes.array,
     departamentos: PropTypes.array,
     secciones: PropTypes.array,

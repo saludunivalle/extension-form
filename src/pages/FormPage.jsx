@@ -6,6 +6,7 @@ import FormSection2 from '../components/FormSection2/FormSection2';
 import FormSection3 from '../components/FormSection3/FormSection3';
 import FormSection4 from '../components/FormSection4/FormSection4';
 import FormStepper from './FormStepper';
+import useFormNavigation from '../hooks/useFormNavigation';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import PropTypes from 'prop-types';
 
@@ -77,12 +78,6 @@ function FormPage({ userData }) {
     }
   }, [solicitudId, navigate, userData.id]);
 
-  // Estados para la sección y el paso actuales
-  const [currentSection, setCurrentSection] = useState(parseInt(formId, 10) || 1);
-  const [currentStep, setCurrentStep] = useState(
-    !isNaN(parseInt(formStep, 10)) && parseInt(formStep, 10) >= 0 ? parseInt(formStep, 10) : 0
-  );
-
   // formData se inicializa con el id de solicitud obtenido de la URL
   const [formData, setFormData] = useState(() => {
     const savedFormData = localStorage.getItem('formData');
@@ -149,131 +144,24 @@ function FormPage({ userData }) {
     aplicaCierre2: '', aplicaOtros1: '', aplicaOtros2: ''
   }});
 
-  useEffect(() => {
-    const savedFormData = localStorage.getItem('formData');
-    if (savedFormData) {
-      setFormData(JSON.parse(savedFormData));
-    }
-  }, [solicitudId]);
 
-  // Cargar datos de la solicitud desde el backend sin usar cache local
-  useEffect(() => {
-    const fetchSolicitudData = async () => {
-      if (solicitudId) {
-        try {
-          const response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
-            params: { id_solicitud: solicitudId, timestamp: new Date().getTime() }
-          });
-          setFormData(prev => ({ ...prev, ...response.data }));
-        } catch (error) {
-          if (error.response && error.response.status === 404) {
-            console.warn('No se encontraron datos para la solicitud, se usa id de URL');
-            setFormData(prev => ({ ...prev, id_solicitud: solicitudId }));
-          } else {
-            console.error('Error al cargar los datos de la solicitud:', error);
-          }
-        }
-      }
-    };
-    fetchSolicitudData();
-  }, [solicitudId]);
+  const { 
+    currentSection,
+    setCurrentSection, 
+    currentStep, 
+    setCurrentStep,
+    highestSectionReached,
+    navigateToSection,
+    calculateCompletedSteps,
+    clickableSteps
+  } = useFormNavigation({
+    solicitudId,
+    formData,
+    initialSection: parseInt(formId, 10) || 1,
+    initialStep: parseInt(formStep, 10) || 0,
+    totalSections: sectionTitles.length
+  });
 
-  useEffect(() => {
-    if (currentSection > highestSectionReached) {
-      setHighestSectionReached(currentSection);
-      localStorage.setItem(`highestSectionReached_${solicitudId}`, currentSection);
-    }
-  }, [currentSection, highestSectionReached, solicitudId]);
-
-  // Al cargar, recuperar el formulario más avanzado (si existe)
-  useEffect(() => {
-    // 1. Intentar recuperar el formulario más avanzado de localStorage
-    const savedHighestSection = localStorage.getItem(`highestSectionReached_${solicitudId}`);
-    // 2. Verificar los datos de formulario para inferir formularios completados
-    const checkCompletedForms = () => {
-      if (formData.descripcionPrograma || formData.competencia) {
-        return 4;
-      }
-      else if (formData.aplicaDiseno1 || formData.proposito) {
-        return 3;
-      }
-      else if (formData.ingresos_cantidad || formData.total_recursos) {
-        return 2;
-      }
-      else if (formData.nombre_actividad || formData.introduccion) {
-        return 1;
-      }
-      return 1;
-    };
-    
-    // 3. Obtener el número más alto entre todos los métodos
-    const inferredHighestSection = checkCompletedForms();
-    const currentUrlSection = parseInt(formId, 10) || 1;
-    const highestFromLocalStorage = savedHighestSection ? parseInt(savedHighestSection, 10) : 1;
-    
-    // 4. Usar el máximo de todos los valores para garantizar acceso a todo lo completado
-    const actualHighestSection = Math.max(
-      inferredHighestSection,
-      currentUrlSection,
-      highestFromLocalStorage
-    );
-    
-    // 5. Actualizar el estado y localStorage
-    setHighestSectionReached(actualHighestSection);
-    if (solicitudId) {
-      localStorage.setItem(`highestSectionReached_${solicitudId}`, actualHighestSection);
-    }
-  }, [formData, formId, solicitudId]);
-
-  // Función modificada para calcular pasos completados
-  const calculateCompletedSteps = () => {
-    return Array.from({ length: highestSectionReached }, (_, i) => i);
-  };
-
-  // Actualizar la sección actual y navega
-  const handleSectionChange = (newSection) => {
-    // Only change if the section is valid and accessible based on progress
-    if (newSection <= highestSectionReached && newSection >= 1 && newSection <= sectionTitles.length) {
-      if (currentSection) {
-        localStorage.setItem(`form${currentSection}_lastStep`, currentStep);
-      }
-  
-      setCurrentSection(newSection);
-      
-      // Recuperar el último paso visitado para esta sección
-      const lastStep = localStorage.getItem(`form${newSection}_lastStep`) || 0;
-      setCurrentStep(parseInt(lastStep));
-      
-      // Actualizar la URL
-      navigate(`/formulario/${newSection}?solicitud=${localStorage.getItem('id_solicitud')}&paso=${lastStep}`);
-    } else {
-      console.warn(`Cannot navigate to section ${newSection}. Highest reached: ${highestSectionReached}`);
-    }
-  };
-
-
-  useEffect(() => {
-    const parsedFormId = parseInt(formId, 10);
-    const parsedFormStep = parseInt(formStep, 10);
-    const isFormIdValid = !isNaN(parsedFormId) && parsedFormId >= 1 && parsedFormId <= sectionTitles.length;
-    const isFormStepValid = !isNaN(parsedFormStep) && parsedFormStep >= 0;
-    if (isFormIdValid && isFormStepValid) {
-      setCurrentSection(parsedFormId);
-      setCurrentStep(parsedFormStep);
-    } else {
-      setCurrentSection(1);
-      setCurrentStep(0);
-    }
-  }, [formId, formStep]);
-
-  // Validación de currentStep según la sección
-  useEffect(() => {
-    const maxSteps = { 1: 5, 2: 3, 3: 4, 4: 2 };
-    const currentMaxSteps = maxSteps[currentSection] || 0;
-    if (currentStep >= currentMaxSteps) {
-      setCurrentStep(0);
-    }
-  }, [currentSection, currentStep]);
 
   // Fetch de datos de escuelas, programas y oficinas desde Google Sheets
   const [escuelas, setEscuelas] = useState([]);
@@ -301,19 +189,29 @@ function FormPage({ userData }) {
   // Dependencias para departamentos, secciones y programas filtrados
   useEffect(() => {
     if (formData.nombre_escuela) {
-      const departamentosFiltrados = [
-        ...new Set(
+      try {
+        // Validar que programas sea un array antes de filtrar
+        if (!Array.isArray(programas)) {
+          console.error("programas no es un array:", programas);
+          setDepartamentos([]);
+          return;
+        }
+  
+        const departamentosFiltrados = [...new Set(
           programas
-            .filter(item => item.Escuela === formData.nombre_escuela)
-            .map(item => item.Departamento || "General")
-        ),
-      ];
-      if (departamentosFiltrados.length === 1 && departamentosFiltrados[0] === "General") {
-        setFormData(prev => ({ ...prev, nombre_departamento: "General" }));
+            .filter(item => item && item.Escuela === formData.nombre_escuela)
+            .map(item => item?.Departamento || "General")
+        )];
+        
+        setDepartamentos(departamentosFiltrados);
+      } catch (err) {
+        console.error("Error al filtrar departamentos:", err);
+        setDepartamentos([]);
       }
-      setDepartamentos(departamentosFiltrados);
     } else {
       setDepartamentos([]);
+      setSecciones([]);
+      setProgramasFiltrados([]);
     }
   }, [formData.nombre_escuela, programas]);
 
@@ -381,6 +279,7 @@ function FormPage({ userData }) {
   };
 
 
+  const handleSectionChange = navigateToSection;
   // Renderizar la sección correspondiente según currentSection
   const renderFormSection = () => {
     switch (currentSection) {
@@ -388,19 +287,20 @@ function FormPage({ userData }) {
         return (
           <FormSection 
             formId={1} 
-            userData={userData} 
-            formData={formData} 
-            setFormData={setFormData} 
-            escuelas={escuelas} 
-            departamentos={departamentos} 
-            secciones={secciones} 
-            oficinas={oficinas} 
-            handleInputChange={handleInputChange} 
-            setCurrentSection={handleSectionChange} 
-            programas={programasFiltrados} 
-            currentStep={currentStep} 
+            formData={formData || {}}
+            setFormData={setFormData}
+            handleInputChange={handleInputChange}
+            setCurrentSection={setCurrentSection}
+            currentSection={currentSection || 1}
+            escuelas={escuelas || []}
+            departamentos={departamentos || []}
+            secciones={secciones || []}
+            programas={programasFiltrados || []} 
+            oficinas={oficinas || []}
+            userData={userData || {}}
+            currentStep={currentStep || 0}
             handleFileChange={handleFileChange}
-            active={currentSection === 1}  /* Se pasa la prop requerida */
+            active={true}
           />
         );
       case 2:
@@ -441,6 +341,12 @@ function FormPage({ userData }) {
         return null;
     }
   };
+
+  // Calcula los pasos completados para el FormStepper
+  const getFormSectionCompletedSteps = () => {
+    return Array.from({ length: currentSection - 1 }, (_, i) => i);
+  };
+
   return (
     <Container sx={{
       marginTop: isSmallScreen ? '100px' : '130px',
@@ -454,8 +360,9 @@ function FormPage({ userData }) {
         setCurrentSection={handleSectionChange} 
         highestStepReached={highestSectionReached - 1} 
         completedSteps={calculateCompletedSteps()} 
-        // Add a prop to specifically control which steps are clickable
-        clickableSteps={Array.from({ length: highestSectionReached }, (_, i) => i)}
+
+        clickableSteps={clickableSteps}
+
       />
       <Typography variant={isSmallScreen ? 'h5' : 'h4'} gutterBottom sx={{ fontWeight: 'bold', textAlign: isSmallScreen ? 'center' : 'left' }}>
         {sectionTitles[currentSection - 1]}

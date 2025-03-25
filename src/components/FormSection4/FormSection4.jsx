@@ -532,62 +532,64 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
   };
 
   const PrintReportButton = () => {
-      const isFormCompleted = completedSteps.includes(steps.length - 1);
-      
-      const handleGenerateReport = async () => {
-        try {
-          setIsGeneratingReport(true);
-          const idSolicitud = localStorage.getItem('id_solicitud');
-          await openFormReport(idSolicitud, 1); // 1 para el formulario de datos básicos
-        } catch (error) {
-          console.error('Error al generar el reporte:', error);
-          alert('Hubo un problema al generar el reporte');
-        } finally {
-          setIsGeneratingReport(false);
-        }
-      };
-      
-      return (
-        <Box sx={{ 
-          position: 'absolute', 
-          top: '-60px', 
-          right: '10px', 
-          zIndex: 1000,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}>
-          <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
-            <span>
-              <IconButton 
-                color="primary" 
-                onClick={handleGenerateReport}
-                disabled={!isFormCompleted || isGeneratingReport}
-                size="large"
-              >
-                {isGeneratingReport ? 
-                  <CircularProgress size={24} color="inherit" /> : 
-                  <PrintIcon />
-                }
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Typography 
-            variant="caption" 
-            color="primary" 
-            sx={{ 
-              fontSize: '10px', 
-              fontWeight: 'bold',
-              marginBottom: '10px',
-              marginTop: '-10px',
-              opacity: !isFormCompleted || isGeneratingReport ? 0.5 : 1 
-            }}
-          >
-            {isGeneratingReport ? 'Generando...' : 'Generar reporte'}
-          </Typography>
-        </Box>
-      );
+
+    // Determinar si el formulario está completado (último paso completado)
+    const isFormCompleted = completedSteps.includes(steps.length - 1);
+    
+    const handleGenerateReport = async () => {
+      try {
+        setIsGeneratingReport(true);
+        const idSolicitud = localStorage.getItem('id_solicitud');
+        await openFormReport(idSolicitud, 4); // 4 para el formulario de mercadeo
+      } catch (error) {
+        console.error('Error al generar el reporte:', error);
+        alert('Hubo un problema al generar el reporte');
+      } finally {
+        setIsGeneratingReport(false);
+      }
     };
+    
+    return (
+      <Box sx={{ 
+        position: 'absolute', 
+        top: '-60px', 
+        right: '10px', 
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+      }}>
+        <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
+          <span>
+            <IconButton 
+              color="primary" 
+              onClick={handleGenerateReport}
+              disabled={!isFormCompleted || isGeneratingReport}
+              size="large"
+            >
+              {isGeneratingReport ? 
+                <CircularProgress size={24} color="inherit" /> : 
+                <PrintIcon />
+              }
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Typography 
+        variant="caption" 
+        color="primary" 
+        sx={{ 
+          fontSize: '10px', 
+          fontWeight: 'bold',
+          marginBottom: '10px',
+          marginTop: '-10px',
+          opacity: !isFormCompleted || isGeneratingReport ? 0.5 : 1 
+        }}
+      >
+        {isGeneratingReport ? 'Generando...' : 'Generar reporte'}
+      </Typography>
+      </Box>
+    );
+  };
 
   return (
     <Box sx={{ position: 'relative' }}>

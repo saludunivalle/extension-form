@@ -1,8 +1,11 @@
-import { Stepper, Step, StepLabel, useMediaQuery } from '@mui/material';
-import { styled } from '@mui/system';
-import CheckIcon from '@mui/icons-material/Check'; // Icono para los pasos completados
 
-// Componente personalizado para el ícono del paso
+import { Stepper, Step, StepLabel, useMediaQuery, Box } from '@mui/material';
+
+import { styled } from '@mui/system';
+import CheckIcon from '@mui/icons-material/Check';
+import PropTypes from 'prop-types';
+
+// Componente personalizado para el ícono del paso con mejoras visuales
 const CustomStepIconRoot = styled('div')(({ ownerState }) => ({
   display: 'flex',
   alignItems: 'center',
@@ -35,66 +38,108 @@ const CustomStepIcon = ({ active, completed, index, isAccessible }) => (
   </CustomStepIconRoot>
 );
 
-const FormStepper = ({ activeStep, steps, setCurrentSection, completedSteps = [], highestStepReached }) => {
+
+CustomStepIcon.propTypes = {
+  active: PropTypes.bool,
+  completed: PropTypes.bool,
+  index: PropTypes.number,
+  isAccessible: PropTypes.bool
+};
+
+/**
+ * Componente FormStepper mejorado con feedback visual y navegación condicional
+ * @param {number} activeStep - Paso actualmente seleccionado (0-indexed)
+ * @param {string[]} steps - Array con los nombres de cada paso
+ * @param {Function} setCurrentSection - Función para cambiar la sección actual
+ * @param {number[]} completedSteps - Array con los índices de los pasos completados
+ * @param {number} highestStepReached - El índice del paso más alto permitido
+ * @param {number[]} clickableSteps - Array con los índices de los pasos en los que se puede hacer clic
+ */
+const FormStepper = ({ 
+  activeStep, 
+  steps, 
+  setCurrentSection, 
+  completedSteps = [], 
+  highestStepReached,
+  clickableSteps = []
+}) => {
   const isSmallScreen = useMediaQuery('(max-width:600px)');
 
+  // Determinar si un paso es accesible basado en highestStepReached o clickableSteps
+  const isStepAccessible = (index) => {
+    if (clickableSteps.length > 0) {
+      return clickableSteps.includes(index);
+    }
+    return index <= highestStepReached;
+  };
 
   // Manejar clics en los pasos
   const handleStepClick = (index) => {
-    if (index <= highestStepReached) {
-      setCurrentSection(index + 1);
+    if (isStepAccessible(index)) {
+      setCurrentSection(index + 1); // +1 porque las secciones empiezan en 1
     }
   };
 
   return (
-    <Stepper 
-      activeStep={activeStep} 
-      alternativeLabel={isSmallScreen}
-      sx={{
-        // Estilos para el contenedor del stepper
-        marginBottom: '20px',
-        '& .MuiStepLabel-root': {
-          cursor: 'default',
-        },
-      }}
-    >
+    <Box sx={{ width: '100%', marginBottom: '20px' }}>
+      <Stepper 
+        activeStep={activeStep} 
+        alternativeLabel={isSmallScreen}
+        sx={{
+          '& .MuiStepLabel-root': {
+            cursor: 'default',
+          }
+        }}
+      >
         {steps.map((label, index) => {
-        const isAccessible = index <= highestStepReached;
-        
-        return (
-          <Step key={label}>
-            <StepLabel 
-              StepIconComponent={(props) => (
-                <CustomStepIcon 
-                  {...props} 
-                  index={index}
-                  isAccessible={isAccessible}
-                />
-              )}
-              onClick={() => handleStepClick(index)}
-              sx={{
-                cursor: isAccessible ? 'pointer !important' : 'default !important',
-                '&:hover': {
-                  opacity: isAccessible ? 0.8 : 1,
-                },
-                // Estilos para la etiqueta
-                '& .MuiStepLabel-label': {
-                  color: index === activeStep 
-                    ? '#0056b3'
-                    : isAccessible
-                    ? '#4F4F4F'
-                    : '#A0A0A0',
-                  fontWeight: index === activeStep ? 'bold' : 'normal',
-                }
-              }}
-            >
-              {label}
-            </StepLabel>
-          </Step>
-        );
-      })}
-    </Stepper>
+          const isAccessible = isStepAccessible(index);
+          
+          return (
+            <Step key={label}>
+              <StepLabel 
+                StepIconComponent={(props) => (
+                  <CustomStepIcon 
+                    {...props} 
+                    index={index}
+                    isAccessible={isAccessible}
+                    completed={completedSteps.includes(index)}
+                  />
+                )}
+                onClick={() => handleStepClick(index)}
+                sx={{
+                  cursor: isAccessible ? 'pointer !important' : 'default !important',
+                  '&:hover': {
+                    opacity: isAccessible ? 0.8 : 1,
+                  },
+                  // Estilos para la etiqueta
+                  '& .MuiStepLabel-label': {
+                    color: index === activeStep 
+                      ? '#0056b3'
+                      : isAccessible
+                      ? '#4F4F4F'
+                      : '#A0A0A0',
+                    fontWeight: index === activeStep ? 'bold' : 'normal',
+                  }
+                }}
+              >
+                {label}
+              </StepLabel>
+            </Step>
+          );
+        })}
+      </Stepper>
+    </Box>
+
   );
+};
+
+FormStepper.propTypes = {
+  activeStep: PropTypes.number.isRequired,
+  steps: PropTypes.arrayOf(PropTypes.string).isRequired,
+  setCurrentSection: PropTypes.func.isRequired,
+  completedSteps: PropTypes.arrayOf(PropTypes.number),
+  highestStepReached: PropTypes.number,
+  clickableSteps: PropTypes.arrayOf(PropTypes.number)
 };
 
 export default FormStepper;

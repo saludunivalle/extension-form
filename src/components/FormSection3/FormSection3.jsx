@@ -351,18 +351,19 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
           </span>
         </Tooltip>
         <Typography 
-          variant="caption" 
-          color="primary" 
-          sx={{ 
-            fontSize: '10px', 
-            fontWeight: 'bold',
-            marginBottom: '10px',
-            marginTop: '-10px',
-            opacity: !isFormCompleted || isGeneratingReport ? 0.5 : 1 
-          }}
-        >
-          {isGeneratingReport ? 'Generando...' : 'Generar reporte'}
-        </Typography>
+
+        variant="caption" 
+        color="primary" 
+        sx={{ 
+          fontSize: '10px', 
+          fontWeight: 'bold',
+          marginBottom: '10px',
+          marginTop: '-10px',
+          opacity: !isFormCompleted || isGeneratingReport ? 0.5 : 1 
+        }}
+      >
+        {isGeneratingReport ? 'Generando...' : 'Generar reporte'}
+      </Typography>
       </Box>
     );
   };
