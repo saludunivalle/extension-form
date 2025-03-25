@@ -80,19 +80,20 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
   };
   
   function FormSection({ 
-    formData,
-    setFormData, 
-    currentSection,
-    handleInputChange, 
-    setCurrentSection, 
-    escuelas, 
-    departamentos, 
-    secciones, 
-    programas, 
-    oficinas, 
-    userData, 
-    currentStep,
-    handleFileChange,
+    formData = {},
+    setFormData = () => {},
+    currentSection = 1,
+    handleInputChange = () => {},
+    setCurrentSection = () => {},
+    escuelas = [],
+    departamentos = [],
+    secciones = [],
+    programas = [],
+    oficinas = [],
+    userData = {},
+    currentStep = 0,
+    handleFileChange = () => {},
+    initialErrors = {}
   }) {
     const [activeStep, setActiveStep] = useState(currentStep); 
     const [idSolicitud] = useState(localStorage.getItem('id_solicitud')); 
@@ -102,7 +103,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
     const navigate = useNavigate();
     const [completedSteps, setCompletedSteps] = useState([]);
     const [highestStepReached, setHighestStepReached] = useState(0); 
-    const [errors, setErrors] = useState({});
+    const [errors, setErrors] = useState(initialErrors)
     const isSmallScreen = useMediaQuery('(max-width:600px)');
     const isVerySmallScreen = useMediaQuery('(max-width:375px)');
 
@@ -888,14 +889,13 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
     completed: PropTypes.bool,
     icon: PropTypes.node,
     formData: PropTypes.object.isRequired,
-    setFormData: PropTypes.func.isRequired,
     handleInputChange: PropTypes.func.isRequired,
-    setCurrentSection: PropTypes.func.isRequired,
-    currentSection: PropTypes.number.isRequired,
-    escuelas: PropTypes.array,
-    departamentos: PropTypes.array,
-    secciones: PropTypes.array,
-    programas: PropTypes.array,
+    errors: PropTypes.object, // Quitar .isRequired
+    initialErrors: PropTypes.object,
+    escuelas: PropTypes.array, // Quitar .isRequired
+    departamentos: PropTypes.array, // Quitar .isRequired
+    secciones: PropTypes.array, // Quitar .isRequired
+    programas: PropTypes.array, // Quitar .isRequired
     oficinas: PropTypes.array,
     userData: PropTypes.object,
     currentStep: PropTypes.number.isRequired,

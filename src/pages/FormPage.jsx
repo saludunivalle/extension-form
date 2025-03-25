@@ -150,7 +150,6 @@ function FormPage({ userData }) {
     setCurrentSection, 
     currentStep, 
     setCurrentStep,
-    highestSectionReached,
     navigateToSection,
     calculateCompletedSteps,
     clickableSteps
@@ -255,18 +254,37 @@ function FormPage({ userData }) {
     const { name, value, files } = event.target;
     setFormData(prev => {
       let updated = { ...prev, [name]: files ? files[0] : value };
-      if (name === 'nombre_escuela') {
+      
+      // Special handling when dependencia_tipo changes
+      if (name === 'dependencia_tipo') {
+        if (value === 'Oficinas') {
+          // Clear school-related fields when switching to Oficinas
+          updated = {
+            ...updated,
+            nombre_escuela: '',
+            nombre_departamento: '',
+            nombre_seccion: '',
+            // nombre_dependencia is kept as it's used for both types
+          };
+        } else if (value === 'Escuelas') {
+          // When switching to Escuelas, clear office-related dependencia
+          updated.nombre_dependencia = '';
+        }
+      }
+      // Existing cascade clearing logic
+      else if (name === 'nombre_escuela') {
         updated.nombre_departamento = '';
         updated.nombre_seccion = '';
         updated.nombre_dependencia = '';
       }
-      if (name === 'nombre_departamento') {
+      else if (name === 'nombre_departamento') {
         updated.nombre_seccion = '';
         updated.nombre_dependencia = '';
       }
-      if (name === 'nombre_seccion') {
+      else if (name === 'nombre_seccion') {
         updated.nombre_dependencia = '';
       }
+      
       return updated;
     });
   };
@@ -301,6 +319,8 @@ function FormPage({ userData }) {
             currentStep={currentStep || 0}
             handleFileChange={handleFileChange}
             active={true}
+            initialErrors={{}}
+            errors={{}}
           />
         );
       case 2:
