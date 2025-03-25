@@ -283,6 +283,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
       
     }, [formData]);
     
+  
     useEffect(() => {
       // Al cargar el componente, verificar si ya hay pasos completados para este formulario
       const checkFormCompletion = async () => {
