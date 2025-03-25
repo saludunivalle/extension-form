@@ -9,6 +9,7 @@ import Tooltip from '@mui/material/Tooltip';
 import PropTypes from 'prop-types';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
+
 // Importa las secciones de los pasos
 import Step1FormSection3 from './Step1FormSection3';
 import Step2FormSection3 from './Step2FormSection3';
@@ -315,7 +316,7 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
       try {
         setIsGeneratingReport(true);
         const idSolicitud = localStorage.getItem('id_solicitud');
-        await openFormReport(idSolicitud, 3); // 3 para el formulario de matriz de riesgos
+        await openFormReport(idSolicitud, 1); // 1 para el formulario de datos básicos
       } catch (error) {
         console.error('Error al generar el reporte:', error);
         alert('Hubo un problema al generar el reporte');
@@ -350,6 +351,7 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
           </span>
         </Tooltip>
         <Typography 
+
         variant="caption" 
         color="primary" 
         sx={{ 

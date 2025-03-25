@@ -26,6 +26,7 @@ const sectionShortTitles = [
 
 function FormPage({ userData }) {
   const [searchParams] = useSearchParams();
+  const [highestSectionReached, setHighestSectionReached] = useState(1);
   const { formId } = useParams(); // Se extrae la sección actual de la URL
   const formStep = searchParams.get('paso') || 0;
   const navigate = useNavigate();
@@ -34,16 +35,39 @@ function FormPage({ userData }) {
   // Obtenemos el id de solicitud exclusivamente de la URL
   const solicitudId = searchParams.get('solicitud');
 
+  const [formCompletion, setFormCompletion] = useState({
+    1: { completed: false, lastStep: 0 },
+    2: { completed: false, lastStep: 0 },
+    3: { completed: false, lastStep: 0 },
+    4: { completed: false, lastStep: 0 }
+  });
+  
+  // Función para actualizar el estado de completitud
+  const updateFormCompletion = (formId, isCompleted, step) => {
+    setFormCompletion(prev => ({
+      ...prev,
+      [formId]: {
+        completed: isCompleted || prev[formId].completed,
+        lastStep: Math.max(step, prev[formId].lastStep)
+      }
+    }));
+  };
+
   // Si no existe id en la URL, se solicita uno nuevo y se redirige a la sección 1, paso 0.
   useEffect(() => {
     if (!solicitudId) {
-      // Si no existe id en la URL, obtener un nuevo a través de getLastId con la hoja SOLICITUDES2
+      // Si no existe id en la URL, obtener un nuevo a través de getLastId
       axios.get('https://siac-extension-server.vercel.app/getLastId', {
         params: { sheetName: 'SOLICITUDES2' }
       })
       .then(response => {
         const nuevoId = response.data.lastId + 1;
         localStorage.setItem('id_solicitud', nuevoId);
+        
+        // Al crear una nueva solicitud, reiniciamos el nivel más alto
+        setHighestSectionReached(1);
+        localStorage.removeItem(`highestSectionReached_${nuevoId}`);
+        
         navigate(`/formulario/1?solicitud=${nuevoId}&paso=0`, { replace: true });
       })
       .catch(error => {
@@ -120,6 +144,7 @@ function FormPage({ userData }) {
     aplicaCierre2: '', aplicaOtros1: '', aplicaOtros2: ''
   }});
 
+
   const { 
     currentSection,
     setCurrentSection, 
@@ -136,6 +161,7 @@ function FormPage({ userData }) {
     initialStep: parseInt(formStep, 10) || 0,
     totalSections: sectionTitles.length
   });
+
 
   // Fetch de datos de escuelas, programas y oficinas desde Google Sheets
   const [escuelas, setEscuelas] = useState([]);
@@ -252,8 +278,8 @@ function FormPage({ userData }) {
     }
   };
 
-  const handleSectionChange = navigateToSection;
 
+  const handleSectionChange = navigateToSection;
   // Renderizar la sección correspondiente según currentSection
   const renderFormSection = () => {
     switch (currentSection) {
@@ -321,8 +347,6 @@ function FormPage({ userData }) {
     return Array.from({ length: currentSection - 1 }, (_, i) => i);
   };
 
-  
-
   return (
     <Container sx={{
       marginTop: isSmallScreen ? '100px' : '130px',
@@ -336,7 +360,9 @@ function FormPage({ userData }) {
         setCurrentSection={handleSectionChange} 
         highestStepReached={highestSectionReached - 1} 
         completedSteps={calculateCompletedSteps()} 
+
         clickableSteps={clickableSteps}
+
       />
       <Typography variant={isSmallScreen ? 'h5' : 'h4'} gutterBottom sx={{ fontWeight: 'bold', textAlign: isSmallScreen ? 'center' : 'left' }}>
         {sectionTitles[currentSection - 1]}

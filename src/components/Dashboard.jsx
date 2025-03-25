@@ -451,14 +451,12 @@ const handleNavigateToForm = async (request, formNumber) => {
                         {formNumber}
                       </Button>
                     </div>
-
                   );
                 })}
               </div>
             </ListItem>
           ))}
         </List>
-
         {/* Solicitudes Terminadas */}
         <Typography variant="h6" style={{ marginTop: '20px' }}>
           Solicitudes Terminadas:

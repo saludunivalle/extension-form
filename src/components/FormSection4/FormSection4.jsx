@@ -532,6 +532,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
   };
 
   const PrintReportButton = () => {
+
     // Determinar si el formulario está completado (último paso completado)
     const isFormCompleted = completedSteps.includes(steps.length - 1);
     

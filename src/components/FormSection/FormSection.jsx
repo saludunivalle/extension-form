@@ -1,21 +1,22 @@
-  import { useEffect, useState } from 'react';
-  import { Stepper, Step, StepLabel, Button, Box, CircularProgress, useMediaQuery } from '@mui/material';
-  import Step1 from './Step1'; 
-  import Step2 from './Step2';
-  import Step3 from './Step3';
-  import Step4 from './Step4';
-  import Step5 from './Step5';
-  import axios from 'axios';
-  import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
-  import { useNavigate } from 'react-router-dom';
-  import CheckIcon from '@mui/icons-material/Check'; 
-  import { styled } from '@mui/system';
-  import { openFormReport } from '../../services/reportServices';
-  import PrintIcon from '@mui/icons-material/Print';
-  import IconButton from '@mui/material/IconButton';
+import { useEffect, useState } from 'react';
+import { Stepper, Step, StepLabel, Button, Box, CircularProgress, useMediaQuery } from '@mui/material';
+import Step1 from './Step1'; 
+import Step2 from './Step2';
+import Step3 from './Step3';
+import Step4 from './Step4';
+import Step5 from './Step5';
+import axios from 'axios';
+import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import Typography from '@mui/material/Typography';
+import { useNavigate } from 'react-router-dom';
+import CheckIcon from '@mui/icons-material/Check'; 
+import { styled } from '@mui/system';
+import { openFormReport } from '../../services/reportServices';
+import PrintIcon from '@mui/icons-material/Print';
+import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
-  import PropTypes from 'prop-types';
-  import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import PropTypes from 'prop-types';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
   /* 
   Este componente se encarga de cambiar el color de fondo, el color del texto y otros estilos visuales del ícono:
@@ -31,29 +32,51 @@ import Tooltip from '@mui/material/Tooltip';
     height: 36,
     borderRadius: '50%', 
     backgroundColor: ownerState.completed
-      ? '#0056b3' 
-      : ownerState.active
-      ? '#0056b3' 
-      : '#E0E0E0', 
-    color: ownerState.completed || ownerState.active ? '#FFFFFF' : '#4F4F4F', 
-    fontWeight: 'bold',
-  }));
+    ? '#0056b3' // Completado: azul oscuro
+    : ownerState.active
+    ? '#0056b3' // Activo: azul oscuro
+    : ownerState.accessible  
+    ? '#78a9df' // Accesible pero no activo: azul claro
+    : '#E0E0E0', // No accesible: gris
+  color: ownerState.completed || ownerState.active || ownerState.accessible 
+    ? '#FFFFFF' // Texto blanco para pasos completados, activos o accesibles
+    : '#4F4F4F', // Texto gris para pasos no accesibles
+  fontWeight: 'bold',
+  cursor: ownerState.accessible ? 'pointer' : 'default', // Cambiar cursor según accesibilidad
+  transition: 'all 0.2s ease',
+  '&:hover': {
+    transform: ownerState.accessible ? 'scale(1.05)' : 'none',
+    boxShadow: ownerState.accessible ? '0 2px 5px rgba(0,0,0,0.2)' : 'none',
+  }
+}));
 
   /*
   Este componente se encarga de renderizar el contenido del ícono.
   - Si el paso está completado (`completed`), muestra un ícono de verificación (`CheckIcon`).
   - Si el paso no está completado, muestra el ícono correspondiente al paso (`icon`).
   */
-  const CustomStepIcon = ({ active, completed, icon }) => (
-    <CustomStepIconRoot ownerState={{ active, completed }}>
-      {completed ? <CheckIcon /> : icon}
-    </CustomStepIconRoot>
-  );
+  const CustomStepIcon = ({ active, completed, icon, isAccessible }) => {
+    // Asegurarse de que isAccessible sea booleano
+    const isStepAccessible = Boolean(isAccessible);
+    
+    return (
+      <CustomStepIconRoot 
+        ownerState={{ 
+          active, 
+          completed,
+          accessible: isStepAccessible 
+        }}
+      >
+        {completed ? <CheckIcon /> : icon}
+      </CustomStepIconRoot>
+    );
+  };
 
   CustomStepIcon.propTypes = {
     active: PropTypes.bool.isRequired,
     completed: PropTypes.bool,
     icon: PropTypes.node,
+    isAccessible: PropTypes.bool,
   };
   
   function FormSection({ 
@@ -237,7 +260,74 @@ import Tooltip from '@mui/material/Tooltip';
       setErrors(stepErrors);
       return Object.keys(stepErrors).length === 0;
        
-    };    
+    };
+
+    useEffect(() => {
+      // Revisión inmediata de los datos del formulario para determinar progreso
+      const determineHighestStepFromData = () => {
+        // Si hay datos en cualquiera de los campos de pasos avanzados, permitir acceso a esos pasos
+        if (formData.descripcionPrograma || formData.competencia) {
+          return 4;
+        } else if (formData.aplicaDiseno1 || formData.proposito) {
+          return 3;
+        } else if (formData.ingresos_cantidad || formData.total_recursos) {
+          return 2;
+        } else if (formData.nombre_actividad || formData.introduccion) {
+          return 1;
+        }
+        return 0;
+      };
+    
+      const dataBasedHighestStep = determineHighestStepFromData();
+      setHighestStepReached(prev => Math.max(prev, dataBasedHighestStep));
+      
+    }, [formData]);
+    
+    useEffect(() => {
+      // Al cargar el componente, verificar si ya hay pasos completados para este formulario
+      const checkFormCompletion = async () => {
+        try {
+          console.log("Usando datos locales para la navegación");
+          const savedHighestStep = localStorage.getItem(`form${idSolicitud}_highestStep`);
+          const savedCompletedSteps = localStorage.getItem(`form${idSolicitud}_completedSteps`);
+          
+          // Establecer el paso más alto alcanzado - VALOR MÍNIMO 2 para permitir navegación
+          if (savedHighestStep) {
+            setHighestStepReached(parseInt(savedHighestStep, 10));
+          } else {
+            // Si no hay valor guardado, permitir al menos acceso a los primeros 2 pasos
+            setHighestStepReached(2);  // Esto es clave - asegura acceso mínimo a los primeros pasos
+          }
+          
+          // Resto del código igual...
+        } catch (generalError) {
+          console.error("Error checking form completion:", generalError);
+        }
+      };
+      
+      checkFormCompletion();
+    }, [idSolicitud]);
+
+    useEffect(() => {
+      if (idSolicitud) {
+        localStorage.setItem(`form${idSolicitud}_highestStep`, highestStepReached);
+        console.log(`Guardando highestStepReached=${highestStepReached} para ${idSolicitud}`);
+      }
+    }, [highestStepReached, idSolicitud]);
+
+    useEffect(() => {
+      if (idSolicitud && completedSteps.length > 0) {
+        localStorage.setItem(`form${idSolicitud}_completedSteps`, JSON.stringify(completedSteps));
+      }
+    }, [completedSteps, idSolicitud]);
+
+    useEffect(() => {
+      console.log("Estado actual:", {
+        highestStepReached,
+        completedSteps,
+        activeStep
+      });
+    }, [highestStepReached, completedSteps, activeStep]);
 
     useEffect(() => {
       if (!idSolicitud) {
@@ -299,6 +389,8 @@ import Tooltip from '@mui/material/Tooltip';
           setIsLoading(true);
           const hoja = 1;
           let pasoData = {};
+          
+          const isFormComplete = completedSteps.includes(steps.length - 1);
 
           switch (activeStep) {
               case 0:{
@@ -417,6 +509,7 @@ import Tooltip from '@mui/material/Tooltip';
                   hoja: hoja,
                   id_usuario: userData.id,
                   name: userData.name,
+                  is_review_mode: isFormComplete,
                   ...pasoData,
               };
           }
@@ -464,9 +557,17 @@ import Tooltip from '@mui/material/Tooltip';
 
     const handleStepClick = (stepIndex) => {
       if (stepIndex <= highestStepReached) {
-        setActiveStep(stepIndex); 
+        console.log(`Navegando al paso ${stepIndex}`);
+        setActiveStep(stepIndex);
+        localStorage.setItem(`form${idSolicitud}_currentStep`, stepIndex);
+        
+        // Reforzar que este paso es accesible
+        const newHighestReached = Math.max(highestStepReached, stepIndex);
+        setHighestStepReached(newHighestReached);
+        localStorage.setItem(`form${idSolicitud}_highestStep`, newHighestReached);
       }
     };
+    
 
     /*
       - Envía los datos del último paso del formulario al servidor.
@@ -569,46 +670,62 @@ import Tooltip from '@mui/material/Tooltip';
     };
 
     const PrintReportButton = () => {
-      const isFormCompleted = activeStep === steps.length - 1 || completedSteps.includes(steps.length - 1);
-      
-      const handleGenerateReport = async () => {
-        try {
-          setIsGeneratingReport(true);
-          const idSolicitud = localStorage.getItem('id_solicitud');
-          await openFormReport(idSolicitud, 1); // 1 para el formulario de datos básicos
-        } catch (error) {
-          console.error('Error al generar el reporte:', error);
-          alert('Hubo un problema al generar el reporte');
-        } finally {
-          setIsGeneratingReport(false);
-        }
+        const isFormCompleted = completedSteps.includes(steps.length - 1);
+        
+        const handleGenerateReport = async () => {
+          try {
+            setIsGeneratingReport(true);
+            const idSolicitud = localStorage.getItem('id_solicitud');
+            await openFormReport(idSolicitud, 1); // 1 para el formulario de datos básicos
+          } catch (error) {
+            console.error('Error al generar el reporte:', error);
+            alert('Hubo un problema al generar el reporte');
+          } finally {
+            setIsGeneratingReport(false);
+          }
+        };
+        
+        return (
+          <Box sx={{ 
+            position: 'absolute', 
+            top: '-60px', 
+            right: '10px', 
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}>
+            <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
+              <span>
+                <IconButton 
+                  color="primary" 
+                  onClick={handleGenerateReport}
+                  disabled={!isFormCompleted || isGeneratingReport}
+                  size="large"
+                >
+                  {isGeneratingReport ? 
+                    <CircularProgress size={24} color="inherit" /> : 
+                    <PrintIcon />
+                  }
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Typography 
+              variant="caption" 
+              color="primary" 
+              sx={{ 
+                fontSize: '10px', 
+                fontWeight: 'bold',
+                marginBottom: '10px',
+                marginTop: '-10px',
+                opacity: !isFormCompleted || isGeneratingReport ? 0.5 : 1 
+              }}
+            >
+              {isGeneratingReport ? 'Generando...' : 'Generar reporte'}
+            </Typography>
+          </Box>
+        );
       };
-      
-      return (
-        <Box sx={{ 
-          position: 'absolute', 
-          top: '-60px', 
-          right: '10px', 
-          zIndex: 1000 
-        }}>
-          <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
-            <span>
-              <IconButton 
-                color="primary" 
-                onClick={handleGenerateReport}
-                disabled={!isFormCompleted || isGeneratingReport}
-                size="large"
-              >
-                {isGeneratingReport ? 
-                  <CircularProgress size={24} color="inherit" /> : 
-                  <PrintIcon />
-                }
-              </IconButton>
-            </span>
-          </Tooltip>
-        </Box>
-      );
-    };
     
 
     return (
@@ -622,38 +739,56 @@ import Tooltip from '@mui/material/Tooltip';
             fontSize: isSmallScreen ? '12px' : '14px',
             textAlign: isSmallScreen ? 'center' : 'left', 
             },
+            '& .MuiStepButton-root:hover': {
+              backgroundColor: 'rgba(0, 86, 179, 0.04)',
+              borderRadius: '4px',
+            }
           }}
         >
-          {steps.map((label, index) => (
-            <Step key={index}>
-            <StepLabel
-              StepIconComponent={(props) => (
-                <CustomStepIcon
-                  {...props}
-                  active={index === activeStep}
-                  completed={completedSteps.includes(index) || index < activeStep}
-                />
-              )}
-              onClick={() => handleStepClick(index)} 
-              sx={{
-                '& .MuiStepLabel-label': {
-                  color: index === activeStep
-                    ? '#FFFFFF'
-                    : completedSteps.includes(index) || index < activeStep
-                    ? '#4F4F4F'
-                    : '#A0A0A0',
-                  backgroundColor: index === activeStep ? '#0056b3' : 'transparent',
-                  padding: index === activeStep ? '5px 10px' : '0',
-                  borderRadius: '20px',
-                  fontWeight: index === activeStep ? 'bold' : 'normal',
-                  cursor: index <= highestStepReached ? 'pointer' : 'default',
-                },
-              }}
-            >
-              {label}
-            </StepLabel>
-            </Step>
-          ))}
+          {steps.map((label, index) => {
+            const isAccessible = index <= highestStepReached;
+            console.log(`Paso ${index}: isAccessible=${isAccessible}, highestStepReached=${highestStepReached}`);
+    
+            return (
+              <Step key={index}>
+                <StepLabel
+                  StepIconComponent={(props) => (
+                    <CustomStepIcon
+                      {...props}
+                      active={index === activeStep}
+                      completed={completedSteps.includes(index) || index < activeStep}
+                      isAccessible={isAccessible}
+                    />
+                  )}
+                  onClick={() => handleStepClick(index)} 
+                  sx={{
+                      cursor: isAccessible ? 'pointer !important' : 'default !important',
+                    '&:hover': {
+                      // Solo aplicar hover si es accesible
+                      opacity: isAccessible ? 0.9 : 1,
+                    },
+                    '& .MuiStepLabel-label': {
+                      color: index === activeStep
+                        ? '#FFFFFF'
+                        : completedSteps.includes(index) || index < activeStep
+                        ? '#4F4F4F'
+                        : '#A0A0A0',
+                      backgroundColor: index === activeStep ? '#0056b3' : 'transparent',
+                      padding: index === activeStep ? '5px 10px' : '0',
+                      borderRadius: '20px',
+                      fontWeight: index === activeStep ? 'bold' : 'normal',
+                    },
+                    // Estilo para el icono del paso
+                    '& .MuiStepIcon-root': {
+                      color: isAccessible ? '#0056b3' : '#E0E0E0',
+                    },
+                  }}
+                >
+                  {label}
+                </StepLabel>
+              </Step>
+            );
+          })}
         </Stepper>
 
         {renderStepContent(activeStep, errors)}

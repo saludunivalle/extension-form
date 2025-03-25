@@ -1,4 +1,6 @@
+
 import { Stepper, Step, StepLabel, useMediaQuery, Box } from '@mui/material';
+
 import { styled } from '@mui/system';
 import CheckIcon from '@mui/icons-material/Check';
 import PropTypes from 'prop-types';
@@ -35,6 +37,7 @@ const CustomStepIcon = ({ active, completed, index, isAccessible }) => (
     {completed ? <CheckIcon /> : index + 1}
   </CustomStepIconRoot>
 );
+
 
 CustomStepIcon.propTypes = {
   active: PropTypes.bool,
@@ -126,6 +129,7 @@ const FormStepper = ({
         })}
       </Stepper>
     </Box>
+
   );
 };
 
