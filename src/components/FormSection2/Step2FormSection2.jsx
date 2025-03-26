@@ -110,8 +110,8 @@ function Step2FormSection2({
     {
       label: '15. Gastos Extras',
       key: '15',
-      children: [
-      ],
+      children: [],
+      isCustomExpenses: true
     },
   ];
 
@@ -221,32 +221,23 @@ function Step2FormSection2({
     });
   };
 
-  const handleAddExtraExpense = () => {
+  const handleAddCustomExpense = () => {
     setIsAddingExtraExpense(true);
   
     setTimeout(() => {
+      const newId = Date.now();
       setExtraExpenses([
         ...extraExpenses,
-        { id: Date.now(), name: '', cantidad: 0, vr_unit: 0 },
+        { 
+          id: newId, 
+          name: '', 
+          cantidad: '', 
+          vr_unit: '',
+          key: `15.${extraExpenses.length + 1}` // Genera clave como "15.1", "15.2", etc.
+        }
       ]);
       setIsAddingExtraExpense(false);
-    }, 500);
-  };
-  
-  
-  const handleRemoveExtraExpense = (id) => {
-    setExtraExpenses((prev) => prev.filter(expense => expense.id !== id));
-  
-    setTimeout(() => {
-      setExtraExpenses(extraExpenses.filter((expense) => expense.id !== id));
-      setLoadingDeleteId(null);
-    }, 500); // Simula una pequeña espera
-  };
-
-  const isValidExpense = (expense) => {
-    const cantidad = parseFloat(expense.cantidad);
-    const vr_unit = parseFloat(expense.vr_unit);
-    return cantidad > 0 && vr_unit > 0;
+    }, 300);
   };
   
   const handleExtraExpenseChange = (id, field, value) => {
@@ -256,6 +247,32 @@ function Step2FormSection2({
       )
     );
   };
+
+  const handleRemoveExtraExpense = (id) => {
+    setLoadingDeleteId(id);
+    
+    setTimeout(() => {
+      setExtraExpenses(prev => {
+        // Obtener el gasto a eliminar para encontrar su posición
+        const expenseIndex = prev.findIndex(expense => expense.id === id);
+        const updatedExpenses = prev.filter(expense => expense.id !== id);
+        
+        // Actualizar las claves numéricas para mantener la secuencia
+        return updatedExpenses.map((expense, idx) => ({
+          ...expense,
+          key: `15.${idx + 1}`
+        }));
+      });
+      setLoadingDeleteId(null);
+    }, 300);
+  };
+
+  const isValidExpense = (expense) => {
+    const cantidad = parseFloat(expense.cantidad);
+    const vr_unit = parseFloat(expense.vr_unit);
+    return cantidad > 0 && vr_unit > 0;
+  };
+  
 
   const handleFocusPlaceholder = (e) => {
     if (e.target.placeholder === "0") {
@@ -405,10 +422,42 @@ function Step2FormSection2({
                 <TableCell>
                   <Box display="flex" justifyContent="space-between" alignItems="center">
                     <Typography fontWeight={500}>{item.label}</Typography>
-                    {item.children.length > 0 && (
-                      <IconButton size="small" onClick={() => toggleSection(item.key)}>
-                        {expandedSections[item.key] ? <Remove /> : <Add />}
-                      </IconButton>
+                    {/* Botón especial para gastos extras o botón normal para otras categorías */}
+                    {item.isCustomExpenses ? (
+                      <Tooltip title={extraExpenses.length === 0 ? "Crear gastos extras" : "Agregar gasto extra"}>
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => handleAddCustomExpense()}
+                          disabled={isAddingExtraExpense}
+                          sx={{
+                            width: 28,
+                            height: 28,
+                            backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                            '&:hover': {
+                              backgroundColor: 'rgba(25, 118, 210, 0.12)',
+                            },
+                            border: '1px solid rgba(25, 118, 210, 0.5)',
+                          }}
+                        >
+                          <Add fontSize="small" />
+                          {isAddingExtraExpense && (
+                            <CircularProgress
+                              size={16}
+                              sx={{
+                                position: 'absolute',
+                                color: 'primary.main',
+                              }}
+                            />
+                          )}
+                        </IconButton>
+                      </Tooltip>
+                    ) : (
+                      item.children.length > 0 && (
+                        <IconButton size="small" onClick={() => toggleSection(item.key)}>
+                          {expandedSections[item.key] ? <Remove /> : <Add />}
+                        </IconButton>
+                      )
                     )}
                   </Box>
                 </TableCell>
@@ -450,54 +499,113 @@ function Step2FormSection2({
                 </TableCell>
               </TableRow>
 
-              {/* Subpuntos */}
-              {item.children.length > 0 && expandedSections[item.key] && item.children.map(child => (
-                !hiddenConcepts.includes(child.key) && ( // Oculta los subpuntos correctamente
-            <TableRow key={child.key}>
-              <TableCell sx={{ pl: 4 }}>{child.label}</TableCell>
-              <TableCell align="right">
-                <TextField
-                  type="number"
-                  name={`${child.key}_cantidad`} // Ej: using child.key for unique name
-                  value={formData[`${child.key}_cantidad`]}
-                  onChange={handleNumberInputChange}
-                  size="small"
-                />
-              </TableCell>
-              <TableCell align="right">
+              {/* Renderizar los gastos extras dinámicos justo después de la categoría principal */}
+              {item.isCustomExpenses && extraExpenses.length > 0 && (
+                extraExpenses.map((expense, index) => (
+                  <TableRow key={`extra-${expense.id}`}>
+                    <TableCell sx={{ pl: 4 }}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        placeholder="Nombre del gasto extra"
+                        value={expense.name}
+                        onChange={(e) => handleExtraExpenseChange(expense.id, 'name', e.target.value)}
+                        sx={{ minWidth: 200 }}
+                        InputProps={{
+                          startAdornment: <Typography variant="caption" sx={{ mr: 1, color: '#666' }}>15.{index+1}.</Typography>
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="right">
+                      <TextField
+                        type="number"
+                        size="small"
+                        name={`extra-${expense.id}-cantidad`}
+                        value={expense.cantidad}
+                        onChange={(e) => handleExtraExpenseChange(expense.id, 'cantidad', e.target.value)}
+                        inputProps={numericInputProps}
+                      />
+                    </TableCell>
+                    <TableCell align="right">
                       <NumericFormat
                         customInput={TextField}
                         thousandSeparator="."
                         decimalSeparator=","
                         prefix="$ "
-                        name={`${child.key}_vr_unit`}
-                        value={formData[`${child.key}_vr_unit`]}
-                        onValueChange={(values) =>
-                          handleNumberInputChange({ target: { name: `${child.key}_vr_unit`, value: values.value } })
-                        }
                         size="small"
+                        value={expense.vr_unit}
+                        onValueChange={(values) => 
+                          handleExtraExpenseChange(expense.id, 'vr_unit', values.value)
+                        }
+                        inputProps={numericInputProps}
                       />
                     </TableCell>
                     <TableCell align="right">
-                      {formatCurrency((formData[`${child.key}_cantidad`]) * (formData[`${child.key}_vr_unit`]))}
+                      {formatCurrency(parseFloat(expense.cantidad || 0) * parseFloat(expense.vr_unit || 0))}
                     </TableCell>
                     <TableCell align="center">
-                      <Tooltip title="Eliminar concepto">
+                      <Tooltip title="Eliminar gasto extra">
                         <IconButton 
                           color="error" 
-                          onClick={() => handleDeleteConcept(child.key)} 
-                          disabled={loadingDeleteId === child.key}
+                          onClick={() => handleRemoveExtraExpense(expense.id)}
+                          disabled={loadingDeleteId === expense.id}
                         >
-                          {loadingDeleteId === child.key ? <CircularProgress size={20} /> : <Delete />}
+                          {loadingDeleteId === expense.id ? <CircularProgress size={20} /> : <Delete />}
                         </IconButton>
                       </Tooltip>
                     </TableCell>
                   </TableRow>
-                )
+                ))
+              )}
+                {/* Subpuntos */}
+                {item.children.length > 0 && expandedSections[item.key] && item.children.map(child => (
+                  !hiddenConcepts.includes(child.key) && ( // Oculta los subpuntos correctamente
+              <TableRow key={child.key}>
+                <TableCell sx={{ pl: 4 }}>{child.label}</TableCell>
+                <TableCell align="right">
+                  <TextField
+                    type="number"
+                    name={`${child.key}_cantidad`} // Ej: using child.key for unique name
+                    value={formData[`${child.key}_cantidad`]}
+                    onChange={handleNumberInputChange}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell align="right">
+                  <NumericFormat
+                    customInput={TextField}
+                    thousandSeparator="."
+                    decimalSeparator=","
+                    prefix="$ "
+                    name={`${child.key}_vr_unit`}
+                    value={formData[`${child.key}_vr_unit`]}
+                    onValueChange={(values) =>
+                      handleNumberInputChange({ target: { name: `${child.key}_vr_unit`, value: values.value } })
+                    }
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell align="right">
+                  {formatCurrency((formData[`${child.key}_cantidad`]) * (formData[`${child.key}_vr_unit`]))}
+                </TableCell>
+                <TableCell align="center">
+                  <Tooltip title="Eliminar concepto">
+                    <IconButton 
+                      color="error" 
+                      onClick={() => handleDeleteConcept(child.key)} 
+                      disabled={loadingDeleteId === child.key}
+                    >
+                      {loadingDeleteId === child.key ? <CircularProgress size={20} /> : <Delete />}
+                    </IconButton>
+                  </Tooltip>
+                </TableCell>
+              </TableRow>
+                  )
               ))}
             </React.Fragment>
           )
         ))}
+        
         {/* TOTALES */}
         <TableRow>
           <TableCell colSpan={3} sx={{ fontWeight: 600, borderTop: '1px solid #e0e0e0', pt: 2 }}>
