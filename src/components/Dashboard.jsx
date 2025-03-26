@@ -229,6 +229,13 @@ const handleContinueRequest = async (request) => {
     
     // Obtener datos de la hoja SOLICITUDES que contiene ETAPAS
     const solicitudData = response.data.SOLICITUDES || response.data;
+
+    console.log("Estado de formularios:", {
+      form1: solicitudData.estado_formulario_1,
+      form2: solicitudData.estado_formulario_2,
+      form3: solicitudData.estado_formulario_3,
+      form4: solicitudData.estado_formulario_4
+    });
     
     // Extraer etapa_actual y paso de los datos de SOLICITUDES
     const etapa_actual = solicitudData.etapa_actual || request.formulario;
@@ -323,32 +330,41 @@ const handleNavigateToForm = async (request, formNumber) => {
 
   const getButtonState = (request, formNumber) => {
     const currentStage = Number(request.etapa_actual) || 0;
+    const currentForm = formNumber === currentStage;
     
-    const isCompleted = completedRequests.some(
-      (completed) => completed.idSolicitud === request.idSolicitud
-    );
-    
+    const isCurrentFormComplete = isFormCompleted(request, formNumber);
+  
     const isPast = formNumber < currentStage;
-    const isCurrent = formNumber === currentStage;
-    const isFuture = formNumber > currentStage;
   
-    console.log(`Solicitud ${request.idSolicitud}, Formulario ${formNumber}:`, { 
-      currentStage, isCompleted, isPast, isCurrent, isFuture 
-    });
-  
-    if (isCompleted) {
+    if (isCurrentFormComplete || isPast) {
       return { enabled: true, color: '#1976d2', cursor: 'pointer', progress: 100 };
-    } else if (isPast) {
-      return { enabled: true, color: '#1976d2', cursor: 'pointer', progress: 100 };
-    } else if (isCurrent) {
+    } else if (currentForm) {
       // La etapa en progreso debe estar deshabilitada pero con color distintivo
       return { enabled: false, color: '#90caf9', cursor: 'not-allowed', progress: 50 };
     } else {
       // Etapas futuras deshabilitadas
       return { enabled: false, color: '#e0e0e0', cursor: 'not-allowed', progress: 0 };
     }
-
   };
+
+  function isFormCompleted(request, formNumber) {
+    // 1. Verificar primero si está marcado explícitamente como completado
+    if (request[`estado_formulario_${formNumber}`] === "Completado") {
+      return true;
+    }
+    
+    // 2. Obtener el formulario actual que está trabajando el usuario
+    const currentFormNumber = Number(request.etapa_actual) || 0;
+    
+    // 3. Solo considerar el paso actual para el formulario que está en progreso
+    if (formNumber === currentFormNumber) {
+      const maxSteps = {1: 5, 2: 3, 3: 5, 4: 5};
+      return request.paso >= maxSteps[formNumber];
+    }
+    
+    // 4. Los formularios futuros nunca están completos excepto si están explícitamente marcados
+    return false;
+  }
 
   if (!userData || !userData.id) {
     return <div>Cargando...</div>;
