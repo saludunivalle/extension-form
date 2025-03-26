@@ -8,7 +8,7 @@ import { openFormReport } from '../../services/reportServices';
 import PrintIcon from '@mui/icons-material/Print';
 import PropTypes from 'prop-types';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-
+import useInternalNavigationGoogleSheets from '../../hooks/useInternalNavigationGoogleSheets';
 import Step1FormSection4 from './Step1FormSection4';
 import Step2FormSection4 from './Step2FormSection4';
 import Step3FormSection4 from './Step3FormSection4';
@@ -53,6 +53,13 @@ import { styled } from '@mui/system';
   
 
 function FormSection4({ formData, handleInputChange, userData, currentStep }) {
+  const steps = [
+    'Actividades de Mercadeo Relacional',
+    'Valor Económico de los Programas',
+    'Modalidad de Ejecución',
+    'Beneficios Ofrecidos',
+    'DOFA del Programa',
+  ];
   const [activeStep, setActiveStep] = useState(currentStep); // Usar currentStep como el paso inicial
   const [openModal, setOpenModal] = useState(false); // Estado para el modal
   const id_usuario = userData?.id_usuario;
@@ -63,16 +70,11 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [completedSteps, setCompletedSteps] = useState([]);
   const [highestStepReached, setHighestStepReached] = useState(0); // Máximo paso alcanzado
-
-  const steps = [
-    'Actividades de Mercadeo Relacional',
-    'Valor Económico de los Programas',
-    'Modalidad de Ejecución',
-    'Beneficios Ofrecidos',
-    'DOFA del Programa',
-  ];
-
+  
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
+
+  const { maxAllowedStep, loading: navLoading, error: navError, isStepAllowed } = 
+  useInternalNavigationGoogleSheets(idSolicitud, 4, steps.length);
 
   const [errors, setErrors] = useState({});
 
@@ -265,6 +267,17 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
       setActiveStep(currentStep);
     }
   }, [currentStep, steps.length]);
+
+  useEffect(() => {
+    if (!navLoading && maxAllowedStep !== undefined) {
+      console.log('maxAllowedStep:', maxAllowedStep);
+      console.log('activeStep:', activeStep);
+      console.log('isStepAllowed para siguiente paso:', isStepAllowed(activeStep + 1));
+      
+      // Actualiza el paso más alto alcanzado según lo que permite el servidor
+      setHighestStepReached(prev => Math.max(prev, maxAllowedStep));
+    }
+  }, [maxAllowedStep, navLoading, activeStep, isStepAllowed]);
   
   /*
     Lógica del botón "Siguiente"
@@ -390,12 +403,12 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
 
       try {
           await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-              id_solicitud: idSolicitud,
-              ...pasoDataCompleto,
-              paso: activeStep + 1,
-              hoja,
-              id_usuario: userData.id_usuario,
-              name: userData.name,
+            id_solicitud: idSolicitud,
+            ...pasoDataCompleto,
+            paso: activeStep + 1,
+            hoja,
+            id_usuario: userData.id_usuario,
+            name: userData.name,
           });
           setIsLoading(false); // Finalizar el loading
           setCompletedSteps((prevCompleted) => {
@@ -406,8 +419,8 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
             return newCompleted;
           });                  
         
-          setActiveStep((prevActiveStep) => prevActiveStep + 1);
-          setHighestStepReached((prev) => Math.max(prev, activeStep + 1));
+        setActiveStep((prevActiveStep) => prevActiveStep + 1);
+        setHighestStepReached((prev) => Math.max(prev, activeStep + 1, maxAllowedStep));
       } catch (error) {
           console.error('Error al guardar el progreso:', error.response?.data || error.message);
       }
@@ -466,6 +479,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
               id_solicitud: idSolicitud, // El ID único de la solicitud
               ...pasoDataCompleto, // Datos del último paso (Paso 5)
               paso: 5, // El número del último paso
+              etapa_actual: 5, // Indica que es el último formulario
               hoja, // Indica qué hoja se está usando
               id_usuario: userData.id_usuario, // Enviar el id_usuario
               name: userData.name, // Enviar el nombre del usuario
@@ -532,7 +546,6 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
   };
 
   const PrintReportButton = () => {
-
     // Determinar si el formulario está completado (último paso completado)
     const isFormCompleted = completedSteps.includes(steps.length - 1);
     
@@ -559,6 +572,17 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
         flexDirection: 'column',
         alignItems: 'center',
       }}>
+        {navLoading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+            <CircularProgress size={24} />
+          </Box>
+        )}
+        
+        {navError && (
+          <Typography color="error" sx={{ mb: 2 }}>
+            Error al cargar la información de navegación: {navError.message}
+          </Typography>
+        )}
         <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
           <span>
             <IconButton 
@@ -575,17 +599,17 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
           </span>
         </Tooltip>
         <Typography 
-        variant="caption" 
-        color="primary" 
-        sx={{ 
-          fontSize: '10px', 
-          fontWeight: 'bold',
-          marginBottom: '10px',
-          marginTop: '-10px',
-          opacity: !isFormCompleted || isGeneratingReport ? 0.5 : 1 
-        }}
-      >
-        {isGeneratingReport ? 'Generando...' : 'Generar reporte'}
+          variant="caption" 
+          color="primary" 
+          sx={{ 
+            fontSize: '10px', 
+            fontWeight: 'bold',
+            marginBottom: '10px',
+            marginTop: '-10px',
+            opacity: !isFormCompleted || isGeneratingReport ? 0.5 : 1 
+          }}
+        >
+          {isGeneratingReport ? 'Generando...' : 'Generar reporte'}
       </Typography>
       </Box>
     );
@@ -594,50 +618,41 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
   return (
     <Box sx={{ position: 'relative' }}>
     <PrintReportButton />
-      <Stepper
-          activeStep={activeStep}
-          sx={{
-            '& .MuiStepLabel-root': {
-              cursor: 'default', // Por defecto, los pasos no son clicables
-            },
-            '& .MuiStepLabel-root.Mui-completed': {
-              cursor: 'pointer', // Pasos completados son clicables
-            },
-            '& .MuiStepLabel-root.Mui-active': {
-              cursor: 'pointer', // Paso activo es clicable
-            },
-          }}
-        >
-          {steps.map((label, index) => (
-            <Step key={index} sx={{marginBottom: '20px'}}>
-              <StepLabel
-                onClick={() => handleStepClick(index)} // Navegación controlada
-                sx={{
-                  '& .MuiStepLabel-label': {
-                    color: index === activeStep ? '#FFFFFF' : index < activeStep ? '#4F4F4F' : '#A0A0A0', // Blanco activo, gris oscuro completado, gris claro inactivo
-                    backgroundColor: index === activeStep ? '#0056b3' : 'transparent', // Fondo azul para paso activo
-                    padding: index === activeStep ? '5px 10px' : '0', // Espaciado interno solo en activo
-                    borderRadius: '20px', // Bordes redondeados para fondo activo
-                    fontWeight: index === activeStep ? 'bold' : 'normal',
-                    cursor: index <= highestStepReached ? 'pointer' : 'default', // Cursor pointer solo para pasos alcanzables
-                  },
-                  '& .MuiStepIcon-root': {
-                    color: index < activeStep ? '#0056b3' : '#E0E0E0', // Azul para pasos completados, gris para inactivos
-                    fontSize: '28px', // Tamaño del ícono
-                  },
-                  '& .MuiStepIcon-root.Mui-active': {
-                    color: '#0056b3', // Azul para el ícono del paso activo
-                  },
-                  '& .MuiStepIcon-text': {
-                    fill: '#FFFFFF', // Color blanco para el número del paso activo
-                  },
-                }}
-              >
-                {label}
-              </StepLabel>
-            </Step>
-          ))}
-      </Stepper>
+    <Stepper
+      activeStep={activeStep}
+      sx={{
+        '& .MuiStepLabel-root': { cursor: 'default' },
+        '& .MuiStepLabel-root.Mui-completed': { cursor: 'pointer' },
+        '& .MuiStepLabel-root.Mui-active': { cursor: 'pointer' },
+      }}
+    >
+      {steps.map((label, index) => (
+        <Step key={index} sx={{marginBottom: '20px'}}>
+          <StepLabel
+            onClick={() => handleStepClick(index)}
+            sx={{
+              '& .MuiStepLabel-label': {
+                backgroundColor: index <= highestStepReached ? '#0056b3' : 'transparent',
+                color: index <= highestStepReached ? '#FFFFFF' : '#A0A0A0',
+                padding: index <= highestStepReached ? '5px 10px' : '0',
+                borderRadius: '20px',
+                fontWeight: index === activeStep ? 'bold' : 'normal',
+                cursor: index <= highestStepReached ? 'pointer' : 'default',
+                opacity: index <= highestStepReached ? 1 : 0.6,
+              },
+              '& .MuiStepIcon-root': {
+                color: index <= highestStepReached ? '#0056b3' : '#E0E0E0',
+                fontSize: '28px',
+              },
+              '& .MuiStepIcon-root.Mui-active': { color: '#0056b3' },
+              '& .MuiStepIcon-text': { fill: '#FFFFFF' },
+            }}
+          >
+            {label}
+          </StepLabel>
+        </Step>
+      ))}
+    </Stepper>
 
       {renderStepContent(activeStep)}
 

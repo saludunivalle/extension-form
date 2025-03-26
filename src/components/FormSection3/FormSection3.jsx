@@ -3,6 +3,7 @@ import { Box, Button, Stepper, Step, StepLabel, CircularProgress, Dialog, Dialog
 import { useLocation, useNavigate } from 'react-router-dom'; // Cambia useHistory por useNavigate
 import axios from 'axios';
 import { openFormReport } from '../../services/reportServices';
+import useInternalNavigationGoogleSheets from '../../hooks/useInternalNavigationGoogleSheets';
 import PrintIcon from '@mui/icons-material/Print';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
@@ -55,6 +56,8 @@ import CheckIcon from '@mui/icons-material/Check'; // Importa el ícono del chec
   
 
 function FormSection3({ formData, handleInputChange, userData, currentStep, setCurrentSection}) {
+  // Step labels
+  const steps = ['Propósito y Comentario', 'Matriz de Riesgos - Diseño', 'Matriz de Riesgos - Locaciones', 'Matriz de Riesgos - Desarrollo', 'Matriz de Riesgos - Cierre y Otros'];
   const [activeStep, setActiveStep] = useState(currentStep);  // Usar currentStep como el paso inicial
   const [openModal, setOpenModal] = useState(false); // Estado para controlar el modal
   const id_usuario = userData?.id_usuario;
@@ -66,11 +69,11 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
   const [completedSteps, setCompletedSteps] = useState([]);
   const [highestStepReached, setHighestStepReached] = useState(0); // Máximo paso alcanzado
 
-  // Step labels
-  const steps = ['Propósito y Comentario', 'Matriz de Riesgos - Diseño', 'Matriz de Riesgos - Locaciones', 'Matriz de Riesgos - Desarrollo', 'Matriz de Riesgos - Cierre y Otros'];
-
   const [idSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
 
+  const { maxAllowedStep, loading: navLoading, error: navError, isStepAllowed } = 
+  useInternalNavigationGoogleSheets(idSolicitud, 3, steps.length);
+ 
   const [errors, setErrors] = useState({
     aplicaDiseno1: 'No',
     aplicaDiseno2: 'No',
@@ -118,6 +121,17 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
       setActiveStep(currentStep);
     }
   }, [currentStep, steps.length]);
+
+  useEffect(() => {
+    if (!navLoading && maxAllowedStep !== undefined) {
+      console.log('maxAllowedStep:', maxAllowedStep);
+      console.log('activeStep:', activeStep);
+      console.log('isStepAllowed para siguiente paso:', isStepAllowed(activeStep + 1));
+      
+      // Actualiza el paso más alto alcanzado según lo que permite el servidor
+      setHighestStepReached(prev => Math.max(prev, maxAllowedStep));
+    }
+  }, [maxAllowedStep, navLoading, activeStep, isStepAllowed]);
 
 
   /*
@@ -224,7 +238,7 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
           });                  
         
           setActiveStep((prevActiveStep) => prevActiveStep + 1);
-          setHighestStepReached((prev) => Math.max(prev, activeStep + 1));
+          setHighestStepReached((prev) => Math.max(prev, activeStep + 1, maxAllowedStep));
       } catch (error) {
           console.error('Error al guardar el progreso:', error.response?.data || error.message);
       }
@@ -256,14 +270,12 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
       // Guardar los datos del último paso en Google Sheets
       await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
         id_solicitud: idSolicitud,
-        formData: pasoDataCompleto,
+        ...pasoDataCompleto,
         paso: 0,
         etapa_actual: 4,
         hoja,
-        userData: {
-          id_usuario,
-          name: userData.name,
-        }
+        id_usuario,
+        name: userData.name,
         
       });
 
@@ -335,6 +347,17 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
         flexDirection: 'column',
         alignItems: 'center',
       }}>
+        {navLoading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+            <CircularProgress size={24} />
+          </Box>
+        )}
+        
+        {navError && (
+          <Typography color="error" sx={{ mb: 2 }}>
+            Error al cargar la información de navegación: {navError.message}
+          </Typography>
+        )}
         <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
           <span>
             <IconButton 
@@ -371,50 +394,41 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
   return (
     <Box sx={{ position: 'relative' }}>
       <PrintReportButton />
-        <Stepper
-          activeStep={activeStep}
-          sx={{
-            '& .MuiStepLabel-root': {
-              cursor: 'default', // Por defecto, los pasos no son clicables
-            },
-            '& .MuiStepLabel-root.Mui-completed': {
-              cursor: 'pointer', // Pasos completados son clicables
-            },
-            '& .MuiStepLabel-root.Mui-active': {
-              cursor: 'pointer', // Paso activo es clicable
-            },
-          }}
-        >
-          {steps.map((label, index) => (
-            <Step key={index} sx={{marginBottom: '20px'}}>
-              <StepLabel
-                onClick={() => handleStepClick(index)} // Navegación controlada
-                sx={{
-                  '& .MuiStepLabel-label': {
-                    color: index === activeStep ? '#FFFFFF' : index < activeStep ? '#4F4F4F' : '#A0A0A0', // Blanco activo, gris oscuro completado, gris claro inactivo
-                    backgroundColor: index === activeStep ? '#0056b3' : 'transparent', // Fondo azul para paso activo
-                    padding: index === activeStep ? '5px 10px' : '0', // Espaciado interno solo en activo
-                    borderRadius: '20px', // Bordes redondeados para fondo activo
-                    fontWeight: index === activeStep ? 'bold' : 'normal',
-                    cursor: index <= highestStepReached ? 'pointer' : 'default', // Cursor pointer solo para pasos alcanzables
-                  },
-                  '& .MuiStepIcon-root': {
-                    color: index < activeStep ? '#0056b3' : '#E0E0E0', // Azul para pasos completados, gris para inactivos
-                    fontSize: '28px', // Tamaño del ícono
-                  },
-                  '& .MuiStepIcon-root.Mui-active': {
-                    color: '#0056b3', // Azul para el ícono del paso activo
-                  },
-                  '& .MuiStepIcon-text': {
-                    fill: '#FFFFFF', // Color blanco para el número del paso activo
-                  },
-                }}
-              >
-                {label}
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
+      <Stepper
+        activeStep={activeStep}
+        sx={{
+          '& .MuiStepLabel-root': { cursor: 'default' },
+          '& .MuiStepLabel-root.Mui-completed': { cursor: 'pointer' },
+          '& .MuiStepLabel-root.Mui-active': { cursor: 'pointer' },
+        }}
+      >
+        {steps.map((label, index) => (
+          <Step key={index} sx={{marginBottom: '20px'}}>
+            <StepLabel
+              onClick={() => handleStepClick(index)}
+              sx={{
+                '& .MuiStepLabel-label': {
+                  backgroundColor: index <= highestStepReached ? '#0056b3' : 'transparent',
+                  color: index <= highestStepReached ? '#FFFFFF' : '#A0A0A0',
+                  padding: index <= highestStepReached ? '5px 10px' : '0',
+                  borderRadius: '20px',
+                  fontWeight: index === activeStep ? 'bold' : 'normal',
+                  cursor: index <= highestStepReached ? 'pointer' : 'default',
+                  opacity: index <= highestStepReached ? 1 : 0.6,
+                },
+                '& .MuiStepIcon-root': {
+                  color: index <= highestStepReached ? '#0056b3' : '#E0E0E0',
+                  fontSize: '28px',
+                },
+                '& .MuiStepIcon-root.Mui-active': { color: '#0056b3' },
+                '& .MuiStepIcon-text': { fill: '#FFFFFF' },
+              }}
+            >
+              {label}
+            </StepLabel>
+          </Step>
+        ))}
+      </Stepper>
 
       {renderStepContent(activeStep, errors)}
 

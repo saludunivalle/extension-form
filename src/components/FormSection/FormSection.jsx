@@ -1,21 +1,23 @@
 import { useEffect, useState } from 'react';
-  import { Stepper, Step, StepLabel, Button, Box, CircularProgress, useMediaQuery } from '@mui/material';
-  import Step1 from './Step1'; 
-  import Step2 from './Step2';
-  import Step3 from './Step3';
-  import Step4 from './Step4';
-  import Step5 from './Step5';
-  import axios from 'axios';
-  import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
-  import { useNavigate } from 'react-router-dom';
-  import CheckIcon from '@mui/icons-material/Check'; 
-  import { styled } from '@mui/system';
-  import { openFormReport } from '../../services/reportServices';
-  import PrintIcon from '@mui/icons-material/Print';
-  import IconButton from '@mui/material/IconButton';
+import { Stepper, Step, StepLabel, Button, Box, CircularProgress, useMediaQuery } from '@mui/material';
+import Step1 from './Step1'; 
+import Step2 from './Step2';
+import Step3 from './Step3';
+import Step4 from './Step4';
+import Step5 from './Step5';
+import axios from 'axios';
+import useInternalNavigationGoogleSheets from '../../hooks/useInternalNavigationGoogleSheets';
+import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import CheckIcon from '@mui/icons-material/Check'; 
+import { styled } from '@mui/system';
+import { openFormReport } from '../../services/reportServices';
+import PrintIcon from '@mui/icons-material/Print';
+import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
-  import PropTypes from 'prop-types';
-  import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import PropTypes from 'prop-types';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import Typography from '@mui/material/Typography';
 
   /* 
   Este componente se encarga de cambiar el color de fondo, el color del texto y otros estilos visuales del ícono:
@@ -70,6 +72,13 @@ import Tooltip from '@mui/material/Tooltip';
     currentStep,
     handleFileChange,
   }) {
+    const steps = [
+      'Datos Generales',
+      'Detalles de la Actividad',
+      'Certificación y Evaluación',
+      'Información Coordinador',
+      'Información Adicional',
+    ];
     const [activeStep, setActiveStep] = useState(currentStep); 
     const [idSolicitud] = useState(localStorage.getItem('id_solicitud')); 
     const [showModal, setShowModal] = useState(false); 
@@ -82,6 +91,11 @@ import Tooltip from '@mui/material/Tooltip';
     const isSmallScreen = useMediaQuery('(max-width:600px)');
     const isVerySmallScreen = useMediaQuery('(max-width:375px)');
 
+    const { maxAllowedStep, loading: navLoading, error: navError, isStepAllowed } = 
+    useInternalNavigationGoogleSheets(idSolicitud, 1, steps.length);
+
+    
+    
     /*
     Esta función se encarga de validar los campos requeridos del formulario en función del paso activo (`activeStep`).
     - Si algún campo obligatorio está vacío o no cumple los requisitos, agrega un mensaje de error específico al objeto `stepErrors`.
@@ -244,14 +258,6 @@ import Tooltip from '@mui/material/Tooltip';
         navigate('/');
       }
     }, [idSolicitud, navigate]);
-
-    const steps = [
-      'Datos Generales',
-      'Detalles de la Actividad',
-      'Certificación y Evaluación',
-      'Información Coordinador',
-      'Información Adicional',
-    ];
     
     
     useEffect(() => {
@@ -268,6 +274,17 @@ import Tooltip from '@mui/material/Tooltip';
         setActiveStep(currentStep);
       }
     }, [currentStep, steps.length]);
+
+    // Efecto para actualizar highestStepReached basado en maxAllowedStep
+    useEffect(() => {
+      if (!navLoading && maxAllowedStep !== undefined) {
+        console.log('maxAllowedStep:', maxAllowedStep);
+        console.log('activeStep:', activeStep);
+        console.log('isStepAllowed para siguiente paso:', isStepAllowed(activeStep + 1));
+        // Asigna directamente maxAllowedStep para reflejar lo que viene del servidor
+        setHighestStepReached(maxAllowedStep);
+      }
+    }, [maxAllowedStep, navLoading]);
 
     /*
     Lógica del botón "Siguiente"
@@ -424,8 +441,8 @@ import Tooltip from '@mui/material/Tooltip';
               }
               return newCompleted;
             });
-            setActiveStep((prevActiveStep) => prevActiveStep + 1);
-            setHighestStepReached((prev) => Math.max(prev, activeStep + 1));
+            setActiveStep(prev => prev + 1);
+            setHighestStepReached((prev) => Math.max(prev, activeStep + 1, maxAllowedStep));
           } catch (error) {
             console.error('Error al guardar el progreso:', error);
             if (error.response) console.error('Detalles del error:', error.response.data);
@@ -442,7 +459,7 @@ import Tooltip from '@mui/material/Tooltip';
 
     const handleStepClick = (stepIndex) => {
       if (stepIndex <= highestStepReached) {
-        setActiveStep(stepIndex); 
+        setActiveStep(stepIndex); // Permite cambiar a pasos ya alcanzados
       }
     };
 
@@ -499,6 +516,8 @@ import Tooltip from '@mui/material/Tooltip';
                     'Content-Type': 'multipart/form-data',
                 },
             });
+
+            updateMaxAllowedStep(activeStep + 1);
 
             setIsLoading(false); 
             setShowModal(true);
@@ -591,48 +610,62 @@ import Tooltip from '@mui/material/Tooltip';
 
     return (
       <Box sx={{ padding: isVerySmallScreen ? '10px' : isSmallScreen ? '15px' : '20px', width: '100%', position: 'relative' }}>
+        {navLoading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+          <CircularProgress size={24} />
+        </Box>
+      )}
+      
+      {navError && (
+        <Typography color="error" sx={{ mb: 2 }}>
+          Error al cargar la información de navegación: {navError.message}
+        </Typography>
+      )}
       <PrintReportButton />
-        <Stepper
-          activeStep={activeStep}
-          sx={{
-            marginBottom: isSmallScreen ? '15px' : '30px',
+      <Stepper
+        activeStep={activeStep}
+        sx={{
+          marginBottom: isSmallScreen ? '15px' : '30px',
           '& .MuiStepLabel-label': {
             fontSize: isSmallScreen ? '12px' : '14px',
             textAlign: isSmallScreen ? 'center' : 'left', 
-            },
-          }}
-        >
-          {steps.map((label, index) => (
-            <Step key={index}>
+          },
+        }}
+      >
+        {steps.map((label, index) => (
+          <Step key={index}>
             <StepLabel
               StepIconComponent={(props) => (
                 <CustomStepIcon
                   {...props}
                   active={index === activeStep}
-                  completed={completedSteps.includes(index) || index < activeStep}
+                  completed={completedSteps.includes(index) || index < activeStep || index <= highestStepReached}
                 />
               )}
               onClick={() => handleStepClick(index)} 
               sx={{
                 '& .MuiStepLabel-label': {
-                  color: index === activeStep
-                    ? '#FFFFFF'
-                    : completedSteps.includes(index) || index < activeStep
-                    ? '#4F4F4F'
-                    : '#A0A0A0',
-                  backgroundColor: index === activeStep ? '#0056b3' : 'transparent',
-                  padding: index === activeStep ? '5px 10px' : '0',
+                  backgroundColor: index <= highestStepReached ? '#0056b3' : 'transparent',
+                  color: index <= highestStepReached ? '#FFFFFF' : '#A0A0A0',
+                  padding: index <= highestStepReached ? '5px 10px' : '0',
                   borderRadius: '20px',
                   fontWeight: index === activeStep ? 'bold' : 'normal',
                   cursor: index <= highestStepReached ? 'pointer' : 'default',
+                  opacity: index <= highestStepReached ? 1 : 0.6,
                 },
+                '& .MuiStepIcon-root': {
+                  color: index <= highestStepReached ? '#0056b3' : '#E0E0E0',
+                  fontSize: '28px',
+                },
+                '& .MuiStepIcon-root.Mui-active': { color: '#0056b3' },
+                '& .MuiStepIcon-text': { fill: '#FFFFFF' },
               }}
             >
               {label}
             </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
+          </Step>
+        ))}
+      </Stepper>
 
         {renderStepContent(activeStep, errors)}
 

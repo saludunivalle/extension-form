@@ -4,6 +4,7 @@ import Step1FormSection2 from './Step1FormSection2';
 import Step2FormSection2 from './Step2FormSection2';
 import Step3FormSection2 from './Step3FormSection2';
 import axios from 'axios'; 
+import useInternalNavigationGoogleSheets from '../../hooks/useInternalNavigationGoogleSheets';
 import { useLocation } from 'react-router-dom';
 import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import { openFormReport } from '../../services/reportServices';
@@ -51,6 +52,8 @@ import { styled } from '@mui/system';
 
 function FormSection2({ formData, handleInputChange, setCurrentSection, userData, totalAportesUnivalle, currentStep }) {
   
+  const steps = ['Datos Generales', 'Ingresos y Gastos', 'Resumen Financiero'];
+
   const [activeStep, setActiveStep] = useState(currentStep);  
   const [extraExpenses, setExtraExpenses] = useState([]); 
   const id_usuario = userData?.id_usuario;
@@ -61,12 +64,10 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [completedSteps, setCompletedSteps] = useState([]);
   const [highestStepReached, setHighestStepReached] = useState(0); 
-
-
-
-  const steps = ['Datos Generales', 'Ingresos y Gastos', 'Resumen Financiero'];
-
   const [totalGastos, setTotalGastos] = useState(0);
+  
+  const { maxAllowedStep, loading: navLoading, error: navError, isStepAllowed } = 
+    useInternalNavigationGoogleSheets(idSolicitud, 2, steps.length);
 
   const handleUpdateTotalGastos = (total) => {
     setTotalGastos(total); 
@@ -84,6 +85,17 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
       setActiveStep(currentStep);
     }
   }, [currentStep, steps.length]);  
+
+  useEffect(() => {
+    if (!navLoading && maxAllowedStep !== undefined) {
+      console.log('maxAllowedStep:', maxAllowedStep);
+      console.log('activeStep:', activeStep);
+      console.log('isStepAllowed para siguiente paso:', isStepAllowed(activeStep + 1));
+      
+      // Actualiza el paso más alto alcanzado según lo que permite el servidor
+      setHighestStepReached(prev => Math.max(prev, maxAllowedStep));
+    }
+  }, [maxAllowedStep, navLoading, activeStep, isStepAllowed]);
 
   useEffect(() => {
     if (!idSolicitud || isNaN(parseInt(idSolicitud, 10))) {
@@ -463,7 +475,7 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
 
   const handleStepClick = (stepIndex) => {
     if (stepIndex <= highestStepReached) {
-      setActiveStep(stepIndex); // Cambiar al paso clicado si es alcanzado
+      setActiveStep(stepIndex); // Permite cambiar a pasos ya alcanzados
     }
   };
 
@@ -528,51 +540,53 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
 
   return (
     <Box sx={{ position: 'relative' }}>
+      {navLoading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+          <CircularProgress size={24} />
+        </Box>
+      )}
+      
+      {navError && (
+        <Typography color="error" sx={{ mb: 2 }}>
+          Error al cargar la información de navegación: {navError.message}
+        </Typography>
+      )}
     <PrintReportButton />
-        <Stepper
-          activeStep={activeStep}
-          sx={{
-            '& .MuiStepLabel-root': {
-              cursor: 'default', // Por defecto, los pasos no son clicables
-            },
-            '& .MuiStepLabel-root.Mui-completed': {
-              cursor: 'pointer', // Pasos completados son clicables
-            },
-            '& .MuiStepLabel-root.Mui-active': {
-              cursor: 'pointer', // Paso activo es clicable
-            },
-          }}
-        >
-          {steps.map((label, index) => (
-            <Step key={index} sx={{marginBottom: '20px'}}>
-              <StepLabel
-                onClick={() => handleStepClick(index)} // Navegación controlada
-                sx={{
-                  '& .MuiStepLabel-label': {
-                    color: index === activeStep ? '#FFFFFF' : index < activeStep ? '#4F4F4F' : '#A0A0A0', // Blanco activo, gris oscuro completado, gris claro inactivo
-                    backgroundColor: index === activeStep ? '#0056b3' : 'transparent', // Fondo azul para paso activo
-                    padding: index === activeStep ? '5px 10px' : '0', // Espaciado interno solo en activo
-                    borderRadius: '20px', // Bordes redondeados para fondo activo
-                    fontWeight: index === activeStep ? 'bold' : 'normal',
-                    cursor: index <= highestStepReached ? 'pointer' : 'default', // Cursor pointer solo para pasos alcanzables
-                  },
-                  '& .MuiStepIcon-root': {
-                    color: index < activeStep ? '#0056b3' : '#E0E0E0', // Azul para pasos completados, gris para inactivos
-                    fontSize: '28px', // Tamaño del ícono
-                  },
-                  '& .MuiStepIcon-root.Mui-active': {
-                    color: '#0056b3', // Azul para el ícono del paso activo
-                  },
-                  '& .MuiStepIcon-text': {
-                    fill: '#FFFFFF', // Color blanco para el número del paso activo
-                  },
-                }}
-              >
-                {label}
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
+    <Stepper
+      activeStep={activeStep}
+      sx={{
+        '& .MuiStepLabel-root': { cursor: 'default' },
+        '& .MuiStepLabel-root.Mui-completed': { cursor: 'pointer' },
+        '& .MuiStepLabel-root.Mui-active': { cursor: 'pointer' },
+      }}
+    >
+      {steps.map((label, index) => (
+        <Step key={index} sx={{ marginBottom: '20px' }}>
+          <StepLabel
+            onClick={() => handleStepClick(index)}
+            sx={{
+              '& .MuiStepLabel-label': {
+                backgroundColor: index <= highestStepReached ? '#0056b3' : 'transparent',
+                color: index <= highestStepReached ? '#FFFFFF' : '#A0A0A0',
+                padding: index <= highestStepReached ? '5px 10px' : '0',
+                borderRadius: '20px',
+                fontWeight: index === activeStep ? 'bold' : 'normal',
+                cursor: index <= highestStepReached ? 'pointer' : 'default',
+                opacity: index <= highestStepReached ? 1 : 0.6,
+              },
+              '& .MuiStepIcon-root': {
+                color: index <= highestStepReached ? '#0056b3' : '#E0E0E0',
+                fontSize: '28px',
+              },
+              '& .MuiStepIcon-root.Mui-active': { color: '#0056b3' },
+              '& .MuiStepIcon-text': { fill: '#FFFFFF' },
+            }}
+          >
+            {label}
+          </StepLabel>
+        </Step>
+      ))}
+    </Stepper>
 
 
       {renderStepContent(activeStep)}
@@ -581,7 +595,12 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
         <Button disabled={activeStep === 0} onClick={handleBack}>
           Atrás
         </Button>
-        <Button variant="contained" color="primary" onClick={activeStep === steps.length - 1 ? () => setShowModal(true) : handleNext} disabled={isLoading} startIcon={isLoading ? <CircularProgress size={20} /> : null}>
+        <Button variant="contained"
+          color="primary" 
+          onClick={activeStep === steps.length - 1 ? () => setShowModal(true) : handleNext} 
+          disabled={isLoading}
+          startIcon={isLoading ? <CircularProgress size={20} /> : null}
+          >
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>
           <Dialog 
