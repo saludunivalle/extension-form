@@ -7,11 +7,13 @@ import PropTypes from "prop-types";
 function Step2FormSection2({
   formData,
   handleNumberInputChange,
-  updateTotalGastos // Nueva función callback para enviar el total al componente padre
+  updateTotalGastos, 
+  extraExpenses,
+  onExtraExpensesChange
 }) {
   const [expandedSections, setExpandedSections] = useState({});
   const [hiddenConcepts, setHiddenConcepts] = useState([]);
-  const [extraExpenses, setExtraExpenses] = useState([]);
+  const [setExtraExpenses] = useState([]);
   const [isAddingExtraExpense, setIsAddingExtraExpense] = useState(false);
   const [loadingDeleteId, setLoadingDeleteId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -226,43 +228,40 @@ function Step2FormSection2({
   
     setTimeout(() => {
       const newId = Date.now();
-      setExtraExpenses([
+      const newExtraExpenses = [
         ...extraExpenses,
         { 
           id: newId, 
           name: '', 
           cantidad: '', 
           vr_unit: '',
-          key: `15.${extraExpenses.length + 1}` // Genera clave como "15.1", "15.2", etc.
+          key: `15.${extraExpenses.length + 1}`
         }
-      ]);
+      ];
+      onExtraExpensesChange(newExtraExpenses);
       setIsAddingExtraExpense(false);
     }, 300);
   };
   
   const handleExtraExpenseChange = (id, field, value) => {
-    setExtraExpenses((prev) =>
-      prev.map(expense =>
-        expense.id === id ? { ...expense, [field]: value } : expense
-      )
+    const newExtraExpenses = extraExpenses.map(expense =>
+      expense.id === id ? { ...expense, [field]: value } : expense
     );
+    onExtraExpensesChange(newExtraExpenses);
   };
 
   const handleRemoveExtraExpense = (id) => {
     setLoadingDeleteId(id);
     
     setTimeout(() => {
-      setExtraExpenses(prev => {
-        // Obtener el gasto a eliminar para encontrar su posición
-        const expenseIndex = prev.findIndex(expense => expense.id === id);
-        const updatedExpenses = prev.filter(expense => expense.id !== id);
-        
-        // Actualizar las claves numéricas para mantener la secuencia
-        return updatedExpenses.map((expense, idx) => ({
+      const updatedExpenses = extraExpenses
+        .filter(expense => expense.id !== id)
+        .map((expense, idx) => ({
           ...expense,
           key: `15.${idx + 1}`
         }));
-      });
+      
+      onExtraExpensesChange(updatedExpenses);
       setLoadingDeleteId(null);
     }, 300);
   };

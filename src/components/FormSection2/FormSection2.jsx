@@ -65,6 +65,7 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   const [completedSteps, setCompletedSteps] = useState([]);
   const [highestStepReached, setHighestStepReached] = useState(0); 
   const [totalGastos, setTotalGastos] = useState(0);
+
   
   const { maxAllowedStep, loading: navLoading, error: navError, isStepAllowed } = 
     useInternalNavigationGoogleSheets(idSolicitud, 2, steps.length);
@@ -77,6 +78,56 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
     console.log('Formulario data recibido: ', formData);
     console.log('Datos del usuario: ', userData);
   }, [formData, userData]);
+
+  useEffect(() => {
+    const fetchGastos = async () => {
+      try {
+        const response = await axios.get('https://siac-extension-server.vercel.app/getGastos', {
+          params: { id_solicitud: idSolicitud }
+        });
+        
+        if (response.data && response.data.gastos) {
+          // Filtrar los gastos extras (aquellos cuyo id_conceptos comienza con "15.")
+          const gastosExtrasFromDB = response.data.gastos
+            .filter(gasto => String(gasto.id_conceptos).startsWith('15.'))
+            .map(gasto => ({
+              id: Date.now() + Math.random(), // Generar ID único
+              name: gasto.concepto || '',
+              cantidad: gasto.cantidad.toString(),
+              vr_unit: gasto.valor_unit.toString(),
+              key: gasto.id_conceptos
+            }));
+          
+          // Actualizar el estado de gastos extras
+          setExtraExpenses(gastosExtrasFromDB);
+          
+          // Para los gastos regulares, actualizar el formData
+          response.data.gastos
+            .filter(gasto => !String(gasto.id_conceptos).startsWith('15.'))
+            .forEach(gasto => {
+              handleInputChange({
+                target: {
+                  name: `${gasto.id_conceptos}_cantidad`,
+                  value: gasto.cantidad.toString()
+                }
+              });
+              handleInputChange({
+                target: {
+                  name: `${gasto.id_conceptos}_vr_unit`,
+                  value: gasto.valor_unit.toString()
+                }
+              });
+            });
+        }
+      } catch (error) {
+        console.error('Error al cargar los gastos:', error);
+      }
+    };
+    
+    if (idSolicitud) {
+      fetchGastos();
+    }
+  }, [idSolicitud]);
 
   useEffect(() => {
     if (currentStep < 0 || currentStep >= steps.length) {
@@ -153,9 +204,21 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
 
     // En handleSaveGastos
     const handleSaveGastos = async () => {
-      // Gastos regulares
+      // Obtener los gastos extras del componente hijo
+      const gastosExtras = extraExpenses.map((expense, index) => {
+        return {
+          id_conceptos: `15.${index + 1}`,
+          concepto: expense.name, // Nombre personalizado del gasto
+          cantidad: parseFloat(expense.cantidad || 0),
+          valor_unit: parseFloat(expense.vr_unit || 0),
+          valor_total: parseFloat(expense.cantidad || 0) * parseFloat(expense.vr_unit || 0),
+          concepto_padre: "15" // Este campo es clave para la jerarquía
+        };
+      });
+    
+      // Gastos regulares (se mantiene igual)
       const gastosRegulares = gastosStructure2.map(item => {
-        const idKey = item.id_conceptos; // Usa la clave tal cual
+        const idKey = item.id_conceptos;
         return {
           id_conceptos: idKey,
           cantidad: parseFloat(formData[`${idKey}_cantidad`] || 0),
@@ -163,11 +226,19 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
           valor_total: (formData[`${idKey}_cantidad`] || 0) * (formData[`${idKey}_vr_unit`] || 0)
         };
       });
-   
-      // Ya no necesitamos procesar gastos extras de forma separada
-      const todosLosGastos = gastosRegulares.filter(g => g.cantidad > 0 && g.valor_unit > 0);
+    
+      // Combinar todos los gastos
+      const todosLosGastos = [
+        ...gastosRegulares.filter(g => g.cantidad > 0 && g.valor_unit > 0),
+        ...gastosExtras.filter(g => g.cantidad > 0 && g.valor_unit > 0)
+      ];
     
       try {
+        console.log("📊 Datos enviados a guardarGastos:", {
+          id_solicitud: formData.id_solicitud.toString(),
+          gastos: todosLosGastos
+        });
+        
         const response = await axios.post('https://siac-extension-server.vercel.app/guardarGastos', {
           id_solicitud: formData.id_solicitud.toString(),
           gastos: todosLosGastos
@@ -181,6 +252,11 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
         console.log(`🚨 Error: ${error.response?.data?.error || error.message}`);
       }
     };
+
+    const handleExtraExpensesChange = (newExtraExpenses) => {
+      setExtraExpenses(newExtraExpenses);
+    };
+    
   
   const handleNext = async () => {
     if (activeStep < steps.length - 1) {
@@ -465,7 +541,16 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
       case 0:
         return <Step1FormSection2 formData={formData} handleInputChange={handleInputChange} />;
       case 1:
-        return <Step2FormSection2 formData={formData} handleNumberInputChange={handleInputChange} handleInputChange={handleInputChange} totalIngresos={formData.total_ingresos || 0} totalGastos={formData.total_gastos || 0} updateTotalGastos={handleUpdateTotalGastos}/>;
+        return <Step2FormSection2 
+          formData={formData} 
+          handleNumberInputChange={handleInputChange} 
+          handleInputChange={handleInputChange} 
+          totalIngresos={formData.total_ingresos || 0} 
+          totalGastos={formData.total_gastos || 0} 
+          updateTotalGastos={handleUpdateTotalGastos}
+          extraExpenses={extraExpenses}
+          onExtraExpensesChange={handleExtraExpensesChange}
+        />;
       case 2:
         return <Step3FormSection2 formData={formData} handleInputChange={handleInputChange} totalIngresos={formData.total_ingresos || 0}  totalAportesUnivalle={totalAportesUnivalle || 0} totalGastos={totalGastos} />;
       default:
