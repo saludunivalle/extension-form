@@ -15,6 +15,18 @@ const solicitud3Step5Fields = [
   'mitigaExtra1', 'mitigaExtra2', 'mitigaExtra3'
 ];
 
+// Función para determinar estilo de fila basado en estado 'aplicado'
+const getRiskRowStyle = (isApplied) => ({
+  padding: '16px 0', // Aumentado para mejor espaciado
+  opacity: isApplied ? 1 : 0.7, // Contraste más sutil
+  backgroundColor: isApplied ? '#FFFFFF' : 'rgba(0, 0, 0, 0.02)', // Fondo blanco para seleccionados
+  transition: 'all 0.25s ease',
+  borderRadius: '4px',
+  boxShadow: isApplied ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', // Sombra sutil en lugar de borde
+  border: 'none', // Eliminamos bordes visibles
+  marginBottom: '12px', // Más espacio entre filas
+});
+
 const handleSubmit = async (formData, idSolicitud, userData, setIsLoading, navigate, setCurrentSection) => {
   setIsLoading(true);
 
@@ -147,7 +159,7 @@ function Step5FormSection3({ formData, handleInputChange, idSolicitud, userData,
     <Box>
       <Typography variant="h6" gutterBottom>MATRIZ DE RIESGOS - CIERRE</Typography>
 
-      <Grid container spacing={2}>
+      <Grid container spacing={2} sx={{ marginBottom: '8px', fontWeight: 'bold', padding: '8px 0' }}>
         {/* Encabezados */}
         <Grid item xs={4}>
           <Typography variant="subtitle1">RIESGO</Typography>
@@ -158,8 +170,15 @@ function Step5FormSection3({ formData, handleInputChange, idSolicitud, userData,
         <Grid item xs={4}>
           <Typography variant="subtitle1">MITIGACIÓN</Typography>
         </Grid>
+      </Grid>
 
-        {/* Riesgo 1 */}
+      {/* Riesgo 1 */}
+      <Grid 
+        container 
+        spacing={2} 
+        marginTop={1}
+        sx={getRiskRowStyle(formData.aplicaCierre1 === 'Sí')}
+      >
         <Grid item xs={4}>
           <Typography variant="body1">
             Afectación de la ejecución de los programas debido a la falta de estrategias de comunicación y baja asistencia por parte de la audiencia (estudiantes) invitados.
@@ -180,8 +199,14 @@ function Step5FormSection3({ formData, handleInputChange, idSolicitud, userData,
             Tener en cuenta que la participación se realiza con el 30% del público invitado.
           </Typography>
         </Grid>
+      </Grid>
 
-        {/* Riesgo 2 */}
+      {/* Riesgo 2 */}
+      <Grid 
+        container 
+        spacing={2} 
+        sx={getRiskRowStyle(formData.aplicaCierre2 === 'Sí')}
+      >
         <Grid item xs={4}>
           <Typography variant="body1">
             Debilidades en el proceso de verificación del cumplimiento de los requisitos.
@@ -202,8 +227,14 @@ function Step5FormSection3({ formData, handleInputChange, idSolicitud, userData,
             Verificar los requisitos para la certificación.
           </Typography>
         </Grid>
-        
-        {/* Riesgo 3 */}
+      </Grid>
+      
+      {/* Riesgo 3 */}
+      <Grid 
+        container 
+        spacing={2} 
+        sx={getRiskRowStyle(formData.aplicaCierre3 === 'Sí')}
+      >
         <Grid item xs={4}>
           <Typography variant="body1">
             Pérdida de imagen de la institución por insatisfacción en calidad de contenidos.
