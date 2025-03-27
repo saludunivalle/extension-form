@@ -248,7 +248,7 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
   const handleSubmit = async () => {
     setIsLoading(true); // Iniciar el loading
 
-    const hoja = 4; // Cambia este valor según la hoja a la que corresponda el formulario
+    const hoja = 3; // Cambia este valor según la hoja a la que corresponda el formulario
     
     const completarValoresConNo = (data) => {
       const completado = {};
@@ -257,11 +257,11 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
       }
       return completado;
     };
-
+  
     const pasoData = {
-      aplicaCierre1: formData.aplicaCierre1,
-      aplicaCierre2: formData.aplicaCierre2,
-      aplicaCierre3: formData.aplicaCierre3,
+      aplicaCierre1: formData.aplicaCierre1 || 'No',
+      aplicaCierre2: formData.aplicaCierre2 || 'No',
+      aplicaCierre3: formData.aplicaCierre3 || 'No',
     };
 
     const pasoDataCompleto = completarValoresConNo(pasoData);
@@ -271,8 +271,8 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
       await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
         id_solicitud: idSolicitud,
         ...pasoDataCompleto,
-        paso: 0,
-        etapa_actual: 4,
+        paso: 5,
+        etapa_actual: 3,
         hoja,
         id_usuario,
         name: userData.name,
@@ -440,9 +440,15 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
 
       {renderStepContent(activeStep, errors)}
 
-+      <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
         <Button disabled={activeStep === 0} onClick={handleBack}>Atrás</Button>
-        <Button variant="contained" color="primary" onClick={activeStep === steps.length - 1 ? () => setShowModal(true) : handleNext} disabled={isLoading} startIcon={isLoading ? <CircularProgress size={20} /> : null} >
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
+          disabled={isLoading}
+          startIcon={isLoading ? <CircularProgress size={20} /> : null}
+        >
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
         </Button>
       </Box>
@@ -485,7 +491,29 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
             Salir
           </Button>
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button onClick={() => setCurrentSection(4)} color="primary" variant="outlined">
+            <Button 
+              onClick={async () => {
+                try {
+                  // Usar el nuevo endpoint para marcar el formulario como completado
+                  await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
+                    id_solicitud: idSolicitud,
+                    etapa_actual: 3,
+                    paso_actual: steps.length,
+                    estadoFormularios: {
+                      "3": "Completado"
+                    }
+                  });
+                  
+                  // Navegar al siguiente formulario
+                  setCurrentSection(4);
+                } catch (error) {
+                  console.error('Error al actualizar progreso:', error);
+                  alert('Hubo un problema al avanzar al siguiente formulario. Por favor intente nuevamente.');
+                }
+              }} 
+              color="primary" 
+              variant="outlined"
+            >
               Continuar
             </Button>
             <Button 
@@ -493,8 +521,19 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
                 try {
                   setIsGeneratingReport(true);
                   const idSolicitud = localStorage.getItem('id_solicitud');
+                  
+                  // Marcar primero el formulario como completado
+                  await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
+                    id_solicitud: idSolicitud,
+                    etapa_actual: 3,
+                    paso_actual: steps.length,
+                    estadoFormularios: {
+                      "3": "Completado"
+                    }
+                  });
+                  
                   await openFormReport(idSolicitud, 3);
-                  setCurrentSection(2);
+                  setCurrentSection(4); // Ir al formulario 4, no al 2
                 } catch (error) {
                   console.error('Error al generar el reporte:', error);
                   alert('Hubo un problema al generar el reporte');
