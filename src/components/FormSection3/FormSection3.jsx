@@ -309,7 +309,15 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
       case 3:
         return <Step4FormSection3 formData={formData} handleInputChange={handleInputChange} />;
       case 4:
-        return <Step5FormSection3 formData={formData} handleInputChange={handleInputChange} />;
+        return <Step5FormSection3 
+        formData={formData} 
+        handleInputChange={handleInputChange} 
+        idSolicitud={idSolicitud}
+        userData={userData}
+        setIsLoading={setIsLoading}
+        navigate={navigate}
+        setCurrentSection={setCurrentSection}
+       />;
       default:
         return null;
     }

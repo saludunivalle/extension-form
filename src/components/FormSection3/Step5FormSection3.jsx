@@ -1,8 +1,12 @@
-import { useState } from 'react';
-import { Typography, Box, Grid, Checkbox, TextField, Button } from '@mui/material';
+import { useState, useEffect, useMemo } from 'react';
+import { Typography, Box, Grid, Checkbox, TextField, Button, CircularProgress, Tabs, Tab } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
 import PropTypes from "prop-types";
 import axios from 'axios';
+import RiesgosDinamicos from './RiesgosDinamicos';
 
 const solicitud3Step5Fields = [
   'aplicaCierre1', 'aplicaCierre2', 'aplicaCierre3',
@@ -46,6 +50,8 @@ const handleSubmit = async (formData, idSolicitud, userData, setIsLoading, navig
 
 function Step5FormSection3({ formData, handleInputChange, idSolicitud, userData, setIsLoading, navigate, setCurrentSection }) {
   const [additionalRisks, setAdditionalRisks] = useState([]);
+  const [loadingDeleteId, setLoadingDeleteId] = useState(null);
+  const [activeTab, setActiveTab] = useState(0);
 
   const handleCheckboxChange = (event) => {
     const { name, checked } = event.target;
@@ -89,7 +95,55 @@ function Step5FormSection3({ formData, handleInputChange, idSolicitud, userData,
     });
   };
 
-  return (
+  const removeRisk = (indexPositionToRemove) => {
+    // Obtener el índice real del riesgo desde el array additionalRisks
+    const riskIndex = additionalRisks[indexPositionToRemove];
+    
+    // Activar indicador de carga
+    setLoadingDeleteId(indexPositionToRemove)
+
+    // Limpiar los valores del formulario para este riesgo
+    handleInputChange({
+      target: { name: `riesgoExtra${riskIndex}`, value: '' }
+    });
+    handleInputChange({
+      target: { name: `aplicaExtra${riskIndex}`, value: 'No' }
+    });
+    handleInputChange({
+      target: { name: `mitigaExtra${riskIndex}`, value: '' }
+    });
+    
+    syncRiskRemovalWithBackend(riskIndex)
+      .finally(() => {
+        // Eliminar el índice del array additionalRisks
+        const updatedRisks = additionalRisks.filter((_, i) => i !== indexPositionToRemove);
+        setAdditionalRisks(updatedRisks);
+        // Desactivar indicador de carga
+        setLoadingDeleteId(null);
+      });
+  };
+
+  const syncRiskRemovalWithBackend = async (riskIndex) => {
+    try {
+      const response = await axios.post('https://siac-extension-server.vercel.app/eliminarRiesgo', {
+        id_solicitud: idSolicitud,
+        indice_riesgo: riskIndex,
+        id_usuario: userData.id_usuario,
+        name: userData.name
+      });
+      
+      // Podemos agregar una notificación de éxito si se desea
+      return response;
+    } catch (error) {
+      console.error('Error al eliminar el riesgo:', error.response?.data || error.message);
+      // Podríamos manejar un estado para mostrar un mensaje de error
+      throw error;
+    }
+  };
+
+  
+
+  const CierreRiskSystem = () => (
     <Box>
       <Typography variant="h6" gutterBottom>MATRIZ DE RIESGOS - CIERRE</Typography>
 
@@ -171,72 +225,32 @@ function Step5FormSection3({ formData, handleInputChange, idSolicitud, userData,
           </Typography>
         </Grid>
       </Grid>
+    </Box>
+  );
 
-      {/* Sección de riesgos adicionales */}
-      <Box mt={4}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>MATRIZ DE RIESGOS - OTROS</Typography>
-          <Button
-            variant="outlined"
-            startIcon={<AddIcon />}
-            onClick={addNewRisk}
-            sx={{
-              borderColor: '#0056b3',
-              color: '#0056b3',
-              '&:hover': {
-                backgroundColor: '#e3f2fd',
-                borderColor: '#003b82'
-              }
-            }}
-          >
-            Agregar Nuevo Riesgo
-          </Button>
-        </Box>
-        {additionalRisks.map((index) => (
-          <Grid container spacing={2} key={index} sx={{ mb: 2 }}>
-            <Grid item xs={4}>
-              <TextField
-                fullWidth
-                label="Nombre del riesgo"
-                variant="outlined"
-                onChange={(e) => handleCustomRiskChange(index, 'riesgo', e.target.value)}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '4px',
-                    fieldset: { borderColor: '#e0e0e0' }
-                  }
-                }}
-              />
-            </Grid>
-            <Grid item xs={4} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Checkbox
-                name={`otrosRiesgos_${index}_aplica`}
-                onChange={(e) => handleCustomRiskChange(index, 'aplica', e.target.checked ? 'Sí' : 'No')}
-                sx={{ padding: '8px' }}
-              />
-              <Typography variant="body2" color="textSecondary">
-                {formData[`otrosRiesgos_${index}_aplica`] === 'Sí' ? 'Sí aplica' : 'No aplica'}
-              </Typography>
-            </Grid>
-            <Grid item xs={4}>
-              <TextField
-                fullWidth
-                label="Mitigación propuesta"
-                variant="outlined"
-                multiline
-                rows={2}
-                onChange={(e) => handleCustomRiskChange(index, 'mitigacion', e.target.value)}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '4px',
-                    fieldset: { borderColor: '#e0e0e0' }
-                  }
-                }}
-              />
-            </Grid>
-          </Grid>
-        ))}
+
+
+  return (
+    <Box>
+      <Box sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}>
+        <Tabs 
+          value={activeTab} 
+          onChange={(_, newValue) => setActiveTab(newValue)}
+          aria-label="Sistema de gestión de riesgos"
+        >
+          <Tab label="MATRIZ DE RIESGOS - CIERRE" />
+          <Tab label="MATRIZ DE RIESGOS - OTROS" />
+        </Tabs>
       </Box>
+
+      {activeTab === 0 ? (
+        <CierreRiskSystem />
+      ) : (
+        <RiesgosDinamicos 
+          idSolicitud={idSolicitud} 
+          userData={userData} 
+        />
+      )}
     </Box>
   );
 }
@@ -247,7 +261,7 @@ Step5FormSection3.defaultProps = {
 };
 
 Step5FormSection3.propTypes = {
-  formData: PropTypes.shape({ /* ... */ }).isRequired,
+  formData: PropTypes.shape({}).isRequired,
   handleInputChange: PropTypes.func.isRequired,
   idSolicitud: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
   userData: PropTypes.shape({
@@ -255,8 +269,8 @@ Step5FormSection3.propTypes = {
     name: PropTypes.string,
   }).isRequired,
   setIsLoading: PropTypes.func.isRequired,
-  navigate: PropTypes.func, // ya no isRequired
-  setCurrentSection: PropTypes.func, // ya no isRequired
+  navigate: PropTypes.func,
+  setCurrentSection: PropTypes.func,
 };
 
 export default Step5FormSection3;
