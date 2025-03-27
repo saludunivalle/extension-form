@@ -449,12 +449,6 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
           <CircularProgress size={24} />
         </Box>
       )}
-      
-      {navError && (
-        <Typography color="error" sx={{ mb: 2 }}>
-          Error al cargar la información de navegación: {navError.message}
-        </Typography>
-      )}
     <PrintReportButton />
     <Stepper
       activeStep={activeStep}

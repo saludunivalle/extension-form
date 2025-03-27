@@ -94,7 +94,6 @@ import Typography from '@mui/material/Typography';
     const { 
       maxAllowedStep, 
       loading: navLoading, 
-      error: navError, 
       isStepAllowed, 
       updateMaxAllowedStep  // Añade esta función a la destructuración
     } = useInternalNavigationGoogleSheets(idSolicitud, 1, steps.length);
@@ -604,11 +603,6 @@ import Typography from '@mui/material/Typography';
                 </Box>
               )}
               
-              {navError && (
-                <Typography color="error" sx={{ mb: 2 }}>
-                  Error al cargar la información de navegación: {navError.message}
-                </Typography>
-              )}
               <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
                 <span>
                   <IconButton 
@@ -650,12 +644,7 @@ import Typography from '@mui/material/Typography';
           <CircularProgress size={24} />
         </Box>
       )}
-      
-      {navError && (
-        <Typography color="error" sx={{ mb: 2 }}>
-          Error al cargar la información de navegación: {navError.message}
-        </Typography>
-      )}
+
       <PrintReportButton />
       <Stepper
         activeStep={activeStep}

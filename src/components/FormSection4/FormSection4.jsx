@@ -577,12 +577,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep }) {
             <CircularProgress size={24} />
           </Box>
         )}
-        
-        {navError && (
-          <Typography color="error" sx={{ mb: 2 }}>
-            Error al cargar la información de navegación: {navError.message}
-          </Typography>
-        )}
+
         <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
           <span>
             <IconButton 

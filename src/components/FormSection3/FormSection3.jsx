@@ -354,18 +354,15 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
+        marginLeft: '50px',
+        marginRight: '-50px',
       }}>
         {navLoading && (
           <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
             <CircularProgress size={24} />
           </Box>
         )}
-        
-        {navError && (
-          <Typography color="error" sx={{ mb: 2 }}>
-            Error al cargar la información de navegación: {navError.message}
-          </Typography>
-        )}
+
         <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
           <span>
             <IconButton 
