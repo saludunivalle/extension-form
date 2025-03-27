@@ -50,7 +50,7 @@ import { styled } from '@mui/system';
   );
   
 
-function FormSection2({ formData, handleInputChange, setCurrentSection, userData, totalAportesUnivalle, currentStep }) {
+function FormSection2({ formData, handleInputChange, setCurrentSection, userData, totalAportesUnivalle, currentStep, validateStep }) {
   
   const steps = ['Datos Generales', 'Ingresos y Gastos', 'Resumen Financiero'];
 
@@ -67,7 +67,7 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   const [totalGastos, setTotalGastos] = useState(0);
 
   
-  const { maxAllowedStep, loading: navLoading, error: navError, isStepAllowed } = 
+  const { maxAllowedStep, loading: navLoading, error: navError, isStepAllowed, updateMaxAllowedStep } = 
     useInternalNavigationGoogleSheets(idSolicitud, 2, steps.length);
 
   const handleUpdateTotalGastos = (total) => {
@@ -82,42 +82,48 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   useEffect(() => {
     const fetchGastos = async () => {
       try {
-        const response = await axios.get('https://siac-extension-server.vercel.app/getGastos', {
-          params: { id_solicitud: idSolicitud }
+        // Usar el nuevo endpoint progreso-actual correctamente
+        const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+          id_solicitud: idSolicitud,
+          etapa_destino: 2, // Formulario 2 (Presupuesto)
+          paso_destino: 1   // Información general
         });
         
-        if (response.data && response.data.gastos) {
-          // Filtrar los gastos extras (aquellos cuyo id_conceptos comienza con "15.")
-          const gastosExtrasFromDB = response.data.gastos
-            .filter(gasto => String(gasto.id_conceptos).startsWith('15.'))
-            .map(gasto => ({
-              id: Date.now() + Math.random(), // Generar ID único
-              name: gasto.concepto || '',
-              cantidad: gasto.cantidad.toString(),
-              vr_unit: gasto.valor_unit.toString(),
-              key: gasto.id_conceptos
-            }));
+        if (response.data.success) {
+          // Los gastos ahora están dentro de datosFormulario
+          const gastos = response.data.estado.datosFormulario?.gastos || [];
           
-          // Actualizar el estado de gastos extras
-          setExtraExpenses(gastosExtrasFromDB);
-          
-          // Para los gastos regulares, actualizar el formData
-          response.data.gastos
-            .filter(gasto => !String(gasto.id_conceptos).startsWith('15.'))
-            .forEach(gasto => {
-              handleInputChange({
-                target: {
-                  name: `${gasto.id_conceptos}_cantidad`,
-                  value: gasto.cantidad.toString()
+          if (response.data.success) {
+            // Los gastos ahora están dentro de datosFormulario
+            const gastos = response.data.estado.datosFormulario?.gastos || [];
+            
+            if (gastos.length > 0) {
+              // Procesar los gastos regulares
+              const regularGastos = {};
+              const extraGastosList = [];
+              
+              gastos.forEach(gasto => {
+                if (gasto.id_conceptos.startsWith('15.')) {
+                  // Es un gasto extra dinámico
+                  extraGastosList.push({
+                    id: Date.now() + parseInt(gasto.id_conceptos.split('.')[1]),
+                    name: gasto.concepto || `Gasto Extra ${gasto.id_conceptos.split('.')[1]}`,
+                    cantidad: gasto.cantidad || 0,
+                    vr_unit: gasto.valor_unit || 0,
+                    key: gasto.id_conceptos
+                  });
+                } else {
+                  // Es un gasto regular
+                  regularGastos[`${gasto.id_conceptos}_cantidad`] = gasto.cantidad;
+                  regularGastos[`${gasto.id_conceptos}_vr_unit`] = gasto.valor_unit;
                 }
               });
-              handleInputChange({
-                target: {
-                  name: `${gasto.id_conceptos}_vr_unit`,
-                  value: gasto.valor_unit.toString()
-                }
-              });
-            });
+              
+              // Actualizar estados
+              setFormData(prev => ({...prev, ...regularGastos}));
+              setExtraExpenses(extraGastosList);
+            }
+          }
         }
       } catch (error) {
         console.error('Error al cargar los gastos:', error);
@@ -206,13 +212,22 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
     const handleSaveGastos = async () => {
       // Obtener los gastos extras del componente hijo
       const gastosExtras = extraExpenses.map((expense, index) => {
+        const id_conceptos = `15.${index + 1}`;
         return {
-          id_conceptos: `15.${index + 1}`,
-          concepto: expense.name, // Nombre personalizado del gasto
+          // Datos para GASTOS
+          id_conceptos: id_conceptos,
+          concepto: expense.name, 
           cantidad: parseFloat(expense.cantidad || 0),
           valor_unit: parseFloat(expense.vr_unit || 0),
           valor_total: parseFloat(expense.cantidad || 0) * parseFloat(expense.vr_unit || 0),
-          concepto_padre: "15" // Este campo es clave para la jerarquía
+          concepto_padre: "15", 
+          
+          // Datos adicionales para CONCEPTOS
+          descripcion: expense.name,
+          es_padre: false,
+          nombre_conceptos: expense.name,
+          tipo: "gasto_dinamico",
+          id_solicitud: formData.id_solicitud.toString() 
         };
       });
     
@@ -220,10 +235,18 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
       const gastosRegulares = gastosStructure2.map(item => {
         const idKey = item.id_conceptos;
         return {
+          // Datos para GASTOS
           id_conceptos: idKey,
           cantidad: parseFloat(formData[`${idKey}_cantidad`] || 0),
           valor_unit: parseFloat(formData[`${idKey}_vr_unit`] || 0),
-          valor_total: (formData[`${idKey}_cantidad`] || 0) * (formData[`${idKey}_vr_unit`] || 0)
+          valor_total: (formData[`${idKey}_cantidad`] || 0) * (formData[`${idKey}_vr_unit`] || 0),
+          
+          // Datos adicionales para CONCEPTOS
+          descripcion: item.label,
+          es_padre: !idKey.includes(',') && !idKey.includes('.'), // Es padre si no tiene coma en el id_conceptos
+          nombre_conceptos: item.label,
+          tipo: "gasto_regular",
+          id_solicitud: formData.id_solicitud.toString()
         };
       });
     
@@ -236,12 +259,14 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
       try {
         console.log("📊 Datos enviados a guardarGastos:", {
           id_solicitud: formData.id_solicitud.toString(),
-          gastos: todosLosGastos
+          gastos: todosLosGastos,
+          actualizarConceptos: true
         });
         
         const response = await axios.post('https://siac-extension-server.vercel.app/guardarGastos', {
           id_solicitud: formData.id_solicitud.toString(),
-          gastos: todosLosGastos
+          gastos: todosLosGastos,
+          actualizarConceptos: true,
         });
         
         if (response.data.success) {
@@ -258,240 +283,34 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
     };
     
   
-  const handleNext = async () => {
-    if (activeStep < steps.length - 1) {
-      setIsLoading(true);
-      const hoja = 2; 
-      console.log("Datos del formulario antes de enviar:", formData); 
+    const handleNext = async () => {
+      if (!validateStep()) {
+        console.log("Errores en los campos: ");
+        return;
+      }
+  
+    setIsLoading(true);
+    const hoja = 2;
+  
+    try {
+      if (activeStep === 1) {
+        await handleSaveGastos();
+      }
+
+      // Luego actualizamos el progreso global usando el nuevo método
+      await updateMaxAllowedStep(activeStep + 1);
       
-      let pasoData = {};
-
-      switch (activeStep) {
-          case 0:
-              pasoData = {
-                  nombre_actividad: formData.nombre_actividad || '',
-                  fecha_solicitud: formData.fecha_solicitud || '',
-              };
-              break;
-              case 1: {
-                // Ingresos y Gastos (Paso 2)
-                pasoData = {
-                  // Ingresos
-                  ingresos_cantidad: formData.ingresos_cantidad || '',
-                  ingresos_vr_unit: formData.ingresos_vr_unit || '',
-                  total_ingresos: (parseFloat(formData.ingresos_cantidad) || 0) * (parseFloat(formData.ingresos_vr_unit) || 0),
-
-                  costos_personal_cantidad: formData['1_cantidad'] || '',
-                  costos_personal_vr_unit: formData['1_vr_unit'] || '',
-                  total_costos_personal: (parseFloat(formData['1_cantidad']) || 0) * (parseFloat(formData['1_vr_unit']) || 0),
-
-                  personal_universidad_cantidad: formData['1.1_cantidad'] || '',
-                  personal_universidad_vr_unit: formData['1.1_vr_unit'] || '',
-                  total_personal_universidad: (parseFloat(formData['1.1_cantidad']) || 0) * (parseFloat(formData['1.1_vr_unit']) || 0),
-                  
-                  honorarios_docentes_cantidad: formData['1.2_cantidad'] || '',
-                  honorarios_docentes_vr_unit: formData['1.2_vr_unit'] || '',
-                  total_honorarios_docentes: (parseFloat(formData['1.2_cantidad']) || 0) * (parseFloat(formData['1.2_vr_unit']) || 0),
-
-                  otro_personal_cantidad: formData['1.3_cantidad'] || '',
-                  otro_personal_vr_unit: formData['1.3_vr_unit'] || '',
-                  total_otro_personal: (parseFloat(formData['1.3_cantidad']) || 0) * (parseFloat(formData['1.3_vr_unit']) || 0),
-
-                  materiales_sumi_cantidad: formData['2_cantidad'] || '',
-                  materiales_sumi_vr_unit: formData['2_vr_unit'] || '',
-                  total_materiales_sumi: (parseFloat(formData['2_cantidad']) || 0) * (parseFloat(formData['2_vr_unit']) || 0),
-
-                  gastos_alojamiento_cantidad: formData['3_cantidad'] || '',
-                  gastos_alojamiento_vr_unit: formData['3_vr_unit'] || '',
-                  total_gastos_alojamiento: (parseFloat(formData['3_cantidad']) || 0) * (parseFloat(formData['3_vr_unit']) || 0),
-
-                  gastos_alimentacion_cantidad: formData['4_cantidad'] || '',
-                  gastos_alimentacion_vr_unit: formData['4_vr_unit'] || '',
-                  total_gastos_alimentacion: (parseFloat(formData['4_cantidad']) || 0) * (parseFloat(formData['4_vr_unit']) || 0),
-
-                  // Categoría: Gastos de Transporte
-                  gastos_transporte_cantidad: formData['5_cantidad'] || '',
-                  gastos_transporte_vr_unit: formData['5_vr_unit'] || '',
-                  total_gastos_transporte: (parseFloat(formData['5_cantidad']) || 0) * (parseFloat(formData['5_vr_unit']) || 0),
-
-                  // Categoría: Equipos (Alquiler/Compra)
-                  equipos_alquiler_compra_cantidad: formData['6_cantidad'] || '',
-                  equipos_alquiler_compra_vr_unit: formData['6_vr_unit'] || '',
-                  total_equipos_alquiler_compra: (parseFloat(formData['6_cantidad']) || 0) * (parseFloat(formData['6_vr_unit']) || 0),
-
-                  // Categoría: Dotación de Participantes
-                  dotacion_participantes_cantidad: formData['7_cantidad'] || '',
-                  dotacion_participantes_vr_unit: formData['7_vr_unit'] || '',
-                  total_dotacion_participantes: (parseFloat(formData['7_cantidad']) || 0) * (parseFloat(formData['7_vr_unit']) || 0),
-
-                  // Subcategorías de Dotación de Participantes
-                  // Carpetas
-                  carpetas_cantidad: formData['7.1_cantidad'] || '',
-                  carpetas_vr_unit: formData['7.1_vr_unit'] || '',
-                  total_carpetas: (parseFloat(formData['7.1_cantidad']) || 0) * (parseFloat(formData['7.1_vr_unit']) || 0),
-
-                  // Libretas
-                  libretas_cantidad: formData['7.2_cantidad'] || '',
-                  libretas_vr_unit: formData['7.2_vr_unit'] || '',
-                  total_libretas: (parseFloat(formData['7.2_cantidad']) || 0) * (parseFloat(formData['7.2_vr_unit']) || 0),
-
-                  // Lapiceros
-                  lapiceros_cantidad: formData['7.3_cantidad'] || '',
-                  lapiceros_vr_unit: formData['7.3_vr_unit'] || '',
-                  total_lapiceros: (parseFloat(formData['7.3_cantidad']) || 0) * (parseFloat(formData['7.3_vr_unit']) || 0),
-
-                  // Memorias
-                  memorias_cantidad: formData['7.4_cantidad'] || '',
-                  memorias_vr_unit: formData['7.4_vr_unit'] || '',
-                  total_memorias: (parseFloat(formData['7.4_cantidad']) || 0) * (parseFloat(formData['7.4_vr_unit']) || 0),
-
-                  // Marcadores, papel y otros
-                  marcadores_papel_otros_cantidad: formData['7.5_cantidad'] || '',
-                  marcadores_papel_otros_vr_unit: formData['7.5_vr_unit'] || '',
-                  total_marcadores_papel_otros: (parseFloat(formData['7.5_cantidad']) || 0) * (parseFloat(formData['7.5_vr_unit']) || 0),
-
-                  // Categoría: Impresos
-                  impresos_cantidad: formData['8_cantidad'] || '',
-                  impresos_vr_unit: formData['8_vr_unit'] || '',
-                  total_impresos: (parseFloat(formData['8_cantidad']) || 0) * (parseFloat(formData['8_vr_unit']) || 0),
-
-                  // Subcategorías de Impresos
-                  // Labels
-                  labels_cantidad: formData['8.1_cantidad'] || '',
-                  labels_vr_unit: formData['8.1_vr_unit'] || '',
-                  total_labels: (parseFloat(formData['8.1_cantidad']) || 0) * (parseFloat(formData['8.1_vr_unit']) || 0),
-
-                  // Certificados
-                  certificados_cantidad: formData['8.2_cantidad'] || '',
-                  certificados_vr_unit: formData['8.2_vr_unit'] || '',
-                  total_certificados: (parseFloat(formData['8.2_cantidad']) || 0) * (parseFloat(formData['8.2_vr_unit']) || 0),
-
-                  // Escarapelas
-                  escarapelas_cantidad: formData['8.3_cantidad'] || '',
-                  escarapelas_vr_unit: formData['8.3_vr_unit'] || '',
-                  total_escarapelas: (parseFloat(formData['8.3_cantidad']) || 0) * (parseFloat(formData['8.3_vr_unit']) || 0),
-
-                  // Fotocopias
-                  fotocopias_cantidad: formData['8.4_cantidad'] || '',
-                  fotocopias_vr_unit: formData['8.4_vr_unit'] || '',
-                  total_fotocopias: (parseFloat(formData['8.4_cantidad']) || 0) * (parseFloat(formData['8.4_vr_unit']) || 0),
-
-                  // Categoría: Otros Impresos
-                  otros_impresos_cantidad: formData['9_cantidad'] || '',
-                  otros_impresos_vr_unit: formData['9_vr_unit'] || '',
-                  total_otros_impresos: (parseFloat(formData['9_cantidad']) || 0) * (parseFloat(formData['9_vr_unit']) || 0),
-
-                  // Subcategorías de Otros Impresos
-                  // Estación de Café
-                  estacion_cafe_cantidad: formData['9.1_cantidad'] || '',
-                  estacion_cafe_vr_unit: formData['9.1_vr_unit'] || '',
-                  total_estacion_cafe: (parseFloat(formData['9.1_cantidad']) || 0) * (parseFloat(formData['9.1_vr_unit']) || 0),
-
-                  // Transporte y Mensajería
-                  transporte_mensajeria_cantidad: formData['9.2_cantidad'] || '',
-                  transporte_mensajeria_vr_unit: formData['9.2_vr_unit'] || '',
-                  total_transporte_mensajeria: (parseFloat(formData['9.2_cantidad']) || 0) * (parseFloat(formData['9.2_vr_unit']) || 0),
-
-                  // Refrigerios
-                  refrigerios_cantidad: formData['9.3_cantidad'] || '',
-                  refrigerios_vr_unit: formData['9.3_vr_unit'] || '',
-                  total_refrigerios: (parseFloat(formData['9.3_cantidad']) || 0) * (parseFloat(formData['9.3_vr_unit']) || 0),
-
-                  // Categoría: Infraestructura Física
-                  infraestructura_fisica_cantidad: formData['10_cantidad'] || '',
-                  infraestructura_fisica_vr_unit: formData['10_vr_unit'] || '',
-                  total_infraestructura_fisica: (parseFloat(formData['10_cantidad']) || 0) * (parseFloat(formData['10_vr_unit']) || 0),
-
-                  // Categoría: Gastos Generales
-                  gastos_generales_cantidad: formData['11_cantidad'] || '',
-                  gastos_generales_vr_unit: formData['11_vr_unit'] || '',
-                  total_gastos_generales: (parseFloat(formData['11_cantidad']) || 0) * (parseFloat(formData['11_vr_unit']) || 0),
-
-                  // Categoría: Infraestructura Universitaria
-                  infraestructura_universitaria_cantidad: formData['12_cantidad'] || '',
-                  infraestructura_universitaria_vr_unit: formData['12_vr_unit'] || '',
-                  total_infraestructura_universitaria: (parseFloat(formData['12_cantidad']) || 0) * (parseFloat(formData['12_vr_unit']) || 0),
-
-                  // Imprevistos
-                  imprevistos_cantidad: formData['13_cantidad'] || '',
-                  imprevistos_vr_unit: formData['13_vr_unit'] || '',
-                  total_imprevistos: (parseFloat(formData['13_cantidad']) || 0) * (parseFloat(formData['13_vr_unit']) || 0),
-
-                  // Aportes Univalle
-                  costos_administrativos_cantidad: formData['14_cantidad'] || '',
-                  costos_administrativos_vr_unit: formData['14_vr_unit'] || '',
-                  total_costos_administrativos: (parseFloat(formData['14_cantidad']) || 0) * (parseFloat(formData['14_vr_unit']) || 0),
-
-                  // Gastos Extras
-                  gastos_extras: formData['15_cantidad'] || '',
-                  gastos_extras_vr_unit: formData['15_vr_unit'] || '',
-                  total_gastos_extras: (parseFloat(formData['15_cantidad']) || 0) * (parseFloat(formData['15_vr_unit']) || 0),
-
-                  // Campos calculados (nombre correcto para imprevistos_3%)
-                  subtotal_gastos: totalGastos || 0,
-                  "imprevistos_3%": (totalGastos * 0.03) || 0,  // Nombre correcto con %
-                  total_gastos_imprevistos: (totalGastos * 1.03) || 0,
-                  
-                  // Distribución de recursos (sin duplicado)
-                  fondo_comun_porcentaje: formData.fondo_comun_porcentaje || 30,
-                  facultadad_instituto_porcentaje: 5,
-                  escuela_departamento_porcentaje: formData.escuela_departamento_porcentaje || 0,
-                  total_recursos: totalAportesUnivalle || 0,
-                };
-                break; 
-            }       
-          case 2:
-              // Resumen Financiero
-              pasoData = {
-                  fondo_comun: formData.total_ingresos * 0.3,
-                  facultad_instituto: formData.total_ingresos * 0.05,
-                  escuela_departamento: (formData.total_ingresos * (formData.escuela_departamento_porcentaje || 0) / 100),
-              };
-              break;
-          default:
-              break;
-      }
-
-      try {
-          const dataToSend = {
-              id_solicitud: idSolicitud,
-              paso: activeStep + 1,
-              hoja,
-              id_usuario: userData?.id_usuario,
-              name: userData?.name,
-              ...pasoData,
-          };
-
-          // Debugging para asegurar los datos enviados
-          console.log("Enviando Datos:", dataToSend);
-
-          await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend);
-          
-          // Mover al siguiente paso si todo fue exitoso
-          setIsLoading(false); // Finalizar el loading
-          setCompletedSteps((prevCompleted) => {
-            const newCompleted = [...prevCompleted];
-            if (!newCompleted.includes(activeStep)) {
-              newCompleted.push(activeStep);
-            }
-            return newCompleted;
-          });         
-          
-          if (activeStep === 1) {
-            await handleSaveGastos();
-          }
-        
-          setActiveStep((prevActiveStep) => prevActiveStep + 1);
-          setHighestStepReached((prev) => Math.max(prev, activeStep + 1));
-
-      } catch (error) {
-          console.error('Error al guardar el progreso:', error);
-          if (error.response) {
-              console.error('Detalles del error:', error.response.data);
-          }
-      }
+      // Actualizar estado local
+      setHighestStepReached((prev) => Math.max(prev, activeStep + 1));
+      setActiveStep((prevActiveStep) => prevActiveStep + 1);
+    } catch (error) {
+      console.error("Error al guardar el progreso:", error);
+      alert("Hubo un problema al avanzar al siguiente paso. Por favor, inténtelo de nuevo.");
+    } finally {
+      setIsLoading(false);
     }
-  };
+};
+  
 
   //Lógica del botón "Atrás"
   const handleBack = () => {
@@ -727,7 +546,29 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
                 Salir
               </Button>
               <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button onClick={() => setCurrentSection(2)} color="primary" variant="outlined">
+                <Button 
+                  onClick={async () => {
+                    try {
+                      // Usar el nuevo endpoint para marcar el formulario como completado
+                      await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
+                        id_solicitud: idSolicitud,
+                        etapa_actual: 2,
+                        paso_actual: steps.length,
+                        estadoFormularios: {
+                          "2": "Completado"
+                        }
+                      });
+                      
+                      // Navegar al siguiente formulario
+                      setCurrentSection(3);
+                    } catch (error) {
+                      console.error('Error al actualizar progreso:', error);
+                      alert('Hubo un problema al avanzar al siguiente formulario. Por favor intente nuevamente.');
+                    }
+                  }} 
+                  color="primary" 
+                  variant="outlined"
+                >
                   Continuar
                 </Button>
                 <Button 
@@ -760,28 +601,13 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
 }
 
 FormSection2.propTypes = {
-  formData: PropTypes.shape({
-    nombre_actividad: PropTypes.string,
-    fecha_solicitud: PropTypes.string,
-    ingresos_cantidad: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    ingresos_vr_unit: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    total_ingresos: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    costos_personal_cantidad: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    costos_personal_vr_unit: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    personal_universidad_cantidad: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    personal_universidad_vr_unit: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    honorarios_docentes_cantidad: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    honorarios_docentes_vr_unit: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    otro_personal_cantidad: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    otro_personal_vr_unit: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-  }).isRequired,
+  formData: PropTypes.object.isRequired,
   handleInputChange: PropTypes.func.isRequired,
   setCurrentSection: PropTypes.func.isRequired,
-  userData: PropTypes.shape({
-    id_usuario: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    name: PropTypes.string,
-  }).isRequired,
-  totalAportesUnivalle: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  userData: PropTypes.object.isRequired,
+  totalAportesUnivalle: PropTypes.number,
+  currentStep: PropTypes.number.isRequired,
+  validateStep: PropTypes.func.isRequired,
 };
 
 export default FormSection2;

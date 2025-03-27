@@ -10,19 +10,9 @@ function useInternalNavigationGoogleSheets(idSolicitud, formNumber, totalSteps) 
   const [etapaActual, setEtapaActual] = useState(0);
   const [pasoActual, setPasoActual] = useState(0);
   const [formularioCompleto, setFormularioCompleto] = useState(false);
+  const [estadoFormularios, setEstadoFormularios] = useState({});
 
-  // Inicializar con datos del localStorage como respaldo
-  useEffect(() => {
-    if (idSolicitud) {
-      const savedHighestStep = localStorage.getItem(`form${formNumber}_highestStep_${idSolicitud}`);
-      if (savedHighestStep) {
-        console.log(`🔄 Inicializando con datos en caché: Paso máximo ${savedHighestStep}`);
-        setMaxAllowedStep(parseInt(savedHighestStep, 10));
-      }
-    }
-  }, [idSolicitud, formNumber]);
-
-  // Efecto para obtener datos del servidor
+  // Efecto para obtener datos del servidor usando el nuevo endpoint
   useEffect(() => {
     if (!idSolicitud) {
       setLoading(false);
@@ -34,100 +24,56 @@ function useInternalNavigationGoogleSheets(idSolicitud, formNumber, totalSteps) 
 
     async function fetchNavigationData() {
       try {
-        console.log(`🔍 Consultando datos de navegación para formulario ${formNumber}`);
+        console.log(`🔍 Consultando progreso actual para formulario ${formNumber}`);
         
-        const response = await axios.get(`${API_URL}/getSolicitud`, {
-          params: { id_solicitud: idSolicitud },
+        const response = await axios.post(`${API_URL}/progreso-actual`, {
+          id_solicitud: idSolicitud,
+          etapa_destino: formNumber,
+          paso_destino: 1 // Consultamos el paso 0 para obtener la información general
+        }, {
           signal: controller.signal,
           timeout: 15000
         });
 
         if (!isMounted) return;
 
-        if (response.status === 200 && response.data) {
-          // Mostrar la respuesta completa para debug
-          console.log("📊 Respuesta completa del servidor:", response.data);
+        if (response.data.success) {
+          const { estado } = response.data;
+          console.log("📊 Estado de progreso recibido:", estado);
           
-          // --- NUEVA LÓGICA DE DETECCIÓN DE ETAPA ACTUAL Y PROGRESO ---
+          // Actualizar estados con la información del servidor
+          setEtapaActual(estado.etapaActual);
+          setPasoActual(estado.pasoActual);
+          setEstadoFormularios(estado.estadoFormularios);
           
-          // 1. Detectar qué formularios existen en la respuesta
-          const formulariosExistentes = [];
-          for (let i = 1; i <= 5; i++) {
-            if (response.data[`SOLICITUDES${i === 1 ? '' : i}`]) {
-              formulariosExistentes.push(i);
-            }
+          // Determinar si este formulario está completo
+          setFormularioCompleto(estado.estadoFormularios[formNumber] === "Completado");
+          
+          // Determinar el paso máximo permitido
+          let nuevoMaxAllowedStep = 0;
+          
+          // Si el formulario está completado o es anterior al actual, permitir todos los pasos
+          if (estado.estadoFormularios[formNumber] === "Completado" || formNumber < estado.etapaActual) {
+            nuevoMaxAllowedStep = totalSteps - 1;
+          } 
+          // Si estamos en el formulario actual, permitir hasta el paso actual
+          else if (formNumber === estado.etapaActual) {
+            nuevoMaxAllowedStep = Math.max(0, estado.pasoActual - 1);
           }
           
-          console.log(`📋 Formularios detectados en respuesta: ${formulariosExistentes.join(', ')}`);
-          
-          // 2. Inferir la etapa actual (el último formulario disponible)
-          const etapa_detectada = Math.max(...formulariosExistentes, 0);
-          
-          // 3. Determinar si este formulario está completo
-          let formularioEstaCompleto = false;
-          
-          // Si existe un formulario posterior, este está completo
-          if (formulariosExistentes.some(num => num > formNumber)) {
-            formularioEstaCompleto = true;
-          }
-          
-          // 4. Determinar el paso actual para el formulario actual
-          let paso_detectado = 1; // Por defecto asumimos al menos el paso 1
-          
-          // Si estamos en el formulario actual y hay datos, tratamos de inferir el paso
-          if (formNumber === etapa_detectada) {
-            const formularioData = response.data[`SOLICITUDES${formNumber === 1 ? '' : formNumber}`];
-            
-            // Contar campos completados para inferir el progreso
-            if (formularioData) {
-              const camposCompletados = Object.keys(formularioData).filter(
-                key => formularioData[key] !== '' && 
-                      formularioData[key] !== null && 
-                      formularioData[key] !== undefined
-              ).length;
-              
-              // Asumimos que cada 3-5 campos es un paso completado (ajustar según tu formulario)
-              paso_detectado = Math.max(1, Math.min(totalSteps, Math.ceil(camposCompletados / 4)));
-              console.log(`🔢 Campos completados: ${camposCompletados}, infiriendo paso: ${paso_detectado}`);
-            }
-          }
-          
-          setEtapaActual(etapa_detectada);
-          setPasoActual(paso_detectado);
-          setFormularioCompleto(formularioEstaCompleto);
-
-          console.log(`📊 Navegación inferida:
+          console.log(`📊 Navegación actualizada:
           - Formulario solicitado: ${formNumber}
-          - Etapa detectada: ${etapa_detectada}
-          - Paso inferido: ${paso_detectado}
-          - Este formulario completo: ${formularioEstaCompleto}
-          - Total pasos en este form: ${totalSteps}`);
-
-          // LÓGICA PRINCIPAL DE NAVEGACIÓN
-          if (formularioEstaCompleto || formNumber < etapa_detectada) {
-            console.log(`✅ Formulario ${formNumber} completado o anterior. Navegación total permitida.`);
-            setMaxAllowedStep(totalSteps - 1);
-          } 
-          else if (formNumber === etapa_detectada) {
-            console.log(`🔄 Estamos en el formulario actual (${etapa_detectada}). Permitir hasta paso ${paso_detectado}.`);
-            setMaxAllowedStep(Math.max(0, paso_detectado - 1));
-          } 
-          else {
-            console.log(`🔒 Formulario ${formNumber} es posterior. Restricción de navegación.`);
-            setMaxAllowedStep(0);
-          }
+          - Etapa actual: ${estado.etapaActual}
+          - Paso actual: ${estado.pasoActual}
+          - Este formulario completo: ${estado.estadoFormularios[formNumber] === "Completado"}
+          - Máximo paso permitido: ${nuevoMaxAllowedStep}`);
           
-          // Guardar en localStorage
-          const valorAGuardar = formularioEstaCompleto || formNumber < etapa_detectada 
-            ? (totalSteps - 1) 
-            : (formNumber === etapa_detectada ? Math.max(0, paso_detectado - 1) : 0);
-            
-          localStorage.setItem(`form${formNumber}_highestStep_${idSolicitud}`, valorAGuardar.toString());
+          setMaxAllowedStep(nuevoMaxAllowedStep);
+          setError(null);
         } else {
-          console.warn("⚠️ Respuesta del servidor sin datos esperados:", response);
+          console.warn("⚠️ Respuesta del servidor sin éxito:", response.data);
+          setError({ message: response.data.mensaje || "Error al obtener el progreso" });
         }
-        
-        setError(null);
       } catch (err) {
         if (err.name === 'CanceledError' || err.message === 'canceled') {
           console.log('Solicitud cancelada intencionalmente, ignorando error');
@@ -136,7 +82,7 @@ function useInternalNavigationGoogleSheets(idSolicitud, formNumber, totalSteps) 
         
         console.warn(`❌ Error al obtener datos de navegación:`, err);
         
-        if (isMounted && !err.message.includes('canceled')) {
+        if (isMounted) {
           setError(err);
         }
       } finally {
@@ -155,10 +101,8 @@ function useInternalNavigationGoogleSheets(idSolicitud, formNumber, totalSteps) 
     };
   }, [idSolicitud, formNumber, totalSteps]);
 
-  // Función para verificar si se puede acceder a un paso
+  // Función actualizada para verificar si se puede acceder a un paso
   const isStepAllowed = (step) => {
-    console.log(`🔍 Comprobando paso ${step} - Max permitido: ${maxAllowedStep}`);
-    
     if (formularioCompleto || formNumber < etapaActual) {
       return true;
     }
@@ -170,6 +114,38 @@ function useInternalNavigationGoogleSheets(idSolicitud, formNumber, totalSteps) 
     }
   };
 
+  // Función actualizada para actualizar el paso máximo usando el nuevo endpoint
+  const updateMaxAllowedStep = async (newStep) => {
+    try {
+      console.log(`🔄 Actualizando progreso: Formulario ${formNumber}, Paso ${newStep}`);
+      
+      const response = await axios.post(`${API_URL}/actualizacion-progreso`, {
+        id_solicitud: idSolicitud,
+        etapa_actual: formNumber,
+        paso_actual: newStep
+      });
+      
+      if (response.data.success) {
+        console.log("✅ Progreso actualizado correctamente:", response.data.data);
+        
+        // Actualizar estados con la respuesta actualizada
+        setMaxAllowedStep(Math.max(maxAllowedStep, newStep - 1));
+        setEtapaActual(response.data.data.etapa_actual);
+        setPasoActual(response.data.data.paso_actual);
+        setEstadoFormularios(response.data.data.estado_formularios);
+        setFormularioCompleto(response.data.data.estado_formularios[formNumber] === "Completado");
+        
+        return response.data.data;
+      } else {
+        console.warn("⚠️ Error al actualizar progreso:", response.data.message);
+        throw new Error(response.data.message || "Error al actualizar progreso");
+      }
+    } catch (error) {
+      console.error('Error al actualizar progreso:', error);
+      throw error;
+    }
+  };
+
   return { 
     maxAllowedStep, 
     loading, 
@@ -178,13 +154,8 @@ function useInternalNavigationGoogleSheets(idSolicitud, formNumber, totalSteps) 
     etapaActual,
     pasoActual,
     formularioCompleto,
-    updateMaxAllowedStep: (newStep) => {
-      setMaxAllowedStep(prev => {
-        const updatedStep = Math.max(prev, newStep);
-        localStorage.setItem(`form${formNumber}_highestStep_${idSolicitud}`, updatedStep.toString());
-        return updatedStep;
-      });
-    }
+    estadoFormularios,
+    updateMaxAllowedStep
   };
 }
 

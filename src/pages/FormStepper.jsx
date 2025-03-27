@@ -1,9 +1,9 @@
-
 import { Stepper, Step, StepLabel, useMediaQuery, Box } from '@mui/material';
 
 import { styled } from '@mui/system';
 import CheckIcon from '@mui/icons-material/Check';
 import PropTypes from 'prop-types';
+import axios from 'axios';
 
 // Componente personalizado para el ícono del paso con mejoras visuales
 const CustomStepIconRoot = styled('div')(({ ownerState }) => ({
@@ -73,10 +73,27 @@ const FormStepper = ({
     return index <= highestStepReached;
   };
 
-  // Manejar clics en los pasos
-  const handleStepClick = (index) => {
-    if (isStepAccessible(index)) {
-      setCurrentSection(index + 1); // +1 porque las secciones empiezan en 1
+  // Actualizar handleStepClick
+  const handleStepClick = async (index) => {
+    const newSection = index + 1; // +1 porque las secciones empiezan en 1
+    
+    try {
+      // Validar navegación con el nuevo endpoint
+      const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+        id_solicitud: localStorage.getItem('id_solicitud'),
+        etapa_destino: newSection,
+        paso_destino: 1
+      });
+      
+      if (response.data.success && response.data.puedeAvanzar) {
+        setCurrentSection(newSection);
+      } else {
+        // Mostrar mensaje informativo
+        alert(response.data.mensaje || 'No puede avanzar a esta sección en este momento.');
+      }
+    } catch (error) {
+      console.error('Error al validar navegación:', error);
+      alert('Hubo un problema al verificar si puede avanzar. Por favor, inténtelo de nuevo.');
     }
   };
 

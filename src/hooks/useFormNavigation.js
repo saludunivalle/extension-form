@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 /**
  * Hook personalizado para manejar la navegación entre secciones de formularios
@@ -108,25 +109,40 @@ const useFormNavigation = ({
   };
 
   // Función para navegar entre secciones
-  const navigateToSection = (newSection) => {
-    if (newSection >= 1 && newSection <= totalSections && (newSection <= highestSectionReached)) {
-      // Guardar el paso actual de la sección que abandonamos
-      if (currentSection && solicitudId) {
-        localStorage.setItem(`form${currentSection}_lastStep_${solicitudId}`, currentStep);
+  const navigateToSection = async (newSection) => {
+    if (newSection < 1 || newSection > totalSections) return;
+    
+    try {
+      // Validar navegación con el nuevo endpoint
+      const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+        id_solicitud: solicitudId,
+        etapa_destino: newSection,
+        paso_destino: 1
+      });
+      
+      if (response.data.success && response.data.puedeAvanzar) {
+        // Guardar el paso actual de la sección que abandonamos
+        if (currentSection && solicitudId) {
+          localStorage.setItem(`form${currentSection}_lastStep_${solicitudId}`, currentStep);
+        }
+        
+        // Recuperar el último paso visitado de la sección a la que vamos
+        const lastStep = solicitudId ? 
+          parseInt(localStorage.getItem(`form${newSection}_lastStep_${solicitudId}`) || '0', 10) : 0;
+        
+        // Actualizar estados
+        setCurrentSection(newSection);
+        setCurrentStep(lastStep);
+        
+        // Actualizar URL
+        navigate(`/formulario/${newSection}?solicitud=${solicitudId}&paso=${lastStep}`);
+      } else {
+        // Mostrar mensaje de error
+        alert(response.data.mensaje || 'No puede avanzar a esta sección en este momento.');
       }
-      
-      // Recuperar el último paso visitado de la sección a la que vamos
-      const lastStep = solicitudId ? 
-        parseInt(localStorage.getItem(`form${newSection}_lastStep_${solicitudId}`) || '0', 10) : 0;
-      
-      // Actualizar estados
-      setCurrentSection(newSection);
-      setCurrentStep(lastStep);
-      
-      // Actualizar URL
-      navigate(`/formulario/${newSection}?solicitud=${solicitudId}&paso=${lastStep}`);
-    } else {
-      console.warn(`No se puede navegar a la sección ${newSection}. Nivel más alto alcanzado: ${highestSectionReached}`);
+    } catch (error) {
+      console.error('Error al validar navegación:', error);
+      alert('Hubo un problema al verificar si puede avanzar a esta sección. Por favor, inténtelo de nuevo.');
     }
   };
 

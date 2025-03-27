@@ -91,8 +91,13 @@ import Typography from '@mui/material/Typography';
     const isSmallScreen = useMediaQuery('(max-width:600px)');
     const isVerySmallScreen = useMediaQuery('(max-width:375px)');
 
-    const { maxAllowedStep, loading: navLoading, error: navError, isStepAllowed } = 
-    useInternalNavigationGoogleSheets(idSolicitud, 1, steps.length);
+    const { 
+      maxAllowedStep, 
+      loading: navLoading, 
+      error: navError, 
+      isStepAllowed, 
+      updateMaxAllowedStep  // Añade esta función a la destructuración
+    } = useInternalNavigationGoogleSheets(idSolicitud, 1, steps.length);
 
     
     

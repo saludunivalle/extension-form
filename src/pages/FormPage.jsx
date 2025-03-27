@@ -41,6 +41,8 @@ function FormPage({ userData }) {
     3: { completed: false, lastStep: 0 },
     4: { completed: false, lastStep: 0 }
   });
+
+  const [errors, setErrors] = useState({});
   
   // Función para actualizar el estado de completitud
   const updateFormCompletion = (formId, isCompleted, step) => {
@@ -77,6 +79,44 @@ function FormPage({ userData }) {
       localStorage.setItem('id_solicitud', solicitudId);
     }
   }, [solicitudId, navigate, userData.id]);
+
+  // Agregar useEffect para cargar el estado global inicial
+
+useEffect(() => {
+  const cargarEstadoGlobal = async () => {
+    if (!solicitudId) return;
+    
+    try {
+      const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+        id_solicitud: solicitudId,
+        etapa_destino: parseInt(formId, 10) || 1,
+        paso_destino: 1
+      });
+      
+      if (response.data.success) {
+        const { estado } = response.data;
+        
+        // Actualizar el estado de completitud de cada sección
+        const nuevoFormCompletion = {};
+        Object.keys(estado.estadoFormularios).forEach(formId => {
+          nuevoFormCompletion[formId] = {
+            completed: estado.estadoFormularios[formId] === "Completado",
+            lastStep: formId === estado.etapaActual.toString() ? estado.pasoActual : 0
+          };
+        });
+        
+        setFormCompletion(nuevoFormCompletion);
+        
+        // Actualizar la sección más alta alcanzada
+        setHighestSectionReached(Math.max(...Object.keys(estado.estadoFormularios).map(Number)));
+      }
+    } catch (error) {
+      console.error('Error al cargar el estado global:', error);
+    }
+  };
+  
+  cargarEstadoGlobal();
+}, [solicitudId, formId]);
 
   // formData se inicializa con el id de solicitud obtenido de la URL
   const [formData, setFormData] = useState(() => {
@@ -296,6 +336,24 @@ function FormPage({ userData }) {
     }
   };
 
+  const validateStep = () => {
+    let stepErrors = {};
+
+    if (currentStep === 0) {
+      // Validaciones para el paso 1
+      if (!formData.nombre_actividad) {
+        stepErrors.nombre_actividad = "Este campo es obligatorio";
+      }
+    } else if (currentStep === 1) {
+      // Validaciones para el paso 2
+      if (!formData.ingresos_cantidad) {
+        stepErrors.ingresos_cantidad = "Este campo es obligatorio";
+      }
+    }
+
+    setErrors(stepErrors);
+    return Object.keys(stepErrors).length === 0; // Retorna true si no hay errores
+  };
 
   const handleSectionChange = navigateToSection;
   // Renderizar la sección correspondiente según currentSection
@@ -320,7 +378,7 @@ function FormPage({ userData }) {
             handleFileChange={handleFileChange}
             active={true}
             initialErrors={{}}
-            errors={{}}
+            errors={{errors}}
           />
         );
       case 2:
@@ -333,6 +391,7 @@ function FormPage({ userData }) {
             handleInputChange={handleInputChange} 
             setCurrentSection={handleSectionChange} 
             currentStep={currentStep} 
+            validateStep={validateStep}
           />
         );
       case 3:
@@ -344,6 +403,7 @@ function FormPage({ userData }) {
             handleInputChange={handleInputChange} 
             setCurrentSection={handleSectionChange} 
             currentStep={currentStep}
+            validateStep={validateStep}
           />
         );
       case 4:
@@ -355,6 +415,7 @@ function FormPage({ userData }) {
             setFormData={setFormData} 
             handleInputChange={handleInputChange} 
             currentStep={currentStep}
+            validateStep={validateStep}
           />
         );
       default:

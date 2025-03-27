@@ -485,7 +485,7 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
             Salir
           </Button>
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button onClick={() => setCurrentSection(2)} color="primary" variant="outlined">
+            <Button onClick={() => setCurrentSection(4)} color="primary" variant="outlined">
               Continuar
             </Button>
             <Button 
