@@ -331,39 +331,39 @@ import Typography from '@mui/material/Typography';
                   break;
               case 1:
                   pasoData = {
-                      introduccion: formData.introduccion || 'N/A',
-                      objetivo_general: formData.objetivo_general || 'N/A',
-                      objetivos_especificos: formData.objetivos_especificos || 'N/A',
-                      justificacion: formData.justificacion || 'N/A',
-                      metodologia: formData.metodologia || 'N/A',
+                      introduccion: formData.introduccion || '',
+                      objetivo_general: formData.objetivo_general || '',
+                      objetivos_especificos: formData.objetivos_especificos || '',
+                      justificacion: formData.justificacion || '',
+                      metodologia: formData.metodologia || '',
                   };
                   break;
               case 2:
                   pasoData = {
-                      tipo: formData.tipo || 'N/A',
-                      otro_tipo: formData.otro_tipo || 'N/A',
-                      modalidad: formData.modalidad || 'N/A',
-                      horas_trabajo_presencial: formData.horas_trabajo_presencial || 'N/A',
-                      horas_sincronicas: formData.horas_sincronicas || 'N/A',
-                      total_horas: formData.total_horas || 'N/A',
-                      programCont: formData.programCont || 'N/A',
-                      dirigidoa: formData.dirigidoa || 'N/A',
-                      creditos: formData.creditos || 'N/A',
-                      cupo_min: formData.cupo_min || 'N/A',
-                      cupo_max: formData.cupo_max || 'N/A',
+                      tipo: formData.tipo || '',
+                      otro_tipo: formData.otro_tipo || '',
+                      modalidad: formData.modalidad || '',
+                      horas_trabajo_presencial: formData.horas_trabajo_presencial || '0',
+                      horas_sincronicas: formData.horas_sincronicas || '0',
+                      total_horas: formData.total_horas || '0',
+                      programCont: formData.programCont || '0',
+                      dirigidoa: formData.dirigidoa || '',
+                      creditos: formData.creditos || '0',
+                      cupo_min: formData.cupo_min || '0',
+                      cupo_max: formData.cupo_max || '0',
                   };
                   break;
               case 3:
                   pasoData = {
-                      nombre_coordinador: formData.nombre_coordinador || 'N/A',
-                      correo_coordinador: formData.correo_coordinador || 'N/A',
-                      tel_coordinador: formData.tel_coordinador || 'N/A',
-                      pefil_competencia: formData.pefil_competencia || 'N/A',
-                      formas_evaluacion: formData.formas_evaluacion || 'N/A',
-                      certificado_solicitado: formData.certificado_solicitado || 'N/A',
-                      calificacion_minima: formData.calificacion_minima || 'N/A',
-                      razon_no_certificado: formData.razon_no_certificado || 'N/A',
-                      valor_inscripcion: formData.valor_inscripcion || 'N/A',
+                      nombre_coordinador: formData.nombre_coordinador || '',
+                      correo_coordinador: formData.correo_coordinador || '',
+                      tel_coordinador: formData.tel_coordinador || '',
+                      pefil_competencia: formData.pefil_competencia || '',
+                      formas_evaluacion: formData.formas_evaluacion || '',
+                      certificado_solicitado: formData.certificado_solicitado || '',
+                      calificacion_minima: formData.calificacion_minima || '',
+                      razon_no_certificado: formData.razon_no_certificado || '',
+                      valor_inscripcion: formData.valor_inscripcion || '0',
                   };
                   break;
               case 4: {
@@ -376,19 +376,19 @@ import Typography from '@mui/material/Typography';
                   parseInt(formData.becas_otros || 0)
               );
                   pasoData = {
-                      becas_convenio: formData.becas_convenio || 'N/A',
-                      becas_estudiantes: formData.becas_estudiantes || 'N/A',
-                      becas_docentes: formData.becas_docentes || 'N/A',
-                      becas_egresados: formData.becas_egresados || 'N/A',
-                      becas_funcionarios: formData.becas_funcionarios || 'N/A',
-                      becas_otros: formData.becas_otros || 'N/A',
+                      becas_convenio: formData.becas_convenio || '0',
+                      becas_estudiantes: formData.becas_estudiantes || '0',
+                      becas_docentes: formData.becas_docentes || '0',
+                      becas_egresados: formData.becas_egresados || '0',
+                      becas_funcionarios: formData.becas_funcionarios || '0',
+                      becas_otros: formData.becas_otros || '0',
                       becas_total: totalBecas.toString(),
-                      periodicidad_oferta: formData.periodicidad_oferta || 'N/A',
-                      organizacion_actividad: formData.organizacion_actividad || 'N/A',
-                      otro_tipo_act: formData.otro_tipo_act || 'N/A',
-                      extension_solidaria: formData.extension_solidaria || 'N/A',
-                      costo_extension_solidaria: formData.costo_extension_solidaria || 'N/A',
-                      personal_externo: formData.personal_externo || 'N/A',
+                      periodicidad_oferta: formData.periodicidad_oferta || '',
+                      organizacion_actividad: formData.organizacion_actividad || '',
+                      otro_tipo_act: formData.otro_tipo_act || '',
+                      extension_solidaria: formData.extension_solidaria || '',
+                      costo_extension_solidaria: formData.costo_extension_solidaria || '0',
+                      personal_externo: formData.personal_externo || '',
                   };
                 }
                   break;
@@ -484,18 +484,18 @@ import Typography from '@mui/material/Typography';
         const hoja = 1;
 
         let pasoData = {
-            becas_convenio: formData.becas_convenio || 'N/A',
-            becas_estudiantes: formData.becas_estudiantes || 'N/A',
-            becas_docentes: formData.becas_docentes || 'N/A',
-            becas_egresados: formData.becas_egresados || 'N/A',
-            becas_funcionarios: formData.becas_funcionarios || 'N/A',
-            becas_otros: formData.becas_otros || 'N/A',
-            periodicidad_oferta: formData.periodicidad_oferta || 'N/A',
-            organizacion_actividad: formData.organizacion_actividad || 'N/A',
-            otro_tipo_act: formData.otro_tipo_act || 'N/A',
-            extension_solidaria: formData.extension_solidaria || 'N/A',
-            costo_extension_solidaria: formData.costo_extension_solidaria || 'N/A',
-            personal_externo: formData.personal_externo || 'N/A',
+            becas_convenio: formData.becas_convenio || '0',
+            becas_estudiantes: formData.becas_estudiantes || '0',
+            becas_docentes: formData.becas_docentes || '0',
+            becas_egresados: formData.becas_egresados || '0',
+            becas_funcionarios: formData.becas_funcionarios || '0',
+            becas_otros: formData.becas_otros || '0',
+            periodicidad_oferta: formData.periodicidad_oferta || '',
+            organizacion_actividad: formData.organizacion_actividad || '',
+            otro_tipo_act: formData.otro_tipo_act || '',
+            extension_solidaria: formData.extension_solidaria || '',
+            costo_extension_solidaria: formData.costo_extension_solidaria || '0',
+            personal_externo: formData.personal_externo || '',
         };
 
         let dataToSend = new FormData();
@@ -511,7 +511,7 @@ import Typography from '@mui/material/Typography';
             }
         });
 
-        dataToSend.append('pieza_grafica', formData.pieza_grafica ? formData.pieza_grafica : 'N/A');
+        dataToSend.append('pieza_grafica', formData.pieza_grafica ? formData.pieza_grafica : '');
 
         try {
             console.log("Enviando Datos:", dataToSend);
@@ -571,8 +571,8 @@ import Typography from '@mui/material/Typography';
     };
 
     const PrintReportButton = () => {
-      const isFormCompleted = activeStep === steps.length - 1 || completedSteps.includes(steps.length - 1);
-      
+      const isFormCompleted = activeStep === steps.length - 1;
+  
       const handleGenerateReport = async () => {
         try {
           setIsGeneratingReport(true);
@@ -587,30 +587,60 @@ import Typography from '@mui/material/Typography';
       };
       
       return (
-        <Box sx={{ 
-          position: 'absolute', 
-          top: '-60px', 
-          right: '10px', 
-          zIndex: 1000 
-        }}>
-          <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
-            <span>
-              <IconButton 
-                color="primary" 
-                onClick={handleGenerateReport}
-                disabled={!isFormCompleted || isGeneratingReport}
-                size="large"
-              >
-                {isGeneratingReport ? 
-                  <CircularProgress size={24} color="inherit" /> : 
-                  <PrintIcon />
-                }
-              </IconButton>
-            </span>
-          </Tooltip>
-        </Box>
-      );
-    };
+            <Box sx={{ 
+              position: 'absolute', 
+              top: '-60px', 
+              right: '10px', 
+              zIndex: 1000,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              marginLeft: '-20px',
+              marginRight: '70px',
+            }}>
+              {navLoading && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              )}
+              
+              {navError && (
+                <Typography color="error" sx={{ mb: 2 }}>
+                  Error al cargar la información de navegación: {navError.message}
+                </Typography>
+              )}
+              <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
+                <span>
+                  <IconButton 
+                    color="primary" 
+                    onClick={handleGenerateReport}
+                    disabled={!isFormCompleted || isGeneratingReport}
+                    size="large"
+                  >
+                    {isGeneratingReport ? 
+                      <CircularProgress size={24} color="inherit" /> : 
+                      <PrintIcon />
+                    }
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Typography 
+      
+              variant="caption" 
+              color="primary" 
+              sx={{ 
+                fontSize: '10px', 
+                fontWeight: 'bold',
+                marginBottom: '10px',
+                marginTop: '-10px',
+                opacity: !isFormCompleted || isGeneratingReport ? 0.5 : 1 
+              }}
+            >
+              {isGeneratingReport ? 'Generando...' : 'Generar reporte'}
+            </Typography>
+            </Box>
+          );
+        };
     
 
     return (
