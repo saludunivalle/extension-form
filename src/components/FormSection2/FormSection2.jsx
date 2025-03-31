@@ -50,7 +50,7 @@ import { styled } from '@mui/system';
   );
   
 
-function FormSection2({ formData, handleInputChange, setCurrentSection, userData, totalAportesUnivalle, currentStep, validateStep }) {
+function FormSection2({ formData, handleInputChange, setCurrentSection, userData, totalAportesUnivalle, currentStep, validateStep, formId }) {
   
   const steps = ['Datos Generales', 'Ingresos y Gastos', 'Resumen Financiero'];
 
@@ -137,11 +137,17 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
 
   useEffect(() => {
     if (currentStep < 0 || currentStep >= steps.length) {
-      setActiveStep(0); 
+      // Si currentStep está fuera de rango, intentar recuperar el último paso visitado de localStorage
+      const lastVisitedStep = localStorage.getItem(`form2_lastStep_${idSolicitud}`);
+      if (lastVisitedStep && !isNaN(parseInt(lastVisitedStep))) {
+        setActiveStep(parseInt(lastVisitedStep));
+      } else {
+        setActiveStep(0); // Valor por defecto si no hay información guardada
+      }
     } else {
       setActiveStep(currentStep);
     }
-  }, [currentStep, steps.length]);  
+  }, [currentStep, steps.length, idSolicitud]);  
 
   useEffect(() => {
     if (!navLoading && maxAllowedStep !== undefined) {
@@ -149,10 +155,18 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
       console.log('activeStep:', activeStep);
       console.log('isStepAllowed para siguiente paso:', isStepAllowed(activeStep + 1));
       
-      // Actualiza el paso más alto alcanzado según lo que permite el servidor
-      setHighestStepReached(prev => Math.max(prev, maxAllowedStep));
+      // Recuperar el paso más alto alcanzado previamente (si existe)
+      const savedHighestStep = localStorage.getItem(`form2_highestStep_${idSolicitud}`);
+      const previousHighest = savedHighestStep ? parseInt(savedHighestStep) : 0;
+      
+      // Actualiza el paso más alto alcanzado considerando tanto maxAllowedStep como el valor guardado
+      const newHighestStep = Math.max(previousHighest, maxAllowedStep);
+      setHighestStepReached(newHighestStep);
+      
+      // Guardar el nuevo valor más alto
+      localStorage.setItem(`form2_highestStep_${idSolicitud}`, newHighestStep.toString());
     }
-  }, [maxAllowedStep, navLoading, activeStep, isStepAllowed]);
+  }, [maxAllowedStep, navLoading, activeStep, isStepAllowed, idSolicitud]);
 
   useEffect(() => {
     if (!idSolicitud || isNaN(parseInt(idSolicitud, 10))) {
@@ -160,6 +174,13 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
       window.location.href = '/';
     }
   }, [idSolicitud]);
+
+  useEffect(() => {
+    if (idSolicitud) {
+      // Guardar el paso actual para poder recuperarlo cuando el usuario vuelva a este formulario
+      localStorage.setItem(`form2_lastStep_${idSolicitud}`, activeStep.toString());
+    }
+  }, [activeStep, idSolicitud]);
   
   /*
     Lógica del botón "Siguiente"
@@ -290,7 +311,6 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
       }
   
     setIsLoading(true);
-    const hoja = 2;
   
     try {
       if (activeStep === 1) {
@@ -300,9 +320,15 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
       // Luego actualizamos el progreso global usando el nuevo método
       await updateMaxAllowedStep(activeStep + 1);
       
-      // Actualizar estado local
-      setHighestStepReached((prev) => Math.max(prev, activeStep + 1));
-      setActiveStep((prevActiveStep) => prevActiveStep + 1);
+      // Actualizar estado local y guardar en localStorage
+      const newHighestStep = Math.max(highestStepReached, activeStep + 1);
+      setHighestStepReached(newHighestStep);
+      localStorage.setItem(`form2_highestStep_${idSolicitud}`, newHighestStep.toString());
+      
+      // Avanzar al siguiente paso
+      const nextStep = activeStep + 1;
+      setActiveStep(nextStep);
+      localStorage.setItem(`form2_lastStep_${idSolicitud}`, nextStep.toString());
     } catch (error) {
       console.error("Error al guardar el progreso:", error);
       alert("Hubo un problema al avanzar al siguiente paso. Por favor, inténtelo de nuevo.");
@@ -378,53 +404,107 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   };
 
   const handleStepClick = (stepIndex) => {
-    if (stepIndex <= highestStepReached) {
-      setActiveStep(stepIndex); // Permite cambiar a pasos ya alcanzados
+    // Verificar si el formulario está completado
+    const isFormCompleted = localStorage.getItem(`form2_completed_${idSolicitud}`) === 'true';
+    
+    if (isFormCompleted || stepIndex <= highestStepReached) {
+      setActiveStep(stepIndex); // Permite cambiar a cualquier paso si el formulario está completado o al paso ya alcanzado
+      // Registrar el cambio de paso
+      localStorage.setItem(`form2_lastStep_${idSolicitud}`, stepIndex.toString());
     }
   };
 
-  const PrintReportButton = () => {
-    const isFormCompleted = completedSteps.includes(steps.length - 1);
-    
-    const handleGenerateReport = async () => {
+  // Modificar la función PrintReportButton en todos los componentes de formulario
+
+const PrintReportButton = () => {
+  // Verificar el estado del formulario con el backend
+  const [isFormCompletedBackend, setIsFormCompletedBackend] = useState(false);
+  
+  useEffect(() => {
+    const checkFormCompletion = async () => {
+      if (!idSolicitud) return;
+      
       try {
-        setIsGeneratingReport(true);
-        const idSolicitud = localStorage.getItem('id_solicitud');
-        await openFormReport(idSolicitud, 2); // 2 para el formulario de presupuesto
+        const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+          id_solicitud: idSolicitud,
+          etapa_destino: formId || 2, // Usar el formId correspondiente (1, 2, 3 o 4)
+          paso_destino: 1
+        });
+        
+        if (response.data.success && response.data.estado?.estadoFormularios) {
+          // Comprobar si este formulario está marcado como "Completado"
+          const formStatus = response.data.estado.estadoFormularios[formId.toString()];
+          setIsFormCompletedBackend(formStatus === 'Completado');
+          console.log(`Estado del formulario ${formId} según backend: ${formStatus}`);
+        }
       } catch (error) {
-        console.error('Error al generar el reporte:', error);
-        alert('Hubo un problema al generar el reporte');
-      } finally {
-        setIsGeneratingReport(false);
+        console.error('Error al verificar estado del formulario:', error);
       }
     };
     
-    return (
-      <Box sx={{ 
-        position: 'absolute', 
-        top: '-60px', 
-        right: '10px', 
-        zIndex: 1000,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center', 
-      }}>
-        <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
-          <span>
-            <IconButton 
-              color="primary" 
-              onClick={handleGenerateReport}
-              disabled={!isFormCompleted || isGeneratingReport}
-              size="large"
-            >
-              {isGeneratingReport ? 
-                <CircularProgress size={24} color="inherit" /> : 
-                <PrintIcon />
-              }
-            </IconButton>
-          </span>
-        </Tooltip>
-        <Typography 
+    checkFormCompletion();
+  }, [idSolicitud]);
+  
+  // NUEVA LÓGICA: Si el formulario no está completado según el backend,
+  // el botón solo se habilita en el último paso Y después de enviar los datos
+  const isLastStepCompleted = (
+    // Estamos exactamente en el último paso
+    activeStep === steps.length - 1 && 
+    // El servidor ha registrado la finalización del último paso
+    maxAllowedStep >= steps.length
+  );
+  
+  // El botón se activa si:
+  // 1. El formulario está completado según el backend, O
+  // 2. Se ha completado el último paso (según las condiciones de arriba)
+  const isButtonEnabled = isFormCompletedBackend || isLastStepCompleted;
+  
+  const handleGenerateReport = async () => {
+    try {
+      setIsGeneratingReport(true);
+      await openFormReport(idSolicitud, formId); // Usar el formId correspondiente
+    } catch (error) {
+      console.error('Error al generar el reporte:', error);
+      alert('Hubo un problema al generar el reporte');
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+  
+  return (
+    <Box sx={{ 
+      position: 'absolute', 
+      top: '-60px', 
+      right: '10px', 
+      zIndex: 1000,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      marginLeft: '-20px',
+      marginRight: '70px',
+    }}>
+      {navLoading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+          <CircularProgress size={24} />
+        </Box>
+      )}
+      
+      <Tooltip title={isButtonEnabled ? "Generar reporte" : "Complete todos los pasos y envíe el formulario para generar el reporte"}>
+        <span>
+          <IconButton 
+            color="primary" 
+            onClick={handleGenerateReport}
+            disabled={!isButtonEnabled || isGeneratingReport}
+            size="large"
+          >
+            {isGeneratingReport ? 
+              <CircularProgress size={24} color="inherit" /> : 
+              <PrintIcon />
+            }
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Typography 
         variant="caption" 
         color="primary" 
         sx={{ 
@@ -432,14 +512,14 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
           fontWeight: 'bold',
           marginBottom: '10px',
           marginTop: '-10px',
-          opacity: !isFormCompleted || isGeneratingReport ? 0.5 : 1 
+          opacity: !isButtonEnabled || isGeneratingReport ? 0.5 : 1 
         }}
       >
         {isGeneratingReport ? 'Generando...' : 'Generar reporte'}
       </Typography>
-      </Box>
-    );
-  };
+    </Box>
+  );
+};
   
 
   return (
@@ -540,31 +620,54 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
                 Salir
               </Button>
               <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button 
-                  onClick={async () => {
-                    try {
-                      // Usar el nuevo endpoint para marcar el formulario como completado
-                      await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
-                        id_solicitud: idSolicitud,
-                        etapa_actual: 2,
-                        paso_actual: steps.length,
-                        estadoFormularios: {
-                          "2": "Completado"
-                        }
-                      });
+              <Button 
+                onClick={async () => {
+                  try {
+                    setIsLoading(true);
+                    
+                    // 1. Marcar el formulario como completado en el backend
+                    const response = await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
+                      id_solicitud: idSolicitud,
+                      etapa_actual: 2,
+                      paso_actual: steps.length,
+                      estadoFormularios: {
+                        "2": "Completado"
+                      }
+                    });
+                    
+                    if (response.data.success) {
+                      console.log("✅ Formulario 2 marcado como completado en el servidor");
                       
-                      // Navegar al siguiente formulario
-                      setCurrentSection(3);
-                    } catch (error) {
-                      console.error('Error al actualizar progreso:', error);
-                      alert('Hubo un problema al avanzar al siguiente formulario. Por favor intente nuevamente.');
+                      // 2. Marcar el formulario como completado en localStorage
+                      localStorage.setItem(`form2_completed_${idSolicitud}`, 'true');
+                      
+                      // 3. Actualizar la lista de formularios accesibles en localStorage
+                      const accessibleForms = JSON.parse(localStorage.getItem(`accessible_forms_${idSolicitud}`) || '[]');
+                      if (!accessibleForms.includes(3)) {
+                        accessibleForms.push(3);
+                        localStorage.setItem(`accessible_forms_${idSolicitud}`, JSON.stringify(accessibleForms));
+                      }
+                      
+                      // 4. Forzar un refresco para que el FormPage vea los cambios (NUEVO)
+                      window.location.href = `/formulario/3?solicitud=${idSolicitud}`;
+                    } else {
+                      console.error("❌ Error al marcar el formulario como completado:", response.data);
+                      alert("Error al actualizar el estado del formulario. Por favor, intente nuevamente.");
                     }
-                  }} 
-                  color="primary" 
-                  variant="outlined"
-                >
-                  Continuar
-                </Button>
+                  } catch (error) {
+                    console.error('❌ Error al actualizar progreso:', error);
+                    alert('Hubo un problema al avanzar al siguiente formulario. Por favor intente nuevamente.');
+                  } finally {
+                    setIsLoading(false);
+                    setShowModal(false);
+                  }
+                }} 
+                color="primary" 
+                variant="outlined"
+              >
+                {isLoading ? <CircularProgress size={20} /> : "Continuar"}
+              </Button>
+
                 <Button 
                   onClick={async () => {
                     try {

@@ -55,7 +55,7 @@ import CheckIcon from '@mui/icons-material/Check'; // Importa el ícono del chec
   );
   
 
-function FormSection3({ formData, handleInputChange, userData, currentStep, setCurrentSection}) {
+function FormSection3({ formData, handleInputChange, userData, currentStep, setCurrentSection, formId}) {
   // Step labels
   const steps = ['Propósito y Comentario', 'Matriz de Riesgos - Diseño', 'Matriz de Riesgos - Locaciones', 'Matriz de Riesgos - Desarrollo', 'Matriz de Riesgos - Cierre y Otros'];
   const [activeStep, setActiveStep] = useState(currentStep);  // Usar currentStep como el paso inicial
@@ -329,57 +329,97 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
     }
   };
 
-  const PrintReportButton = () => {
-    const isFormCompleted = completedSteps.includes(steps.length - 1);
-    
-    const handleGenerateReport = async () => {
+  // Modificar la función PrintReportButton en todos los componentes de formulario
+
+const PrintReportButton = () => {
+  // Verificar el estado del formulario con el backend
+  const [isFormCompletedBackend, setIsFormCompletedBackend] = useState(false);
+  
+  useEffect(() => {
+    const checkFormCompletion = async () => {
+      if (!idSolicitud) return;
+      
       try {
-        setIsGeneratingReport(true);
-        const idSolicitud = localStorage.getItem('id_solicitud');
-        await openFormReport(idSolicitud, 1); // 1 para el formulario de datos básicos
+        const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+          id_solicitud: idSolicitud,
+          etapa_destino: formId || 3, // Usar el formId correspondiente (1, 2, 3 o 4)
+          paso_destino: 1
+        });
+        
+        if (response.data.success && response.data.estado?.estadoFormularios) {
+          // Comprobar si este formulario está marcado como "Completado"
+          const formStatus = response.data.estado.estadoFormularios[formId.toString()];
+          setIsFormCompletedBackend(formStatus === 'Completado');
+          console.log(`Estado del formulario ${formId} según backend: ${formStatus}`);
+        }
       } catch (error) {
-        console.error('Error al generar el reporte:', error);
-        alert('Hubo un problema al generar el reporte');
-      } finally {
-        setIsGeneratingReport(false);
+        console.error('Error al verificar estado del formulario:', error);
       }
     };
     
-    return (
-      <Box sx={{ 
-        position: 'absolute', 
-        top: '-60px', 
-        right: '10px', 
-        zIndex: 1000,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        marginLeft: '50px',
-        marginRight: '-50px',
-      }}>
-        {navLoading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-            <CircularProgress size={24} />
-          </Box>
-        )}
-
-        <Tooltip title={isFormCompleted ? "Generar reporte" : "Complete el formulario para generar el reporte"}>
-          <span>
-            <IconButton 
-              color="primary" 
-              onClick={handleGenerateReport}
-              disabled={!isFormCompleted || isGeneratingReport}
-              size="large"
-            >
-              {isGeneratingReport ? 
-                <CircularProgress size={24} color="inherit" /> : 
-                <PrintIcon />
-              }
-            </IconButton>
-          </span>
-        </Tooltip>
-        <Typography 
-
+    checkFormCompletion();
+  }, [idSolicitud]);
+  
+  // NUEVA LÓGICA: Si el formulario no está completado según el backend,
+  // el botón solo se habilita en el último paso Y después de enviar los datos
+  const isLastStepCompleted = (
+    // Estamos exactamente en el último paso
+    activeStep === steps.length - 1 && 
+    // El servidor ha registrado la finalización del último paso
+    maxAllowedStep >= steps.length
+  );
+  
+  // El botón se activa si:
+  // 1. El formulario está completado según el backend, O
+  // 2. Se ha completado el último paso (según las condiciones de arriba)
+  const isButtonEnabled = isFormCompletedBackend || isLastStepCompleted;
+  
+  const handleGenerateReport = async () => {
+    try {
+      setIsGeneratingReport(true);
+      await openFormReport(idSolicitud, formId); // Usar el formId correspondiente
+    } catch (error) {
+      console.error('Error al generar el reporte:', error);
+      alert('Hubo un problema al generar el reporte');
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+  
+  return (
+    <Box sx={{ 
+      position: 'absolute', 
+      top: '-60px', 
+      right: '10px', 
+      zIndex: 1000,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      marginLeft: '-20px',
+      marginRight: '70px',
+    }}>
+      {navLoading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+          <CircularProgress size={24} />
+        </Box>
+      )}
+      
+      <Tooltip title={isButtonEnabled ? "Generar reporte" : "Complete todos los pasos y envíe el formulario para generar el reporte"}>
+        <span>
+          <IconButton 
+            color="primary" 
+            onClick={handleGenerateReport}
+            disabled={!isButtonEnabled || isGeneratingReport}
+            size="large"
+          >
+            {isGeneratingReport ? 
+              <CircularProgress size={24} color="inherit" /> : 
+              <PrintIcon />
+            }
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Typography 
         variant="caption" 
         color="primary" 
         sx={{ 
@@ -387,14 +427,14 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
           fontWeight: 'bold',
           marginBottom: '10px',
           marginTop: '-10px',
-          opacity: !isFormCompleted || isGeneratingReport ? 0.5 : 1 
+          opacity: !isButtonEnabled || isGeneratingReport ? 0.5 : 1 
         }}
       >
         {isGeneratingReport ? 'Generando...' : 'Generar reporte'}
       </Typography>
-      </Box>
-    );
-  };
+    </Box>
+  );
+};
   
   return (
     <Box sx={{ position: 'relative' }}>

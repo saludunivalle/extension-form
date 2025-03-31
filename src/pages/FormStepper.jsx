@@ -150,6 +150,7 @@ const FormStepper = ({
   );
 };
 
+
 FormStepper.propTypes = {
   activeStep: PropTypes.number.isRequired,
   steps: PropTypes.arrayOf(PropTypes.string).isRequired,

@@ -184,6 +184,11 @@ useEffect(() => {
     aplicaCierre2: '', aplicaOtros1: '', aplicaOtros2: ''
   }});
 
+  // 1. Añadir un nuevo estado para rastrear formularios accesibles
+  const [accessibleForms, setAccessibleForms] = useState(() => {
+    const savedForms = localStorage.getItem(`accessible_forms_${solicitudId}`);
+    return savedForms ? JSON.parse(savedForms) : [1]; // Formulario 1 siempre accesible por defecto
+  });
 
   const { 
     currentSection,
@@ -355,7 +360,101 @@ useEffect(() => {
     return Object.keys(stepErrors).length === 0; // Retorna true si no hay errores
   };
 
-  const handleSectionChange = navigateToSection;
+  // 2. Modificar la función handleSectionChange para verificar la accesibilidad
+  const handleSectionChange = async (sectionNumber) => {
+    try {
+      // 1. CLAVE: Crear un historial permanente de formularios a los que el usuario ha accedido alguna vez
+      const historialFormulariosKey = `historial_formularios_${solicitudId}`;
+      let historialFormularios = JSON.parse(localStorage.getItem(historialFormulariosKey) || '[]');
+      
+      // 2. VERIFICAR PRIMERO: Si el formulario está en el historial, permitir acceso inmediato
+      if (historialFormularios.includes(sectionNumber)) {
+        console.log(`Formulario ${sectionNumber} está en historial, permitiendo acceso directo`);
+        // Marcar como accesible para mantener la UI consistente
+        const accessibleForms = JSON.parse(localStorage.getItem(`accessible_forms_${solicitudId}`) || '[]');
+        if (!accessibleForms.includes(sectionNumber)) {
+          accessibleForms.push(sectionNumber);
+          localStorage.setItem(`accessible_forms_${solicitudId}`, JSON.stringify(accessibleForms));
+          setAccessibleForms(accessibleForms);
+        }
+        navigateToSection(sectionNumber);
+        return;
+      }
+      
+      // Resto del código existente para verificar accesibilidad...
+      
+      // Verificar acceso con el backend
+      const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+        id_solicitud: solicitudId,
+        etapa_destino: sectionNumber,
+        paso_destino: 1
+      });
+      
+      if (response.data.success && response.data.puedeAvanzar) {
+        // 3. IMPORTANTE: Agregar al historial cuando el backend confirma acceso
+        if (!historialFormularios.includes(sectionNumber)) {
+          historialFormularios.push(sectionNumber);
+          localStorage.setItem(historialFormulariosKey, JSON.stringify(historialFormularios));
+        }
+        
+        // Marcar como accesible para la UI
+        const accessibleForms = JSON.parse(localStorage.getItem(`accessible_forms_${solicitudId}`) || '[]');
+        if (!accessibleForms.includes(sectionNumber)) {
+          accessibleForms.push(sectionNumber);
+          localStorage.setItem(`accessible_forms_${solicitudId}`, JSON.stringify(accessibleForms));
+          setAccessibleForms(accessibleForms);
+        }
+        
+        navigateToSection(sectionNumber);
+      } else {
+        alert(response.data.mensaje || 'No puede acceder a formularios futuros sin completar los anteriores');
+      }
+    } catch (error) {
+      console.error('Error al verificar acceso:', error);
+      alert('Error al verificar acceso al formulario. Por favor intenta nuevamente.');
+    }
+  };
+
+  // 3. Añadir un useEffect para actualizar la accesibilidad cuando cambia la sección actual
+  useEffect(() => {
+    if (currentSection) {
+      // Si llegamos a una sección, marcarla como accesible
+      const newAccessibleForms = [...accessibleForms];
+      if (!newAccessibleForms.includes(currentSection)) {
+        newAccessibleForms.push(currentSection);
+        setAccessibleForms(newAccessibleForms);
+        localStorage.setItem(`accessible_forms_${solicitudId}`, JSON.stringify(newAccessibleForms));
+      }
+      
+      // También marcar secciones anteriores como accesibles
+      for (let i = 1; i < currentSection; i++) {
+        if (!newAccessibleForms.includes(i)) {
+          newAccessibleForms.push(i);
+        }
+      }
+      
+      // Actualizar si hay cambios
+      if (newAccessibleForms.length !== accessibleForms.length) {
+        setAccessibleForms(newAccessibleForms);
+        localStorage.setItem(`accessible_forms_${solicitudId}`, JSON.stringify(newAccessibleForms));
+      }
+    }
+  }, [currentSection, accessibleForms, solicitudId]);
+
+  // Añadir un efecto para actualizar el historial con la sección actual
+  useEffect(() => {
+    if (currentSection && solicitudId) {
+      const historialFormulariosKey = `historial_formularios_${solicitudId}`;
+      let historialFormularios = JSON.parse(localStorage.getItem(historialFormulariosKey) || '[]');
+      
+      // Si estamos en un formulario, añadirlo al historial
+      if (!historialFormularios.includes(currentSection)) {
+        historialFormularios.push(currentSection);
+        localStorage.setItem(historialFormulariosKey, JSON.stringify(historialFormularios));
+      }
+    }
+  }, [currentSection, solicitudId]);
+
   // Renderizar la sección correspondiente según currentSection
   const renderFormSection = () => {
     switch (currentSection) {
@@ -441,8 +540,7 @@ useEffect(() => {
         setCurrentSection={handleSectionChange} 
         highestStepReached={highestSectionReached - 1} 
         completedSteps={calculateCompletedSteps()} 
-
-        clickableSteps={clickableSteps}
+        clickableSteps={accessibleForms.map(num => num - 1)} 
 
       />
       <Typography variant={isSmallScreen ? 'h5' : 'h4'} gutterBottom sx={{ fontWeight: 'bold', textAlign: isSmallScreen ? 'center' : 'left' }}>
