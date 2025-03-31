@@ -194,7 +194,11 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
           <RadioGroup
             name="organizacion_actividad"
             value={formData.organizacion_actividad || ''}
-            onChange={handleInputChange}
+            onChange={(e) => {
+              // Añadir un callback especial para este campo
+              console.log(`📋 organizacion_actividad seleccionado: ${e.target.value}`);
+              handleInputChange(e);
+            }}
             required
             error={!!errors.organizacion_actividad}
             helperText={errors.organizacion_actividad}

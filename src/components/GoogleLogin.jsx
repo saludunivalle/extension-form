@@ -10,11 +10,12 @@ import PropTypes from "prop-types";
 const GoogleLogin = ({ setIsLogin, setUserInfo }) => {
   const navigate = useNavigate();
 
+  // Modificar la función handleCredentialResponse
   const handleCredentialResponse = useCallback(async (response) => {
-
     try {
       const data_decode = decodeToken(response.credential);
       
+      // Verificación del dominio de correo
       if (!data_decode.email.endsWith('@correounivalle.edu.co')) {
         alert('Por favor ingrese con el correo institucional de la Universidad del Valle');
         return;
@@ -26,7 +27,18 @@ const GoogleLogin = ({ setIsLogin, setUserInfo }) => {
         name: data_decode.name,
       };
 
-      await axios.post('https://siac-extension-server.vercel.app/saveUser', userInfo);
+      // IMPORTANTE: Guardar el token y el email en localStorage para autenticación
+      localStorage.setItem('google_token', response.credential);
+      localStorage.setItem('email', data_decode.email);
+      localStorage.setItem('user_id', data_decode.sub); // Guardar el ID inmediatamente
+      
+      // Guardar usuario en el backend
+      const backendResponse = await axios.post('https://siac-extension-server.vercel.app/saveUser', userInfo);
+      
+      // Si el backend devuelve un ID específico, actualizarlo
+      if (backendResponse.data?.userId) {
+        localStorage.setItem('user_id', backendResponse.data.userId);
+      }
 
       setUserInfo(userInfo);
       setIsLogin(true);
@@ -42,6 +54,23 @@ const GoogleLogin = ({ setIsLogin, setUserInfo }) => {
     }
   }, [navigate, setIsLogin, setUserInfo]);
 
+  // Después de una autenticación exitosa con Google
+  const handleGoogleSignIn = async (response) => {
+    try {
+      // Guardar el token de Google en localStorage
+      localStorage.setItem('google_token', response.credential);
+      localStorage.setItem('email', response.email);
+      
+      // Si tienes un ID de usuario después de verificar en tu backend
+      if (backendResponse.data?.userId) {
+        localStorage.setItem('user_id', backendResponse.data.userId);
+      }
+      
+      // Continuar con el proceso de login...
+    } catch (error) {
+      console.error('Error en autenticación:', error);
+    }
+  };
 
   useEffect(() => {
     let script;

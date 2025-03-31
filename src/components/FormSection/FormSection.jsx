@@ -498,6 +498,12 @@ import Typography from '@mui/material/Typography';
             personal_externo: formData.personal_externo || '',
         };
 
+        console.log("🔍 Valores críticos antes de enviar:", {
+          organizacion_actividad: formData.organizacion_actividad,
+          otro_tipo_act: formData.otro_tipo_act,
+          periodicidad_oferta: formData.periodicidad_oferta
+        });
+
         let dataToSend = new FormData();
         dataToSend.append('id_solicitud', idSolicitud);
         dataToSend.append('paso', activeStep + 1);

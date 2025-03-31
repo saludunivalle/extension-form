@@ -480,8 +480,8 @@ const PrintReportButton = () => {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      marginLeft: '-20px',
-      marginRight: '70px',
+      marginLeft: '20px',
+      marginRight: '-70px',
     }}>
       {navLoading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
