@@ -15,6 +15,7 @@ import Tooltip from '@mui/material/Tooltip';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CheckIcon from '@mui/icons-material/Check'; 
 import { styled } from '@mui/system';
+import api from '../../services/api';
 
   /* 
   Este componente se encarga de cambiar el color de fondo, el color del texto y otros estilos visuales del ícono:
@@ -200,7 +201,7 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
       { id_conceptos: '1', label: 'Costos de Personal' },
       { id_conceptos: '1,1', label: 'Personal Nombrado de la Universidad (Max 70%)' },
       { id_conceptos: '1,2', label: 'Honorarios Docentes Externos (Horas)' },
-      { id_conceptos: '1.3', label: 'Otro Personal - Subcontratos' },
+      { id_conceptos: '1,3', label: 'Otro Personal - Subcontratos' },
       { id_conceptos: '2', label: 'Materiales y Suministros' },
       { id_conceptos: '3', label: 'Gastos de Alojamiento' },
       { id_conceptos: '4', label: 'Gastos de Alimentación' },
@@ -235,15 +236,12 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
       const gastosExtras = extraExpenses.map((expense, index) => {
         const id_conceptos = `15.${index + 1}`;
         return {
-          // Datos para GASTOS
           id_conceptos: id_conceptos,
           concepto: expense.name, 
           cantidad: parseFloat(expense.cantidad || 0),
           valor_unit: parseFloat(expense.vr_unit || 0),
           valor_total: parseFloat(expense.cantidad || 0) * parseFloat(expense.vr_unit || 0),
           concepto_padre: "15", 
-          
-          // Datos adicionales para CONCEPTOS
           descripcion: expense.name,
           es_padre: false,
           nombre_conceptos: expense.name,
@@ -251,32 +249,29 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
           id_solicitud: formData.id_solicitud.toString() 
         };
       });
-    
+      
       // Gastos regulares (se mantiene igual)
       const gastosRegulares = gastosStructure2.map(item => {
         const idKey = item.id_conceptos;
         return {
-          // Datos para GASTOS
           id_conceptos: idKey,
           cantidad: parseFloat(formData[`${idKey}_cantidad`] || 0),
           valor_unit: parseFloat(formData[`${idKey}_vr_unit`] || 0),
           valor_total: (formData[`${idKey}_cantidad`] || 0) * (formData[`${idKey}_vr_unit`] || 0),
-          
-          // Datos adicionales para CONCEPTOS
           descripcion: item.label,
-          es_padre: !idKey.includes(',') && !idKey.includes('.'), // Es padre si no tiene coma en el id_conceptos
+          es_padre: !idKey.includes(',') && !idKey.includes('.'),
           nombre_conceptos: item.label,
           tipo: "gasto_regular",
           id_solicitud: formData.id_solicitud.toString()
         };
       });
-    
+      
       // Combinar todos los gastos
       const todosLosGastos = [
         ...gastosRegulares.filter(g => g.cantidad > 0 && g.valor_unit > 0),
         ...gastosExtras.filter(g => g.cantidad > 0 && g.valor_unit > 0)
       ];
-    
+      
       try {
         console.log("📊 Datos enviados a guardarGastos:", {
           id_solicitud: formData.id_solicitud.toString(),
@@ -314,7 +309,90 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   
     try {
       if (activeStep === 1) {
+        // 1. Primero guardar los gastos en la hoja GASTOS
         await handleSaveGastos();
+        
+        // 2. También guardar los datos generales en SOLICITUDES2
+        try {
+          console.log("📊 Guardando datos en SOLICITUDES2...");
+          
+          // Calcular los totales para asegurar que sean correctos
+          const ingresos_cantidad = parseInt(formData.ingresos_cantidad) || 0;
+          const ingresos_vr_unit = parseInt(formData.ingresos_vr_unit) || 0;
+          const total_ingresos = ingresos_cantidad * ingresos_vr_unit;
+          
+          // Determinar subtotal_gastos sumando todos los gastos
+          const subtotal_gastos = totalGastos; // Ya calculado en el componente
+          
+          // Calcular imprevistos (3%)
+          const imprevistos_3 = Math.round(subtotal_gastos * 0.03);
+          
+          // Total gastos con imprevistos
+          const total_gastos_imprevistos = subtotal_gastos + imprevistos_3;
+          
+          // Preparar datos para SOLICITUDES2
+          const solicitudesData = {
+            id_solicitud: idSolicitud,
+            ingresos_cantidad,
+            ingresos_vr_unit,
+            total_ingresos,
+            subtotal_gastos,
+            imprevistos_3,
+            total_gastos_imprevistos,
+            
+            // Para evitar campos faltantes, incluir también:
+            fondo_comun_porcentaje: formData.fondo_comun_porcentaje || 30,
+            facultadad_instituto_porcentaje: formData.facultadad_instituto_porcentaje || 5,
+            escuela_departamento_porcentaje: formData.escuela_departamento_porcentaje || 0
+          };
+          
+          // MÉTODO 1: Intento con credentials y headers adecuados
+          try {
+            const response = await api.post('/guardarForm2Paso2', {
+              id_solicitud: idSolicitud,
+              formData: solicitudesData,
+              id_usuario: userData.id_usuario,
+              name: userData.name
+            });
+            
+            if (response.data.success) {
+              console.log("✅ Datos de SOLICITUDES2 guardados correctamente");
+            } else {
+              throw new Error(response.data.error || "Error en respuesta del servidor");
+            }
+          } catch (primaryError) {
+            console.warn("⚠️ Método principal falló, intentando alternativa...", primaryError);
+            
+            // MÉTODO 2: Intento con guardarProgreso (endpoint alternativo)
+            try {
+              const fallbackResponse = await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+                id_solicitud: idSolicitud,
+                ...solicitudesData,
+                paso: 2,
+                hoja: 2,
+                id_usuario: userData.id_usuario,
+                name: userData.name
+              });
+              
+              if (fallbackResponse.data.success) {
+                console.log("✅ Datos guardados correctamente usando método alternativo");
+              } else {
+                throw new Error(fallbackResponse.data.error || "Error en método alternativo");
+              }
+            } catch (fallbackError) {
+              console.warn("⚠️ Todos los métodos de servidor fallaron, guardando localmente...");
+              
+              // MÉTODO 3: Almacenamiento local para sincronización posterior
+              localStorage.setItem(`solicitud2_data_${idSolicitud}`, JSON.stringify(solicitudesData));
+              localStorage.setItem(`pendingSolicitudes2_${idSolicitud}`, "true");
+              
+              // Mostrar indicador al usuario
+              alert("Se han guardado los datos localmente debido a problemas de conexión. Se sincronizarán automáticamente cuando la conexión mejore.");
+            }
+          }
+        } catch (error) {
+          console.error("❌ Error general al guardar datos en SOLICITUDES2:", error);
+        }
       }
 
       // Luego actualizamos el progreso global usando el nuevo método

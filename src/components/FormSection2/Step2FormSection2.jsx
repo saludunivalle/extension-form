@@ -86,7 +86,7 @@ function Step2FormSection2({
     },
     {
       label: '10. Inversión en Infraestructura Física',
-      key: '1.',
+      key: '10',
       children: [],
     },
     {

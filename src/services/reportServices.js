@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { report1Config } from './reports/config/report1Config';
+import { report2Config } from './reports/config/report2Config';
 
 const API_URL = 'https://siac-extension-server.vercel.app';
 
@@ -12,6 +13,8 @@ const getReportConfigByForm = (formNumber) => {
   switch (formNumber) {
     case 1:
       return report1Config;
+    case 2:
+      return report2Config;
     // Añadir más casos cuando se implementen las demás configuraciones
     default:
       return {}; // Configuración vacía por defecto
@@ -38,14 +41,38 @@ export const generateFormReport = async (solicitudId, formNumber) => {
     let formData = {};
     if (reportConfig.transformData) {
       try {
-        const dataResponse = await axios.get(`${API_URL}/getSolicitud`, {
-          params: { id_solicitud: solicitudId }
-        });
-        
-        if (dataResponse.data) {
-          // Aplicar transformaciones específicas para este formulario
-          formData = reportConfig.transformData(dataResponse.data);
+        // Para el formulario 2, necesitamos obtener tanto los datos principales como los gastos
+        if (formNumber === 2) {
+          // Obtener datos de SOLICITUDES2
+          const dataResponse = await axios.get(`${API_URL}/getSolicitud`, {
+            params: { id_solicitud: solicitudId }
+          });
+          
+          // Obtener gastos específicos de esta solicitud
+          const gastosResponse = await axios.get(`${API_URL}/getGastos`, {
+            params: { id_solicitud: solicitudId }
+          });
+          
+          // Combinar ambos conjuntos de datos
+          if (dataResponse.data && gastosResponse.data?.success) {
+            formData = {
+              ...dataResponse.data,
+              gastos: gastosResponse.data.data || []
+            };
+          }
+        } else {
+          // Para otros formularios, solo obtener los datos principales
+          const dataResponse = await axios.get(`${API_URL}/getSolicitud`, {
+            params: { id_solicitud: solicitudId }
+          });
+          
+          if (dataResponse.data) {
+            formData = dataResponse.data;
+          }
         }
+        
+        // Aplicar transformaciones específicas para este formulario
+        formData = reportConfig.transformData(formData);
       } catch (error) {
         console.error('Error al obtener datos para transformación:', error);
       }

@@ -1,11 +1,31 @@
 import axios from 'axios';
 
-// URL base de tu servidor backend
-const API_URL = 'https://siac-extension-server.vercel.app';
+const API_URL = import.meta.env.VITE_API_URL || 'https://siac-extension-server.vercel.app';
+
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Interceptor para añadir token de autenticación si existe
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+export default api;
 
 // Función para enviar el formulario al servidor
 export const submitForm = (formData) => {
-  return axios.post(`${API_URL}/submit`, formData)
+  return api.post('/submit', formData)
     .then(response => {
       // Maneja la respuesta exitosa aquí
       return response.data;
@@ -19,7 +39,7 @@ export const submitForm = (formData) => {
 
 // Otras funciones para interactuar con el backend
 export const updateData = (updateData, id, sheetName) => {
-  return axios.post(`${API_URL}/updateData`, {
+  return api.post('/updateData', {
       updateData,
       id,
       sheetName
@@ -37,7 +57,7 @@ export const updateData = (updateData, id, sheetName) => {
 
 // También podrías tener funciones para obtener datos de Google Sheets
 export const getData = (sheetName) => {
-  return axios.post(`${API_URL}/getData`, { sheetName })
+  return api.post('/getData', { sheetName })
     .then(response => {
       // Maneja la respuesta exitosa aquí
       return response.data;
