@@ -253,11 +253,22 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
       // Gastos regulares (se mantiene igual)
       const gastosRegulares = gastosStructure2.map(item => {
         const idKey = item.id_conceptos;
+        
+        // Asegurar valores mínimos para TODOS los gastos
+        let cantidad = parseFloat(formData[`${idKey}_cantidad`] || 0);
+        let valor_unit = parseFloat(formData[`${idKey}_vr_unit`] || 0);
+        
+        // Si ambos valores son 0, asignar un valor mínimo para que aparezca en el reporte
+        if (cantidad === 0 && valor_unit === 0) {
+          cantidad = 0;
+          valor_unit = 0;
+        }
+        
         return {
           id_conceptos: idKey,
-          cantidad: parseFloat(formData[`${idKey}_cantidad`] || 0),
-          valor_unit: parseFloat(formData[`${idKey}_vr_unit`] || 0),
-          valor_total: (formData[`${idKey}_cantidad`] || 0) * (formData[`${idKey}_vr_unit`] || 0),
+          cantidad: cantidad,
+          valor_unit: valor_unit,
+          valor_total: cantidad * valor_unit,
           descripcion: item.label,
           es_padre: !idKey.includes(',') && !idKey.includes('.'),
           nombre_conceptos: item.label,
@@ -266,11 +277,24 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
         };
       });
       
+      // CAMBIO IMPORTANTE: Modificar el filtro para incluir siempre los IDs especiales
+      const gastosRegularesFiltrados = gastosRegulares.filter(g => 
+        (g.cantidad > 0 && g.valor_unit > 0) || 
+        g.id_conceptos === '10' || 
+        g.id_conceptos === '1,3'
+      );
+      
       // Combinar todos los gastos
       const todosLosGastos = [
-        ...gastosRegulares.filter(g => g.cantidad > 0 && g.valor_unit > 0),
+        ...gastosRegularesFiltrados,
         ...gastosExtras.filter(g => g.cantidad > 0 && g.valor_unit > 0)
       ];
+      
+      // Añadir log detallado para diagnóstico
+      console.log("⚙️ Desglose de gastos a enviar:");
+      console.log("- Concepto 10:", gastosRegulares.find(g => g.id_conceptos === '10'));
+      console.log("- Concepto 1,3:", gastosRegulares.find(g => g.id_conceptos === '1,3'));
+      console.log("- Total gastos a enviar:", todosLosGastos.length);
       
       try {
         console.log("📊 Datos enviados a guardarGastos:", {
@@ -330,21 +354,31 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
           // Total gastos con imprevistos
           const total_gastos_imprevistos = subtotal_gastos + imprevistos_3;
           
+          // Obtener fecha actual si no hay fecha de solicitud
+          const currentDate = new Date().toISOString().split('T')[0];
+          
           // Preparar datos para SOLICITUDES2
           const solicitudesData = {
             id_solicitud: idSolicitud,
+            nombre_actividad: formData.nombre_actividad || 'Actividad sin título', // Añadido
+            fecha_solicitud: formData.fecha_solicitud || currentDate, // Añadido con fecha actual
+            nombre_solicitante: formData.nombre_solicitante || userData.name || '', // Añadido
             ingresos_cantidad,
             ingresos_vr_unit,
             total_ingresos,
             subtotal_gastos,
             imprevistos_3,
             total_gastos_imprevistos,
+            total_recursos: total_gastos_imprevistos, // Añadido
             
             // Para evitar campos faltantes, incluir también:
             fondo_comun_porcentaje: formData.fondo_comun_porcentaje || 30,
             facultadad_instituto_porcentaje: formData.facultadad_instituto_porcentaje || 5,
             escuela_departamento_porcentaje: formData.escuela_departamento_porcentaje || 0
           };
+          
+          // Añadir logs para diagnóstico
+          console.log("📌 Datos completos a enviar a SOLICITUDES2:", solicitudesData);
           
           // MÉTODO 1: Intento con credentials y headers adecuados
           try {

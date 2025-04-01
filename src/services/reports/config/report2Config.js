@@ -90,10 +90,11 @@ export const report2Config = {
     
     // IMPORTANTE: Pre-inicializar todos los posibles campos de gastos comunes
     // para evitar problemas con los placeholders en la plantilla
+    // CAMBIO: Convertir las comas a guiones bajos para evitar problemas
     const conceptosComunes = [
-      '1', '1,1', '1,2', '1,3', '2', '3', '4', '5', '6', '7', '7,1', '7,2', 
-      '7,3', '7,4', '7,5', '8', '8,1', '8,2', '8,3', '8,4', '9', '9,1', '9,2', 
-      '9,3', '10', '11', '12', '13', '14', '15'
+      '1', '1_1', '1_2', '1_3', '2', '3', '4', '5', '6', '7', '7_1', '7_2', 
+      '7_3', '7_4', '7_5', '8', '8_1', '8_2', '8_3', '8_4', '9', '9_1', '9_2', 
+      '9_3', '10', '11', '12', '13', '14', '15'
     ];
     
     // Pre-inicializar todos los campos de gastos comunes con valores vacíos
@@ -101,43 +102,104 @@ export const report2Config = {
       transformedData[`gasto_${concepto}_cantidad`] = '0';
       transformedData[`gasto_${concepto}_valor_unit`] = formatCurrency(0);
       transformedData[`gasto_${concepto}_valor_total`] = formatCurrency(0);
-      transformedData[`gasto_${concepto}_descripcion`] = `Concepto ${concepto}`;
+      transformedData[`gasto_${concepto}_descripcion`] = `Concepto ${concepto.replace('_', ',')}`;
     });
     
     // Procesar gastos dinámicos reales
     if (gastosData && gastosData.length > 0) {
       console.log(`Procesando ${gastosData.length} gastos reales para el reporte`);
       
+      // Añadir un log detallado para depuración
+      console.log("🧾 Lista completa de IDs de gastos recibidos:", 
+        gastosData.map(g => g.id_conceptos).sort().join(', '));
+        
       const gastosPorConcepto = {};
       
-      gastosData.forEach(gasto => {
+      // Separamos los gastos en regulares y dinámicos (15.x)
+      const gastosRegulares = gastosData.filter(g => !g.id_conceptos.startsWith('15.'));
+      const gastosDinamicos = gastosData.filter(g => g.id_conceptos.startsWith('15.'));
+      
+      console.log(`- Procesando ${gastosRegulares.length} gastos regulares`);
+      console.log(`- Procesando ${gastosDinamicos.length} gastos dinámicos`);
+      
+      // Procesar gastos regulares
+      gastosRegulares.forEach(gasto => {
         if (!gasto || !gasto.id_conceptos) {
           console.warn("⚠️ Se encontró un gasto sin ID de concepto:", gasto);
           return;
         }
         
-        const idConcepto = gasto.id_conceptos;
+        // CAMBIO: Convertir comas a guiones bajos en el ID del concepto
+        const idConceptoOriginal = gasto.id_conceptos;
+        const idConcepto = idConceptoOriginal.replace(/,/g, '_');
+        
         gastosPorConcepto[idConcepto] = {
           cantidad: gasto.cantidad || 0,
           valor_unit: gasto.valor_unit || 0,
           valor_total: gasto.valor_total || 0,
-          descripcion: gasto.descripcion || `Concepto ${idConcepto}`
+          descripcion: gasto.descripcion || `Concepto ${idConceptoOriginal}`
         };
         
-        // Generar los campos esperados por el template con datos reales
+        // Usar el ID con guiones bajos para las claves
         transformedData[`gasto_${idConcepto}_cantidad`] = (gasto.cantidad || 0).toString();
         transformedData[`gasto_${idConcepto}_valor_unit`] = formatCurrency(gasto.valor_unit || 0);
         transformedData[`gasto_${idConcepto}_valor_total`] = formatCurrency(gasto.valor_total || 0);
-        transformedData[`gasto_${idConcepto}_descripcion`] = gasto.descripcion || `Concepto ${idConcepto}`;
+        transformedData[`gasto_${idConcepto}_descripcion`] = gasto.descripcion || `Concepto ${idConceptoOriginal}`;
+        
+        // NUEVO: También almacenar con el formato original para compatibilidad
+        transformedData[`gasto_${idConceptoOriginal}_cantidad`] = (gasto.cantidad || 0).toString();
+        transformedData[`gasto_${idConceptoOriginal}_valor_unit`] = formatCurrency(gasto.valor_unit || 0);
+        transformedData[`gasto_${idConceptoOriginal}_valor_total`] = formatCurrency(gasto.valor_total || 0);
+        transformedData[`gasto_${idConceptoOriginal}_descripcion`] = gasto.descripcion || `Concepto ${idConceptoOriginal}`;
       });
       
-      // Lista de conceptos para referencia
-      transformedData.conceptos_lista = Object.keys(gastosPorConcepto).join(',');
-      transformedData.conceptos_total = Object.keys(gastosPorConcepto).length.toString();
+      // Generar estructura para gastos dinámicos (15.x)
+      if (gastosDinamicos.length > 0) {
+        // Formatear gastos dinámicos para el sistema de plantillas
+        transformedData.gastos_dinamicos_data = gastosDinamicos.map(g => ({
+          id: g.id_conceptos,
+          nombre: g.concepto || g.descripcion || `Gasto Extra ${g.id_conceptos.split('.')[1]}`,
+          cantidad: g.cantidad,
+          valor_unit: formatCurrency(g.valor_unit || 0),
+          valor_total: formatCurrency(g.valor_total || 0)
+        }));
+        
+        // Indicar cuántos gastos dinámicos hay
+        transformedData.gastos_dinamicos_count = gastosDinamicos.length.toString();
+        
+        // También registrar cada gasto dinámico individualmente
+        gastosDinamicos.forEach(gasto => {
+          const idConcepto = gasto.id_conceptos;
+          const idConceptoNormalizado = idConcepto.replace(/\./g, '_');
+          
+          // Usar ambos formatos para compatibilidad
+          transformedData[`gasto_${idConcepto}_cantidad`] = (gasto.cantidad || 0).toString();
+          transformedData[`gasto_${idConcepto}_valor_unit`] = formatCurrency(gasto.valor_unit || 0);
+          transformedData[`gasto_${idConcepto}_valor_total`] = formatCurrency(gasto.valor_total || 0);
+          transformedData[`gasto_${idConcepto}_descripcion`] = gasto.concepto || gasto.descripcion || 
+                                                            `Gasto Extra ${idConcepto.split('.')[1]}`;
+                                                            
+          transformedData[`gasto_${idConceptoNormalizado}_cantidad`] = (gasto.cantidad || 0).toString();
+          transformedData[`gasto_${idConceptoNormalizado}_valor_unit`] = formatCurrency(gasto.valor_unit || 0);
+          transformedData[`gasto_${idConceptoNormalizado}_valor_total`] = formatCurrency(gasto.valor_total || 0);
+          transformedData[`gasto_${idConceptoNormalizado}_descripcion`] = gasto.concepto || gasto.descripcion || 
+                                                            `Gasto Extra ${idConcepto.split('.')[1]}`;
+        });
+      } else {
+        transformedData.gastos_dinamicos_data = [];
+        transformedData.gastos_dinamicos_count = "0";
+      }
+      
+      // Generar listas de conceptos
+      const conceptosKeys = Object.keys(gastosPorConcepto);
+      transformedData.conceptos_lista = conceptosKeys.map(k => k.replace(/_/g, ',')).join(',');
+      transformedData.conceptos_total = conceptosKeys.length.toString();
     } else {
       console.warn("No se encontraron gastos para esta solicitud. Usando placeholders por defecto.");
-      transformedData.conceptos_lista = conceptosComunes.join(',');
+      transformedData.conceptos_lista = conceptosComunes.map(c => c.replace(/_/g, ',')).join(',');
       transformedData.conceptos_total = '0';
+      transformedData.gastos_dinamicos_data = [];
+      transformedData.gastos_dinamicos_count = "0";
     }
     
     // Formatear valores monetarios específicos
@@ -149,6 +211,27 @@ export const report2Config = {
     monetaryFields.forEach(field => {
       if (transformedData[field]) {
         transformedData[field] = formatCurrency(transformedData[field]);
+      }
+    });
+    
+    // NUEVO: Asegurarnos de que los campos para la plantilla existan con ambos formatos
+    // Identificar las claves de template usadas en la plantilla
+    const templateKeys = [
+      '1,1', '1,2', '1,3', '2', '3', '4', '5', '6', '7', '7,1', '7,2', 
+      '7,3', '7,4', '7,5', '8', '8,1', '8,2', '8,3', '8,4', '9', '9,1', '9,2', 
+      '9,3', '10', '11', '12', '13', '14', '15'
+    ];
+    
+    // Crear entradas explícitas para cada clave de template
+    templateKeys.forEach(key => {
+      const normalizedKey = key.replace(/,/g, '_');
+      
+      // Si tenemos datos para la versión normalizada, copiarlos a la versión con comas
+      if (transformedData[`gasto_${normalizedKey}_cantidad`]) {
+        transformedData[`gasto_${key}_cantidad`] = transformedData[`gasto_${normalizedKey}_cantidad`];
+        transformedData[`gasto_${key}_valor_unit`] = transformedData[`gasto_${normalizedKey}_valor_unit`];
+        transformedData[`gasto_${key}_valor_total`] = transformedData[`gasto_${normalizedKey}_valor_total`];
+        transformedData[`gasto_${key}_descripcion`] = transformedData[`gasto_${normalizedKey}_descripcion`];
       }
     });
     
