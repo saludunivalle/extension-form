@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Box, Button, Stepper, Step, StepLabel, Typography, CircularProgress} from '@mui/material';
+import { Box, Button, Stepper, Step, StepLabel, Typography, CircularProgress, Alert, AlertTitle, } from '@mui/material';
 import Step1FormSection2 from './Step1FormSection2';
 import Step2FormSection2 from './Step2FormSection2';
 import Step3FormSection2 from './Step3FormSection2';
 import axios from 'axios'; 
-import useInternalNavigationGoogleSheets from '../../hooks/useInternalNavigationGoogleSheets';
+import useSafeFormNavigation from '../../hooks/useFormNavigation';
 import { useLocation } from 'react-router-dom';
 import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import { openFormReport } from '../../services/reportServices';
 import PrintIcon from '@mui/icons-material/Print';
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import PropTypes from 'prop-types';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
@@ -68,8 +69,14 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   const [totalGastos, setTotalGastos] = useState(0);
 
   
-  const { maxAllowedStep, loading: navLoading, error: navError, isStepAllowed, updateMaxAllowedStep } = 
-    useInternalNavigationGoogleSheets(idSolicitud, 2, steps.length);
+  const { 
+    maxAllowedStep, 
+    loading: navLoading, 
+    error: navError, 
+    isStepAllowed, 
+    updateMaxAllowedStep,
+    isOfflineMode
+  } = useSafeFormNavigation(idSolicitud, 2, steps.length);
 
   const handleUpdateTotalGastos = (total) => {
     setTotalGastos(total); 
@@ -430,7 +437,25 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
       }
 
       // Luego actualizamos el progreso global usando el nuevo método
-      await updateMaxAllowedStep(activeStep + 1);
+if (typeof updateMaxAllowedStep === 'function') {
+  await updateMaxAllowedStep(activeStep + 1);
+} else {
+  // Alternativa: Usar directamente axios si updateMaxAllowedStep no está disponible
+  try {
+    console.log(`🔄 Actualizando progreso manualmente: Formulario 2, Paso ${activeStep + 1}`);
+    
+    await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
+      id_solicitud: idSolicitud,
+      etapa_actual: 2, // Formulario 2
+      paso_actual: activeStep + 1
+    });
+    
+    console.log("✅ Progreso actualizado correctamente mediante método alternativo");
+  } catch (progressError) {
+    console.warn("⚠️ No se pudo actualizar el progreso:", progressError);
+    // No bloqueamos el flujo por este error
+  }
+}
       
       // Actualizar estado local y guardar en localStorage
       const newHighestStep = Math.max(highestStepReached, activeStep + 1);
@@ -656,12 +681,6 @@ const PrintReportButton = () => {
             onClick={() => handleStepClick(index)}
             sx={{
               '& .MuiStepLabel-label': {
-                backgroundColor: index <= highestStepReached ? '#0056b3' : 'transparent',
-                color: index <= highestStepReached ? '#FFFFFF' : '#A0A0A0',
-                padding: index <= highestStepReached ? '5px 10px' : '0',
-                borderRadius: '20px',
-                fontWeight: index === activeStep ? 'bold' : 'normal',
-                cursor: index <= highestStepReached ? 'pointer' : 'default',
                 opacity: index <= highestStepReached ? 1 : 0.6,
               },
               '& .MuiStepIcon-root': {
@@ -700,7 +719,7 @@ const PrintReportButton = () => {
               sx: {
                 borderRadius: '12px',
                 minWidth: '320px',
-                maxWidth: '450px',
+                maxWidth: '800px',
               }
             }}
           >
@@ -725,61 +744,33 @@ const PrintReportButton = () => {
               display: 'flex', 
               justifyContent: 'space-between', 
               p: 2,
-              borderTop: '1px solid #f0f0f0',
-              gap: 1
+              borderTop: '0px', // Quita la línea divisoria
+              gap: 2, // Aumenta el espaciado entre botones
             }}>
-              <Button onClick={() => window.location.href = '/'} color="secondary" variant="outlined">
-                Salir
-              </Button>
-              <Box sx={{ display: 'flex', gap: 1 }}>
               <Button 
-                onClick={async () => {
-                  try {
-                    setIsLoading(true);
-                    
-                    // 1. Marcar el formulario como completado en el backend
-                    const response = await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
-                      id_solicitud: idSolicitud,
-                      etapa_actual: 2,
-                      paso_actual: steps.length,
-                      estadoFormularios: {
-                        "2": "Completado"
-                      }
-                    });
-                    
-                    if (response.data.success) {
-                      console.log("✅ Formulario 2 marcado como completado en el servidor");
-                      
-                      // 2. Marcar el formulario como completado en localStorage
-                      localStorage.setItem(`form2_completed_${idSolicitud}`, 'true');
-                      
-                      // 3. Actualizar la lista de formularios accesibles en localStorage
-                      const accessibleForms = JSON.parse(localStorage.getItem(`accessible_forms_${idSolicitud}`) || '[]');
-                      if (!accessibleForms.includes(3)) {
-                        accessibleForms.push(3);
-                        localStorage.setItem(`accessible_forms_${idSolicitud}`, JSON.stringify(accessibleForms));
-                      }
-                      
-                      // 4. Forzar un refresco para que el FormPage vea los cambios (NUEVO)
-                      window.location.href = `/formulario/3?solicitud=${idSolicitud}`;
-                    } else {
-                      console.error("❌ Error al marcar el formulario como completado:", response.data);
-                      alert("Error al actualizar el estado del formulario. Por favor, intente nuevamente.");
-                    }
-                  } catch (error) {
-                    console.error('❌ Error al actualizar progreso:', error);
-                    alert('Hubo un problema al avanzar al siguiente formulario. Por favor intente nuevamente.');
-                  } finally {
-                    setIsLoading(false);
-                    setShowModal(false);
-                  }
-                }} 
-                color="primary" 
+                onClick={() => window.location.href = '/'} 
+                color="secondary" 
                 variant="outlined"
+                sx={{ 
+                  minWidth: '150px', // Ancho fijo para todos los botones
+                  height: '40px'     // Altura fija para todos los botones
+                }}
               >
-                {isLoading ? <CircularProgress size={20} /> : "Continuar"}
+                Volver al Inicio
               </Button>
-
+              <Box sx={{ display: 'flex', gap: 2 }}> {/* Mayor espacio entre botones */}
+                <Button 
+                  onClick={() => setCurrentSection(2)} 
+                  color="primary" 
+                  variant="outlined"
+                  sx={{ 
+                    minWidth: '150px', 
+                    height: '40px' 
+                  }}
+                  startIcon={<NavigateNextIcon />} // Añadir icono para consistencia
+                >
+                  Siguiente Formulario
+                </Button>
                 <Button 
                   onClick={async () => {
                     try {
@@ -796,10 +787,13 @@ const PrintReportButton = () => {
                   }} 
                   color="primary" 
                   variant="contained"
-                  disabled={isGeneratingReport}
+                  sx={{ 
+                    minWidth: '150px', 
+                    height: '40px' 
+                  }}
                   startIcon={isGeneratingReport ? <CircularProgress size={20} color="inherit" /> : <PrintIcon />}
                 >
-                  {isGeneratingReport ? 'Generando...' : 'Generar y continuar'}
+                  {isGeneratingReport ? 'Generando...' : 'Generar y Avanzar'}
                 </Button>
               </Box>
             </DialogActions>

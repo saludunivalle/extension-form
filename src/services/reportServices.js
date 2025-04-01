@@ -14,8 +14,7 @@ const getReportConfigByForm = (formNumber) => {
     case 1:
       return report1Config;
     case 2:
-      return report2Config;
-    // Añadir más casos cuando se implementen las demás configuraciones
+      return report2Config; 
     default:
       return {}; // Configuración vacía por defecto
   }
@@ -41,67 +40,17 @@ export const generateFormReport = async (solicitudId, formNumber) => {
     let formData = {};
     if (reportConfig.transformData) {
       try {
-        // Para el formulario 2, necesitamos obtener tanto los datos principales como los gastos
-        if (formNumber === 2) {
-          // Obtener datos de SOLICITUDES2
-          const dataResponse = await axios.get(`${API_URL}/getSolicitud`, {
-            params: { id_solicitud: solicitudId }
-          });
-          
-          // Obtener gastos específicos de esta solicitud
-          const gastosResponse = await axios.get(`${API_URL}/getGastos`, {
-            params: { id_solicitud: solicitudId }
-          });
-          
-          // Combinar ambos conjuntos de datos
-          if (dataResponse.data && gastosResponse.data?.success) {
-            formData = {
-              ...dataResponse.data,
-              gastos: gastosResponse.data.data || []
-            };
-          }
-        } else {
-          // Para otros formularios, solo obtener los datos principales
-          const dataResponse = await axios.get(`${API_URL}/getSolicitud`, {
-            params: { id_solicitud: solicitudId }
-          });
-          
-          if (dataResponse.data) {
-            formData = dataResponse.data;
-          }
-        }
+        const dataResponse = await axios.get(`${API_URL}/getSolicitud`, {
+          params: { id_solicitud: solicitudId }
+        });
         
-        // Aplicar transformaciones específicas para este formulario
-        formData = reportConfig.transformData(formData);
+        if (dataResponse.data) {
+          // Aplicar transformaciones específicas para este formulario
+          formData = reportConfig.transformData(dataResponse.data);
+        }
       } catch (error) {
         console.error('Error al obtener datos para transformación:', error);
       }
-    }
-
-    // Añadir en la función generateFormReport, justo antes de enviar los datos al servidor:
-    console.log("📤 Enviando datos al servidor para generar reporte:", {
-      solicitudId,
-      formNumber,
-      configFields: Object.keys(reportConfig).join(', '),
-      dataFields: Object.keys(formData).join(', ')
-    });
-
-    // También agregar verificación para los campos clave:
-    const checkboxFields = reportConfig.fieldMappings?.checkboxFields || [];
-    const radioFields = reportConfig.fieldMappings?.radioFields || [];
-
-    if (checkboxFields.length > 0 || radioFields.length > 0) {
-      console.log("🔍 Verificando campos importantes:");
-      
-      checkboxFields.forEach(field => {
-        console.log(`  Checkbox ${field}: ${formData[field]}`);
-      });
-      
-      radioFields.forEach(field => {
-        console.log(`  Radio ${field}: ${formData[field]}`);
-        console.log(`    ${field}_si: ${formData[`${field}_si`]}`);
-        console.log(`    ${field}_no: ${formData[`${field}_no`]}`);
-      });
     }
 
     // Solicitar el enlace de Drive al backend incluyendo datos transformados
@@ -113,6 +62,10 @@ export const generateFormReport = async (solicitudId, formNumber) => {
     });
     
     // Verificar si la respuesta contiene un enlace directo a Drive
+    if (response.status === 500) {
+      throw new Error('Error interno del servidor al generar el reporte');
+    }
+
     if (response.data && response.data.link) {
       console.log(`✅ Enlace a Drive generado: ${response.data.link}`);
       return response.data.link;
@@ -142,29 +95,50 @@ export const generateFormReport = async (solicitudId, formNumber) => {
  * @returns {Promise<boolean>} - Éxito de la operación
  */
 export const openFormReport = async (solicitudId, formNumber) => {
-  try {
-    const reportUrl = await generateFormReport(solicitudId, formNumber);
-    
-    if (reportUrl) {
-      // Abrir directamente la URL en una nueva pestaña
-      window.open(reportUrl, '_blank');
-      alert(`Informe generado exitosamente para el formulario ${formNumber}`);
-      return true;
-    }
-    return false;
-  } catch (error) {
-    console.error('Error al generar el reporte:', error);
-    
-    // Método de respaldo directo sin usar el servicio
+  const maxRetries = 3;
+  let retryCount = 0;
+
+  while (retryCount < maxRetries) {
     try {
-      // Intenta abrir directamente una URL del servidor que redirija al Drive
-      const backupUrl = `${API_URL}/directDriveLink/${solicitudId}/${formNumber}`;
-      window.open(backupUrl, '_blank');
-      alert(`Informe generado usando método alternativo para el formulario ${formNumber}`);
-      return true;
-    } catch (backupError) {
-      alert('No fue posible generar el reporte. Por favor, contacte al administrador.');
-      return false;
+      // Log el intento actual si es un reintento
+      if (retryCount > 0) {
+        console.log(`📄 Intento #${retryCount + 1} de generar reporte para formulario ${formNumber}...`);
+      }
+
+      const reportUrl = await generateFormReport(solicitudId, formNumber);
+
+      if (reportUrl) {
+        // Abrir la URL en una nueva pestaña
+        window.open(reportUrl, '_blank');
+        alert(`Informe generado exitosamente para el formulario ${formNumber}`);
+        return true;
+      } else {
+        throw new Error('No se recibió una URL válida para el reporte');
+      }
+    } catch (error) {
+      console.error(`Error al generar el reporte (intento ${retryCount + 1}):`, error);
+      retryCount++;
+
+      if (retryCount === maxRetries) {
+        // Después de agotar todos los reintentos, mostrar un mensaje específico
+        const isQuotaError = 
+          error.message?.includes('Quota exceeded') || 
+          error.response?.data?.error?.includes('Quota exceeded');
+        
+        const errorMessage = isQuotaError 
+          ? 'No fue posible generar el reporte. Se ha excedido el límite de solicitudes al servicio. Por favor, inténtelo más tarde.'
+          : 'El servidor está experimentando problemas. Por favor, inténtelo más tarde.';
+        
+        alert(errorMessage);
+        return false;
+      }
+
+      // Espera exponencial: esperar más tiempo entre cada reintento
+      const waitTime = Math.min(Math.pow(2, retryCount) * 1000, 8000); // 2^retryCount segundos, máximo 8 segundos
+      console.log(`Esperando ${waitTime/1000} segundos antes del próximo intento...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
     }
   }
+  
+  return false;
 };

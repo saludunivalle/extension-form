@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Stepper, Step, StepLabel, Button, Box, CircularProgress, useMediaQuery } from '@mui/material';
+import { Stepper, Step, StepLabel, Button, Box, CircularProgress, useMediaQuery,  } from '@mui/material';
 import Step1 from './Step1'; 
 import Step2 from './Step2';
 import Step3 from './Step3';
@@ -18,6 +18,7 @@ import Tooltip from '@mui/material/Tooltip';
 import PropTypes from 'prop-types';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import Typography from '@mui/material/Typography';
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 
   /* 
   Este componente se encarga de cambiar el color de fondo, el color del texto y otros estilos visuales del ícono:
@@ -766,7 +767,7 @@ const PrintReportButton = () => {
             sx: {
               borderRadius: '12px',
               minWidth: '320px',
-              maxWidth: '450px',
+              maxWidth: '800px',
             }
           }}
         >
@@ -791,15 +792,32 @@ const PrintReportButton = () => {
             display: 'flex', 
             justifyContent: 'space-between', 
             p: 2,
-            borderTop: '1px solid #f0f0f0',
-            gap: 1
+            borderTop: '0px', // Quita la línea divisoria
+            gap: 2, // Aumenta el espaciado entre botones
           }}>
-            <Button onClick={() => window.location.href = '/'} color="secondary" variant="outlined">
-              Salir
+            <Button 
+              onClick={() => window.location.href = '/'} 
+              color="secondary" 
+              variant="outlined"
+              sx={{ 
+                minWidth: '150px', // Ancho fijo para todos los botones
+                height: '40px'     // Altura fija para todos los botones
+              }}
+            >
+              Volver al Inicio
             </Button>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button onClick={() => setCurrentSection(2)} color="primary" variant="outlined">
-                Continuar
+            <Box sx={{ display: 'flex', gap: 2 }}> {/* Mayor espacio entre botones */}
+              <Button 
+                onClick={() => setCurrentSection(2)} 
+                color="primary" 
+                variant="outlined"
+                sx={{ 
+                  minWidth: '150px', 
+                  height: '40px' 
+                }}
+                startIcon={<NavigateNextIcon />} // Añadir icono para consistencia
+              >
+                Siguiente Formulario
               </Button>
               <Button 
                 onClick={async () => {
@@ -817,10 +835,13 @@ const PrintReportButton = () => {
                 }} 
                 color="primary" 
                 variant="contained"
-                disabled={isGeneratingReport}
+                sx={{ 
+                  minWidth: '150px', 
+                  height: '40px' 
+                }}
                 startIcon={isGeneratingReport ? <CircularProgress size={20} color="inherit" /> : <PrintIcon />}
               >
-                {isGeneratingReport ? 'Generando...' : 'Generar y continuar'}
+                {isGeneratingReport ? 'Generando...' : 'Generar y Avanzar'}
               </Button>
             </Box>
           </DialogActions>

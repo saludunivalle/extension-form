@@ -1,7 +1,10 @@
 import { Grid, TextField, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, FormHelperText } from '@mui/material';
 import PropTypes from 'prop-types';
 
-const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const validateEmail = (email) => {
+  // Usamos test() en lugar de intentar convertir el regex a string
+  return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
+};
 
 function Step4({ formData, handleInputChange, errors }) {
   return (
@@ -28,15 +31,14 @@ function Step4({ formData, handleInputChange, errors }) {
               name="correo_coordinador"
               value={formData.correo_coordinador}
               onChange={(e) => {
-                const value = e.target.value;
-                handleInputChange(e); // Actualiza el estado global del formulario
-                // Validación en tiempo real
-                const esValido = emailRegex.test(value);
-                
-                if (!esValido && value !== "") {
-                  errors.correo_coordinador = "Formato de correo inválido";
-                } else {
-                  errors.correo_coordinador = "";
+                handleInputChange(e);
+                const isValid = e.target.value ? validateEmail(e.target.value) : true;
+                // Actualizar el error directamente aquí si es necesario
+                if (!isValid && e.target.value) {
+                  errors.correo_coordinador = "Correo electrónico inválido";
+                } else if (isValid) {
+                  // Limpiar el error si el correo es válido
+                  delete errors.correo_coordinador;
                 }
               }}
               onBlur={(e) => { // Validación adicional al salir del campo
@@ -47,10 +49,6 @@ function Step4({ formData, handleInputChange, errors }) {
               required
               error={!!errors.correo_coordinador}
               helperText={errors.correo_coordinador}
-              inputProps={{
-                type: "email",
-                pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
-              }}
             />
 
           </Grid>

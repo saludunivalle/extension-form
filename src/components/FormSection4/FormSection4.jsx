@@ -721,7 +721,7 @@ const PrintReportButton = () => {
           sx: {
             borderRadius: '12px',
             minWidth: '320px',
-            maxWidth: '450px',
+            maxWidth: '800px',
           }
         }}
       >
@@ -746,7 +746,7 @@ const PrintReportButton = () => {
           justifyContent: 'space-between', 
           p: 2,
           borderTop: '1px solid #f0f0f0',
-          gap: 1
+          gap: 2
         }}>
           <Button onClick={handleCloseExitDialog} color="primary" variant="outlined">
             Cancelar

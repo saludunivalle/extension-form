@@ -9,7 +9,7 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import PropTypes from 'prop-types';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 
 // Importa las secciones de los pasos
 import Step1FormSection3 from './Step1FormSection3';
@@ -496,7 +496,7 @@ const PrintReportButton = () => {
           sx: {
             borderRadius: '12px',
             minWidth: '320px',
-            maxWidth: '450px',
+            maxWidth: '800px',
           }
         }}
       >
@@ -521,56 +521,40 @@ const PrintReportButton = () => {
           display: 'flex', 
           justifyContent: 'space-between', 
           p: 2,
-          borderTop: '1px solid #f0f0f0',
-          gap: 1
+          borderTop: '0px', // Quita la línea divisoria
+          gap: 2, // Aumenta el espaciado entre botones
         }}>
-          <Button onClick={() => window.location.href = '/'} color="secondary" variant="outlined">
-            Salir
+          <Button 
+            onClick={() => window.location.href = '/'} 
+            color="secondary" 
+            variant="outlined"
+            sx={{ 
+              minWidth: '150px', // Ancho fijo para todos los botones
+              height: '40px'     // Altura fija para todos los botones
+            }}
+          >
+            Volver al Inicio
           </Button>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 2 }}> {/* Mayor espacio entre botones */}
             <Button 
-              onClick={async () => {
-                try {
-                  // Usar el nuevo endpoint para marcar el formulario como completado
-                  await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
-                    id_solicitud: idSolicitud,
-                    etapa_actual: 3,
-                    paso_actual: steps.length,
-                    estadoFormularios: {
-                      "3": "Completado"
-                    }
-                  });
-                  
-                  // Navegar al siguiente formulario
-                  setCurrentSection(4);
-                } catch (error) {
-                  console.error('Error al actualizar progreso:', error);
-                  alert('Hubo un problema al avanzar al siguiente formulario. Por favor intente nuevamente.');
-                }
-              }} 
+              onClick={() => setCurrentSection(2)} 
               color="primary" 
               variant="outlined"
+              sx={{ 
+                minWidth: '150px', 
+                height: '40px' 
+              }}
+              startIcon={<NavigateNextIcon />} // Añadir icono para consistencia
             >
-              Continuar
+              Siguiente Formulario
             </Button>
             <Button 
               onClick={async () => {
                 try {
                   setIsGeneratingReport(true);
                   const idSolicitud = localStorage.getItem('id_solicitud');
-                  
-                  // Marcar primero el formulario como completado
-                  await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
-                    id_solicitud: idSolicitud,
-                    etapa_actual: 3,
-                    paso_actual: steps.length,
-                    estadoFormularios: {
-                      "3": "Completado"
-                    }
-                  });
-                  
                   await openFormReport(idSolicitud, 3);
-                  setCurrentSection(4); // Ir al formulario 4, no al 2
+                  setCurrentSection(2);
                 } catch (error) {
                   console.error('Error al generar el reporte:', error);
                   alert('Hubo un problema al generar el reporte');
@@ -580,10 +564,13 @@ const PrintReportButton = () => {
               }} 
               color="primary" 
               variant="contained"
-              disabled={isGeneratingReport}
+              sx={{ 
+                minWidth: '150px', 
+                height: '40px' 
+              }}
               startIcon={isGeneratingReport ? <CircularProgress size={20} color="inherit" /> : <PrintIcon />}
             >
-              {isGeneratingReport ? 'Generando...' : 'Generar y continuar'}
+              {isGeneratingReport ? 'Generando...' : 'Generar y Avanzar'}
             </Button>
           </Box>
         </DialogActions>

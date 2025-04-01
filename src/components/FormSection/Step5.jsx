@@ -177,8 +177,6 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
             value={formData.periodicidad_oferta || ''}
             onChange={handleInputChange}
             required
-            error={!!errors.periodicidad_oferta}
-            helperText={errors.periodicidad_oferta}
           >
             <FormControlLabel value="anual" control={<Radio />} label="Anual" />
             <FormControlLabel value="semestral" control={<Radio />} label="Semestral" />
@@ -200,8 +198,6 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               handleInputChange(e);
             }}
             required
-            error={!!errors.organizacion_actividad}
-            helperText={errors.organizacion_actividad}
           >
             <FormControlLabel value="ofi_ext" control={<Radio />} label="Oficina de Extensión" />
             <FormControlLabel value="unidad_acad" control={<Radio />} label="Unidad Académica" />
