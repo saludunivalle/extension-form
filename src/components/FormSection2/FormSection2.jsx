@@ -7,7 +7,7 @@ import axios from 'axios';
 import useSafeFormNavigation from '../../hooks/useFormNavigation';
 import { useLocation } from 'react-router-dom';
 import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
-import { openFormReport } from '../../services/reportServices';
+import { openFormReport, openReportPreview } from '../../services/reportServices';
 import PrintIcon from '@mui/icons-material/Print';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import PropTypes from 'prop-types';
@@ -67,6 +67,8 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   const [completedSteps, setCompletedSteps] = useState([]);
   const [highestStepReached, setHighestStepReached] = useState(0); 
   const [totalGastos, setTotalGastos] = useState(0);
+  const [previewData, setPreviewData] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   
   const { 
@@ -87,61 +89,96 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
     console.log('Datos del usuario: ', userData);
   }, [formData, userData]);
 
-  useEffect(() => {
-    const fetchGastos = async () => {
-      try {
-        // Usar el nuevo endpoint progreso-actual correctamente
-        const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
-          id_solicitud: idSolicitud,
-          etapa_destino: 2, // Formulario 2 (Presupuesto)
-          paso_destino: 1   // Información general
-        });
-        
-        if (response.data.success) {
-          // Los gastos ahora están dentro de datosFormulario
-          const gastos = response.data.estado.datosFormulario?.gastos || [];
-          
-          if (response.data.success) {
-            // Los gastos ahora están dentro de datosFormulario
-            const gastos = response.data.estado.datosFormulario?.gastos || [];
-            
-            if (gastos.length > 0) {
-              // Procesar los gastos regulares
-              const regularGastos = {};
-              const extraGastosList = [];
-              
-              gastos.forEach(gasto => {
-                if (gasto.id_conceptos.startsWith('15.')) {
-                  // Es un gasto extra dinámico
-                  extraGastosList.push({
-                    id: Date.now() + parseInt(gasto.id_conceptos.split('.')[1]),
-                    name: gasto.concepto || `Gasto Extra ${gasto.id_conceptos.split('.')[1]}`,
-                    cantidad: gasto.cantidad || 0,
-                    vr_unit: gasto.valor_unit || 0,
-                    key: gasto.id_conceptos
-                  });
-                } else {
-                  // Es un gasto regular
-                  regularGastos[`${gasto.id_conceptos}_cantidad`] = gasto.cantidad;
-                  regularGastos[`${gasto.id_conceptos}_vr_unit`] = gasto.valor_unit;
-                }
-              });
-              
-              // Actualizar estados
-              setFormData(prev => ({...prev, ...regularGastos}));
-              setExtraExpenses(extraGastosList);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error al cargar los gastos:', error);
-      }
-    };
+  // 1. Agregar sistema de caché local
+const requestCache = {
+  data: new Map(),
+  timestamp: new Map(),
+  ttl: 60000, // 1 minuto de caché por defecto
+  
+  // Guardar datos en caché
+  set(key, data, customTtl) {
+    this.data.set(key, data);
+    this.timestamp.set(key, Date.now());
+    return data;
+  },
+  
+  // Obtener datos desde caché si están frescos
+  get(key, ttl = this.ttl) {
+    if (!this.data.has(key)) return null;
     
-    if (idSolicitud) {
-      fetchGastos();
+    const timestamp = this.timestamp.get(key);
+    if (Date.now() - timestamp > ttl) return null;
+    
+    console.log(`🔄 Usando datos en caché para: ${key}`);
+    return this.data.get(key);
+  }
+};
+
+  // 2. Optimizar fetchGastos para usar caché
+useEffect(() => {
+  const fetchGastos = async () => {
+    if (!idSolicitud) return;
+    
+    const cacheKey = `gastos_${idSolicitud}`;
+    const cachedData = requestCache.get(cacheKey);
+    
+    if (cachedData) {
+      // Usar datos de caché
+      const { regularGastos, extraGastosList } = cachedData;
+      setFormData(prev => ({...prev, ...regularGastos}));
+      setExtraExpenses(extraGastosList);
+      return;
     }
-  }, [idSolicitud]);
+
+    try {
+      console.log("📊 Obteniendo gastos desde el servidor...");
+      const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+        id_solicitud: idSolicitud,
+        etapa_destino: 2,
+        paso_destino: 1
+      });
+      
+      if (response.data.success) {
+        const gastos = response.data.estado.datosFormulario?.gastos || [];
+        
+        if (gastos.length > 0) {
+          const regularGastos = {};
+          const extraGastosList = [];
+          
+          gastos.forEach(gasto => {
+            // Código existente para procesar gastos
+            if (gasto.id_conceptos.startsWith('15.')) {
+              // Es un gasto extra dinámico
+              extraGastosList.push({
+                id: Date.now() + parseInt(gasto.id_conceptos.split('.')[1]),
+                name: gasto.concepto || `Gasto Extra ${gasto.id_conceptos.split('.')[1]}`,
+                cantidad: gasto.cantidad || 0,
+                vr_unit: gasto.valor_unit || 0,
+                key: gasto.id_conceptos
+              });
+            } else {
+              // Es un gasto regular
+              regularGastos[`${gasto.id_conceptos}_cantidad`] = gasto.cantidad;
+              regularGastos[`${gasto.id_conceptos}_vr_unit`] = gasto.valor_unit;
+            }
+          });
+          
+          // Actualizar estados
+          setFormData(prev => ({...prev, ...regularGastos}));
+          setExtraExpenses(extraGastosList);
+          
+          // Guardar en caché
+          requestCache.set(cacheKey, { regularGastos, extraGastosList });
+        }
+      }
+    } catch (error) {
+      console.error('Error al cargar los gastos:', error);
+      // Continuar sin datos, mostrar interfaz para ingreso manual
+    }
+  };
+  
+  fetchGastos();
+}, [idSolicitud]);
 
   useEffect(() => {
     if (currentStep < 0 || currentStep >= steps.length) {
@@ -238,242 +275,253 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
     ];
 
     // En handleSaveGastos
-    const handleSaveGastos = async () => {
-      // Obtener los gastos extras del componente hijo
-      const gastosExtras = extraExpenses.map((expense, index) => {
-        const id_conceptos = `15.${index + 1}`;
-        return {
-          id_conceptos: id_conceptos,
-          concepto: expense.name, 
-          cantidad: parseFloat(expense.cantidad || 0),
-          valor_unit: parseFloat(expense.vr_unit || 0),
-          valor_total: parseFloat(expense.cantidad || 0) * parseFloat(expense.vr_unit || 0),
-          concepto_padre: "15", 
-          descripcion: expense.name,
-          es_padre: false,
-          nombre_conceptos: expense.name,
-          tipo: "gasto_dinamico",
-          id_solicitud: formData.id_solicitud.toString() 
-        };
-      });
-      
-      // Gastos regulares (se mantiene igual)
-      const gastosRegulares = gastosStructure2.map(item => {
-        const idKey = item.id_conceptos;
-        
-        // Asegurar valores mínimos para TODOS los gastos
-        let cantidad = parseFloat(formData[`${idKey}_cantidad`] || 0);
-        let valor_unit = parseFloat(formData[`${idKey}_vr_unit`] || 0);
-        
-        // Si ambos valores son 0, asignar un valor mínimo para que aparezca en el reporte
-        if (cantidad === 0 && valor_unit === 0) {
-          cantidad = 0;
-          valor_unit = 0;
-        }
-        
-        return {
-          id_conceptos: idKey,
-          cantidad: cantidad,
-          valor_unit: valor_unit,
-          valor_total: cantidad * valor_unit,
-          descripcion: item.label,
-          es_padre: !idKey.includes(',') && !idKey.includes('.'),
-          nombre_conceptos: item.label,
-          tipo: "gasto_regular",
-          id_solicitud: formData.id_solicitud.toString()
-        };
-      });
-      
-      // CAMBIO IMPORTANTE: Modificar el filtro para incluir siempre los IDs especiales
-      const gastosRegularesFiltrados = gastosRegulares.filter(g => 
-        (g.cantidad > 0 && g.valor_unit > 0) || 
-        g.id_conceptos === '10' || 
-        g.id_conceptos === '1,3'
-      );
-      
-      // Combinar todos los gastos
-      const todosLosGastos = [
-        ...gastosRegularesFiltrados,
-        ...gastosExtras.filter(g => g.cantidad > 0 && g.valor_unit > 0)
-      ];
-      
-      // Añadir log detallado para diagnóstico
-      console.log("⚙️ Desglose de gastos a enviar:");
-      console.log("- Concepto 10:", gastosRegulares.find(g => g.id_conceptos === '10'));
-      console.log("- Concepto 1,3:", gastosRegulares.find(g => g.id_conceptos === '1,3'));
-      console.log("- Total gastos a enviar:", todosLosGastos.length);
-      
-      try {
-        console.log("📊 Datos enviados a guardarGastos:", {
-          id_solicitud: formData.id_solicitud.toString(),
-          gastos: todosLosGastos,
-          actualizarConceptos: true
-        });
-        
-        const response = await axios.post('https://siac-extension-server.vercel.app/guardarGastos', {
-          id_solicitud: formData.id_solicitud.toString(),
-          gastos: todosLosGastos,
-          actualizarConceptos: true,
-        });
-        
-        if (response.data.success) {
-          console.log("✅ Gastos registrados correctamente");
-        }
-      } catch (error) {
-        console.error("Error:", error.response?.data);
-        console.log(`🚨 Error: ${error.response?.data?.error || error.message}`);
-      }
+    // 3. Optimizar handleSaveGastos para evitar solicitudes duplicadas
+const handleSaveGastos = async () => {
+  // Generar clave única para los datos actuales
+  const dataChecksum = JSON.stringify(extraExpenses) + JSON.stringify(formData);
+  const cacheKey = `saveGastos_${idSolicitud}_${dataChecksum.length}`; // Usar longitud como aproximación simple de checksum
+  
+  // Verificar si ya enviamos estos datos recientemente (en los últimos 10 segundos)
+  const recentlySaved = requestCache.get(cacheKey, 10000);
+  if (recentlySaved) {
+    console.log("📋 Evitando envío duplicado (datos guardados recientemente)");
+    return recentlySaved; // Devolver resultado anterior
+  }
+  
+  // Resto del código actual de handleSaveGastos
+  const gastosExtras = extraExpenses.map((expense, index) => {
+    const id_conceptos = `15.${index + 1}`;
+    return {
+      id_conceptos: id_conceptos,
+      concepto: expense.name, 
+      cantidad: parseFloat(expense.cantidad || 0),
+      valor_unit: parseFloat(expense.vr_unit || 0),
+      valor_total: parseFloat(expense.cantidad || 0) * parseFloat(expense.vr_unit || 0),
+      concepto_padre: "15", 
+      descripcion: expense.name,
+      es_padre: false,
+      nombre_conceptos: expense.name,
+      tipo: "gasto_dinamico",
+      id_solicitud: formData.id_solicitud.toString() 
     };
+  });
+  
+  // Gastos regulares (se mantiene igual)
+  const gastosRegulares = gastosStructure2.map(item => {
+    const idKey = item.id_conceptos;
+    
+    // Asegurar valores mínimos para TODOS los gastos
+    let cantidad = parseFloat(formData[`${idKey}_cantidad`] || 0);
+    let valor_unit = parseFloat(formData[`${idKey}_vr_unit`] || 0);
+    
+    // Si ambos valores son 0, asignar un valor mínimo para que aparezca en el reporte
+    if (cantidad === 0 && valor_unit === 0) {
+      cantidad = 0;
+      valor_unit = 0;
+    }
+    
+    return {
+      id_conceptos: idKey,
+      cantidad: cantidad,
+      valor_unit: valor_unit,
+      valor_total: cantidad * valor_unit,
+      descripcion: item.label,
+      es_padre: !idKey.includes(',') && !idKey.includes('.'),
+      nombre_conceptos: item.label,
+      tipo: "gasto_regular",
+      id_solicitud: formData.id_solicitud.toString()
+    };
+  });
+  
+  // CAMBIO IMPORTANTE: Modificar el filtro para incluir siempre los IDs especiales
+  const gastosRegularesFiltrados = gastosRegulares.filter(g => 
+    (g.cantidad > 0 && g.valor_unit > 0) || 
+    g.id_conceptos === '10' || 
+    g.id_conceptos === '1,3'
+  );
+  
+  // Combinar todos los gastos
+  const todosLosGastos = [
+    ...gastosRegularesFiltrados,
+    ...gastosExtras.filter(g => g.cantidad > 0 && g.valor_unit > 0)
+  ];
+  
+  // Añadir log detallado para diagnóstico
+  console.log("⚙️ Desglose de gastos a enviar:");
+  console.log("- Concepto 10:", gastosRegulares.find(g => g.id_conceptos === '10'));
+  console.log("- Concepto 1,3:", gastosRegulares.find(g => g.id_conceptos === '1,3'));
+  console.log("- Total gastos a enviar:", todosLosGastos.length);
+  
+  // Generar versiones con coma para compatibilidad con la plantilla
+  const gastosParaPlantilla = todosLosGastos.map(gasto => {
+    // Crear una copia del objeto
+    const gastoConFormatos = {...gasto};
+    
+    // Si el ID contiene puntos, crear una versión con comas para la plantilla
+    if (gasto.id_conceptos.includes('.')) {
+      gastoConFormatos.id_conceptos_template = gasto.id_conceptos.replace('.', ',');
+    } 
+    // Si el ID contiene comas, crear una versión con puntos para el sistema
+    else if (gasto.id_conceptos.includes(',')) {
+      gastoConFormatos.id_conceptos_sistema = gasto.id_conceptos.replace(',', '.');
+    }
+    
+    return gastoConFormatos;
+  });
+  
+  console.log("📊 Datos preparados para la plantilla:", gastosParaPlantilla);
+  
+  // Luego continuar con el envío habitual
+  try {
+    console.log("📊 Datos enviados a guardarGastos:", {
+      id_solicitud: formData.id_solicitud.toString(),
+      gastos: gastosParaPlantilla,  // Usar la versión con formatos adicionales
+      actualizarConceptos: true
+    });
+    
+    const response = await axios.post('https://siac-extension-server.vercel.app/guardarGastos', {
+      id_solicitud: formData.id_solicitud.toString(),
+      gastos: gastosParaPlantilla,  // Usar la versión con formatos adicionales
+      actualizarConceptos: true,
+    });
+    
+    if (response.data.success) {
+      console.log("✅ Gastos registrados correctamente");
+      
+      // Guardar resultado en caché para evitar envíos duplicados
+      requestCache.set(cacheKey, response.data);
+      
+      return response.data;
+    }
+  } catch (error) {
+    console.error("Error:", error.response?.data);
+    console.log(`🚨 Error: ${error.response?.data?.error || error.message}`);
+    
+    // Guardar datos localmente para reintento posterior
+    const localStorageKey = `pendingGastos_${idSolicitud}`;
+    localStorage.setItem(localStorageKey, JSON.stringify({
+      timestamp: Date.now(),
+      gastos: gastosParaPlantilla
+    }));
+    
+    throw error;
+  }
+};
 
     const handleExtraExpensesChange = (newExtraExpenses) => {
       setExtraExpenses(newExtraExpenses);
     };
     
   
-    const handleNext = async () => {
-      if (!validateStep()) {
-        console.log("Errores en los campos: ");
-        return;
-      }
-  
-    setIsLoading(true);
-  
-    try {
-      if (activeStep === 1) {
-        // 1. Primero guardar los gastos en la hoja GASTOS
-        await handleSaveGastos();
-        
-        // 2. También guardar los datos generales en SOLICITUDES2
-        try {
-          console.log("📊 Guardando datos en SOLICITUDES2...");
-          
-          // Calcular los totales para asegurar que sean correctos
-          const ingresos_cantidad = parseInt(formData.ingresos_cantidad) || 0;
-          const ingresos_vr_unit = parseInt(formData.ingresos_vr_unit) || 0;
-          const total_ingresos = ingresos_cantidad * ingresos_vr_unit;
-          
-          // Determinar subtotal_gastos sumando todos los gastos
-          const subtotal_gastos = totalGastos; // Ya calculado en el componente
-          
-          // Calcular imprevistos (3%)
-          const imprevistos_3 = Math.round(subtotal_gastos * 0.03);
-          
-          // Total gastos con imprevistos
-          const total_gastos_imprevistos = subtotal_gastos + imprevistos_3;
-          
-          // Obtener fecha actual si no hay fecha de solicitud
-          const currentDate = new Date().toISOString().split('T')[0];
-          
-          // Preparar datos para SOLICITUDES2
-          const solicitudesData = {
-            id_solicitud: idSolicitud,
-            nombre_actividad: formData.nombre_actividad || 'Actividad sin título', // Añadido
-            fecha_solicitud: formData.fecha_solicitud || currentDate, // Añadido con fecha actual
-            nombre_solicitante: formData.nombre_solicitante || userData.name || '', // Añadido
-            ingresos_cantidad,
-            ingresos_vr_unit,
-            total_ingresos,
-            subtotal_gastos,
-            imprevistos_3,
-            total_gastos_imprevistos,
-            total_recursos: total_gastos_imprevistos, // Añadido
-            
-            // Para evitar campos faltantes, incluir también:
-            fondo_comun_porcentaje: formData.fondo_comun_porcentaje || 30,
-            facultadad_instituto_porcentaje: formData.facultadad_instituto_porcentaje || 5,
-            escuela_departamento_porcentaje: formData.escuela_departamento_porcentaje || 0
-          };
-          
-          // Añadir logs para diagnóstico
-          console.log("📌 Datos completos a enviar a SOLICITUDES2:", solicitudesData);
-          
-          // MÉTODO 1: Intento con credentials y headers adecuados
-          try {
-            const response = await api.post('/guardarForm2Paso2', {
-              id_solicitud: idSolicitud,
-              formData: solicitudesData,
-              id_usuario: userData.id_usuario,
-              name: userData.name
-            });
-            
-            if (response.data.success) {
-              console.log("✅ Datos de SOLICITUDES2 guardados correctamente");
-            } else {
-              throw new Error(response.data.error || "Error en respuesta del servidor");
-            }
-          } catch (primaryError) {
-            console.warn("⚠️ Método principal falló, intentando alternativa...", primaryError);
-            
-            // MÉTODO 2: Intento con guardarProgreso (endpoint alternativo)
-            try {
-              const fallbackResponse = await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-                id_solicitud: idSolicitud,
-                ...solicitudesData,
-                paso: 2,
-                hoja: 2,
-                id_usuario: userData.id_usuario,
-                name: userData.name
-              });
-              
-              if (fallbackResponse.data.success) {
-                console.log("✅ Datos guardados correctamente usando método alternativo");
-              } else {
-                throw new Error(fallbackResponse.data.error || "Error en método alternativo");
-              }
-            } catch (fallbackError) {
-              console.warn("⚠️ Todos los métodos de servidor fallaron, guardando localmente...");
-              
-              // MÉTODO 3: Almacenamiento local para sincronización posterior
-              localStorage.setItem(`solicitud2_data_${idSolicitud}`, JSON.stringify(solicitudesData));
-              localStorage.setItem(`pendingSolicitudes2_${idSolicitud}`, "true");
-              
-              // Mostrar indicador al usuario
-              alert("Se han guardado los datos localmente debido a problemas de conexión. Se sincronizarán automáticamente cuando la conexión mejore.");
-            }
-          }
-        } catch (error) {
-          console.error("❌ Error general al guardar datos en SOLICITUDES2:", error);
-        }
-      }
-
-      // Luego actualizamos el progreso global usando el nuevo método
-if (typeof updateMaxAllowedStep === 'function') {
-  await updateMaxAllowedStep(activeStep + 1);
-} else {
-  // Alternativa: Usar directamente axios si updateMaxAllowedStep no está disponible
-  try {
-    console.log(`🔄 Actualizando progreso manualmente: Formulario 2, Paso ${activeStep + 1}`);
-    
-    await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
-      id_solicitud: idSolicitud,
-      etapa_actual: 2, // Formulario 2
-      paso_actual: activeStep + 1
-    });
-    
-    console.log("✅ Progreso actualizado correctamente mediante método alternativo");
-  } catch (progressError) {
-    console.warn("⚠️ No se pudo actualizar el progreso:", progressError);
-    // No bloqueamos el flujo por este error
+    // 4. Optimizar handleNext para reducir llamadas y manejar errores sin bloquear flujo
+const handleNext = async () => {
+  if (!validateStep()) {
+    console.log("Errores en los campos");
+    return;
   }
-}
+
+  setIsLoading(true);
+
+  try {
+    if (activeStep === 1) {
+      // Consolidar llamadas y manejar errores sin bloquear el flujo
+      const allPromises = [];
       
-      // Actualizar estado local y guardar en localStorage
-      const newHighestStep = Math.max(highestStepReached, activeStep + 1);
-      setHighestStepReached(newHighestStep);
-      localStorage.setItem(`form2_highestStep_${idSolicitud}`, newHighestStep.toString());
+      // 1. Guardar gastos (pero no esperar a que termine)
+      const saveGastosPromise = handleSaveGastos().catch(error => {
+        console.error("❌ Error al guardar gastos, continuando:", error);
+        return { success: false, error: error.message };
+      });
+      allPromises.push(saveGastosPromise);
       
-      // Avanzar al siguiente paso
-      const nextStep = activeStep + 1;
-      setActiveStep(nextStep);
-      localStorage.setItem(`form2_lastStep_${idSolicitud}`, nextStep.toString());
-    } catch (error) {
-      console.error("Error al guardar el progreso:", error);
-      alert("Hubo un problema al avanzar al siguiente paso. Por favor, inténtelo de nuevo.");
-    } finally {
-      setIsLoading(false);
+      // 2. Preparar datos para SOLICITUDES2 (en paralelo)
+      const ingresos_cantidad = parseInt(formData.ingresos_cantidad) || 0;
+      const ingresos_vr_unit = parseInt(formData.ingresos_vr_unit) || 0;
+      const total_ingresos = ingresos_cantidad * ingresos_vr_unit;
+      const subtotal_gastos = totalGastos;
+      const imprevistos_3 = Math.round(subtotal_gastos * 0.03);
+      const total_gastos_imprevistos = subtotal_gastos + imprevistos_3;
+      const currentDate = new Date().toISOString().split('T')[0];
+      
+      const solicitudesData = {
+        id_solicitud: idSolicitud,
+        nombre_actividad: formData.nombre_actividad || 'Actividad sin título',
+        fecha_solicitud: formData.fecha_solicitud || currentDate,
+        nombre_solicitante: formData.nombre_solicitante || userData.name || '',
+        ingresos_cantidad,
+        ingresos_vr_unit,
+        total_ingresos,
+        subtotal_gastos,
+        imprevistos_3,
+        total_gastos_imprevistos,
+        total_recursos: total_gastos_imprevistos,
+        fondo_comun_porcentaje: formData.fondo_comun_porcentaje || 30,
+        facultadad_instituto_porcentaje: formData.facultadad_instituto_porcentaje || 5,
+        escuela_departamento_porcentaje: formData.escuela_departamento_porcentaje || 0
+      };
+      
+      // Guardar también localmente (respaldo)
+      localStorage.setItem(`solicitud2_data_${idSolicitud}`, JSON.stringify(solicitudesData));
+      
+      // Verificar si tenemos conexión antes de intentar guardar en el servidor
+      if (navigator.onLine) {
+        // Solo enviamos al servidor si estamos en línea
+        const saveForm2Promise = api.post('/guardarForm2Paso2', {
+          id_solicitud: idSolicitud,
+          formData: solicitudesData,
+          id_usuario: userData.id_usuario,
+          name: userData.name
+        }).catch(error => {
+          console.warn("⚠️ Error al guardar datos. Guardando localmente para sincronización posterior");
+          localStorage.setItem(`pendingSolicitudes2_${idSolicitud}`, "true");
+          return { success: false, error: error.message };
+        });
+        allPromises.push(saveForm2Promise);
+      }
     }
+
+    // Actualizar progreso local independientemente del servidor
+    const newHighestStep = Math.max(highestStepReached, activeStep + 1);
+    setHighestStepReached(newHighestStep);
+    localStorage.setItem(`form2_highestStep_${idSolicitud}`, newHighestStep.toString());
+    
+    // Intentar actualizar el progreso en el servidor, pero no bloquear si falla
+    if (navigator.onLine) {
+      try {
+        if (typeof updateMaxAllowedStep === 'function') {
+          updateMaxAllowedStep(activeStep + 1);
+        } else {
+          const cacheKey = `progreso_${idSolicitud}_${activeStep+1}`;
+          const cachedResponse = requestCache.get(cacheKey);
+          
+          if (!cachedResponse) {
+            axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
+              id_solicitud: idSolicitud,
+              etapa_actual: 2,
+              paso_actual: activeStep + 1
+            }).then(response => {
+              requestCache.set(cacheKey, response.data);
+            }).catch(error => {
+              console.warn("⚠️ No se pudo actualizar el progreso en el servidor, continuando localmente");
+            });
+          }
+        }
+      } catch (progressError) {
+        console.warn("⚠️ No se pudo actualizar el progreso en el servidor, continuando localmente");
+      }
+    }
+    
+    // Avanzar al siguiente paso independientemente de los errores del servidor
+    setActiveStep(activeStep + 1);
+    localStorage.setItem(`form2_lastStep_${idSolicitud}`, (activeStep + 1).toString());
+    
+  } catch (error) {
+    console.error("Error general:", error);
+    alert("Hubo un problema al procesar tu información. Se han guardado los datos localmente.");
+  } finally {
+    setIsLoading(false);
+  }
 };
-  
 
   //Lógica del botón "Atrás"
   const handleBack = () => {
@@ -553,29 +601,45 @@ if (typeof updateMaxAllowedStep === 'function') {
 
   // Modificar la función PrintReportButton en todos los componentes de formulario
 
+// 5. Optimizar PrintReportButton para reducir llamadas al verificar estado
 const PrintReportButton = () => {
-  // Verificar el estado del formulario con el backend
   const [isFormCompletedBackend, setIsFormCompletedBackend] = useState(false);
   
   useEffect(() => {
     const checkFormCompletion = async () => {
       if (!idSolicitud) return;
       
-      try {
-        const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
-          id_solicitud: idSolicitud,
-          etapa_destino: formId || 2, // Usar el formId correspondiente (1, 2, 3 o 4)
-          paso_destino: 1
-        });
-        
-        if (response.data.success && response.data.estado?.estadoFormularios) {
-          // Comprobar si este formulario está marcado como "Completado"
-          const formStatus = response.data.estado.estadoFormularios[formId.toString()];
-          setIsFormCompletedBackend(formStatus === 'Completado');
-          console.log(`Estado del formulario ${formId} según backend: ${formStatus}`);
+      // Verificar caché primero
+      const cacheKey = `form_status_${idSolicitud}_${formId}`;
+      const cachedStatus = requestCache.get(cacheKey, 120000); // 2 minutos de caché
+      
+      if (cachedStatus) {
+        setIsFormCompletedBackend(cachedStatus === 'Completado');
+        return;
+      }
+      
+      // Solo consultar al servidor si estamos en línea
+      if (navigator.onLine) {
+        try {
+          const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+            id_solicitud: idSolicitud,
+            etapa_destino: formId || 2,
+            paso_destino: 1
+          });
+          
+          if (response.data.success && response.data.estado?.estadoFormularios) {
+            const formStatus = response.data.estado.estadoFormularios[formId.toString()];
+            setIsFormCompletedBackend(formStatus === 'Completado');
+            
+            // Guardar en caché
+            requestCache.set(cacheKey, formStatus);
+          }
+        } catch (error) {
+          console.error('Error al verificar estado del formulario:', error);
+          // Usar estado local si el servidor no responde
+          const localStatus = localStorage.getItem(`form2_completed_${idSolicitud}`);
+          setIsFormCompletedBackend(localStatus === 'true');
         }
-      } catch (error) {
-        console.error('Error al verificar estado del formulario:', error);
       }
     };
     

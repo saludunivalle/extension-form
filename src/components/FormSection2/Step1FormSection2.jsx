@@ -15,15 +15,36 @@ function Step1FormSection2({ formData, handleInputChange }) {
         }
       });
     }
-    
-    // Intentar cargar el nombre de la actividad desde la solicitud principal
+  }, [formData.fecha_solicitud, handleInputChange]);
+
+  useEffect(() => {
     const fetchNombreActividad = async () => {
       try {
-        const response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
-          params: { id_solicitud: formData.id_solicitud }
-        });
-        
-        if (response.data && response.data.nombre_actividad && !formData.nombre_actividad) {
+        const maxRetries = 3;
+        let retryCount = 0;
+        let response;
+
+        while (retryCount < maxRetries) {
+          try {
+            response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
+              params: { id_solicitud: formData.id_solicitud }
+            });
+
+            if (response.status === 200) {
+              // Si la solicitud es exitosa, salir del bucle
+              break;
+            } else {
+              throw new Error(`Request failed with status ${response.status}`);
+            }
+          } catch (error) {
+            console.error(`Intento ${retryCount + 1} fallido:`, error.message);
+            retryCount++;
+            // Esperar antes de reintentar (estrategia de retroceso exponencial)
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+          }
+        }
+
+        if (response && response.data && response.data.nombre_actividad && !formData.nombre_actividad) {
           handleInputChange({
             target: {
               name: 'nombre_actividad',
@@ -35,9 +56,11 @@ function Step1FormSection2({ formData, handleInputChange }) {
         console.error('Error al obtener datos de la solicitud:', error);
       }
     };
-    
-    fetchNombreActividad();
-  }, [formData.id_solicitud]); // Asegúrate de incluir la dependencia aquí
+
+    if (formData.id_solicitud) {
+      fetchNombreActividad();
+    }
+  }, [formData.id_solicitud, handleInputChange]);
 
   return (
     <Grid container spacing={2}>

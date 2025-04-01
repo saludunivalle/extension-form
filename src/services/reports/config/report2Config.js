@@ -225,13 +225,26 @@ export const report2Config = {
     // Crear entradas explícitas para cada clave de template
     templateKeys.forEach(key => {
       const normalizedKey = key.replace(/,/g, '_');
+      // Probar múltiples formatos posibles
+      const keyWithDots = key.replace(/,/g, '.');
       
-      // Si tenemos datos para la versión normalizada, copiarlos a la versión con comas
+      // Comprobar todas las posibles versiones del campo
       if (transformedData[`gasto_${normalizedKey}_cantidad`]) {
         transformedData[`gasto_${key}_cantidad`] = transformedData[`gasto_${normalizedKey}_cantidad`];
         transformedData[`gasto_${key}_valor_unit`] = transformedData[`gasto_${normalizedKey}_valor_unit`];
         transformedData[`gasto_${key}_valor_total`] = transformedData[`gasto_${normalizedKey}_valor_total`];
-        transformedData[`gasto_${key}_descripcion`] = transformedData[`gasto_${normalizedKey}_descripcion`];
+      } 
+      else if (transformedData[`gasto_${keyWithDots}_cantidad`]) {
+        transformedData[`gasto_${key}_cantidad`] = transformedData[`gasto_${keyWithDots}_cantidad`];
+        transformedData[`gasto_${key}_valor_unit`] = transformedData[`gasto_${keyWithDots}_valor_unit`];
+        transformedData[`gasto_${key}_valor_total`] = transformedData[`gasto_${keyWithDots}_valor_total`];
+      }
+      // Si no existe en ningún formato, crear un valor predeterminado
+      else {
+        transformedData[`gasto_${key}_cantidad`] = '0';
+        transformedData[`gasto_${key}_valor_unit`] = '$0';
+        transformedData[`gasto_${key}_valor_total`] = '$0';
+        console.log(`⚠️ Creando campos predeterminados para gasto_${key}`);
       }
     });
     
