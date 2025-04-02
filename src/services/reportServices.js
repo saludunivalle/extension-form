@@ -32,6 +32,22 @@ export const generateFormReport = async (solicitudId, formNumber) => {
       throw new Error("Información incompleta para generar el reporte");
     }
 
+    // 1. Verificar manualmente los datos que realmente llegan al frontend:
+    const verificationResponse = await axios.get(`${API_URL}/getSolicitud`, {
+      params: { id_solicitud: solicitudId }
+    });
+    
+    // Analizar campos específicos
+    const verificacionDatos = verificationResponse.data || {};
+    
+    console.log("🧪 VERIFICACIÓN PREVIA AL REPORTE:");
+    console.log("- Campos principales:", {
+      nombre_actividad: verificacionDatos.nombre_actividad,
+      fecha_solicitud: verificacionDatos.fecha_solicitud,
+      ingresos_cantidad: verificacionDatos.ingresos_cantidad,
+      ingresos_vr_unit: verificacionDatos.ingresos_vr_unit
+    });
+
     // Obtener la configuración específica para este formulario
     const reportConfig = getReportConfigByForm(formNumber);
     console.log(`📄 Generando reporte para Solicitud ID: ${solicitudId}, Formulario: ${formNumber}`);
@@ -53,12 +69,19 @@ export const generateFormReport = async (solicitudId, formNumber) => {
       }
     }
 
-    // Solicitar el enlace de Drive al backend incluyendo datos transformados
+    // Obtener datos locales guardados (como respaldo)
+    const localStorageKey = `solicitud2_data_${solicitudId}`;
+    const localData = JSON.parse(localStorage.getItem(localStorageKey) || '{}');
+
+    // Solicitar el enlace de Drive al backend incluyendo TODOS los datos disponibles
     const response = await axios.post(`${API_URL}/report/generateReport`, {
       solicitudId,
       formNumber,
       config: reportConfig,
-      formData // Incluir datos transformados
+      formData: {
+        ...formData,
+        ...localData,  // Incluir datos locales como respaldo
+      }
     });
     
     // Verificar si la respuesta contiene un enlace directo a Drive

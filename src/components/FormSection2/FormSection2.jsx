@@ -334,11 +334,10 @@ const handleSaveGastos = async () => {
   });
   
   // CAMBIO IMPORTANTE: Modificar el filtro para incluir siempre los IDs especiales
-  const gastosRegularesFiltrados = gastosRegulares.filter(g => 
-    (g.cantidad > 0 && g.valor_unit > 0) || 
-    g.id_conceptos === '10' || 
-    g.id_conceptos === '1,3'
-  );
+  const gastosRegularesFiltrados = gastosRegulares.filter(g => {
+    const tieneValores = g.cantidad > 0 && g.valor_unit > 0;
+    return tieneValores;
+  });
   
   // Combinar todos los gastos
   const todosLosGastos = [
@@ -439,7 +438,9 @@ const handleNext = async () => {
       const ingresos_vr_unit = parseInt(formData.ingresos_vr_unit) || 0;
       const total_ingresos = ingresos_cantidad * ingresos_vr_unit;
       const subtotal_gastos = totalGastos;
+
       const imprevistos_3 = Math.round(subtotal_gastos * 0.03);
+      const imprevistos_3_porcentaje = 3;
       const total_gastos_imprevistos = subtotal_gastos + imprevistos_3;
       const currentDate = new Date().toISOString().split('T')[0];
       
@@ -453,11 +454,12 @@ const handleNext = async () => {
         total_ingresos,
         subtotal_gastos,
         imprevistos_3,
+        imprevistos_3_porcentaje,
         total_gastos_imprevistos,
         total_recursos: total_gastos_imprevistos,
         fondo_comun_porcentaje: formData.fondo_comun_porcentaje || 30,
         facultadad_instituto_porcentaje: formData.facultadad_instituto_porcentaje || 5,
-        escuela_departamento_porcentaje: formData.escuela_departamento_porcentaje || 0
+        escuela_departamento_porcentaje: formData.escuela_departamento_porcentaje || 0,
       };
       
       // Guardar también localmente (respaldo)
