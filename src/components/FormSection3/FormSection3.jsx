@@ -81,31 +81,46 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
     aplicaDiseno4: 'No',
   });
 
-  const validateStep = () => {
-    const stepErrors = {};
-  
-    if (activeStep === 1) { // Paso 2 corresponde al índice 1
-     /* No son obligatorios
-      const requiredFields = [
-        'aplicaDiseno1',
-        'aplicaDiseno2',
-        'aplicaDiseno3',
-        'aplicaDiseno4'
-      ];
-  
-      requiredFields.forEach(field => {
-        if (!formData[field] || 
-           (formData[field] !== 'Sí' && formData[field] !== 'No')) {
-          stepErrors[field] = "Debe seleccionar una opción";
-        }
-      });
-      */
-    }
-  
-    setErrors(stepErrors);
-    return Object.keys(stepErrors).length === 0;
-  };
-  
+  // Modificar la función validateStep para incluir validación en el primer paso
+const validateStep = () => {
+  const stepErrors = {};
+
+  if (activeStep === 0) { // Validación para el primer paso
+    // Validar campos obligatorios del paso 1
+    const requiredFields = [
+      'proposito',
+      'comentario',
+      'programa'
+    ];
+
+    requiredFields.forEach(field => {
+      if (!formData[field] || formData[field].trim() === '') {
+        stepErrors[field] = "Este campo es obligatorio";
+      }
+    });
+  }
+  else if (activeStep === 1) { // Validación para el segundo paso (diseño)
+    /* No son obligatorios
+    const requiredFields = [
+      'aplicaDiseno1',
+      'aplicaDiseno2',
+      'aplicaDiseno3',
+      'aplicaDiseno4'
+    ];
+
+    requiredFields.forEach(field => {
+      if (!formData[field] || 
+         (formData[field] !== 'Sí' && formData[field] !== 'No')) {
+        stepErrors[field] = "Debe seleccionar una opción";
+      }
+    });
+    */
+  }
+
+  setErrors(stepErrors);
+  return Object.keys(stepErrors).length === 0;
+};
+
 
   useEffect(() => {
     if (!idSolicitud) {
@@ -245,46 +260,57 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
     }
 };
 
-  const handleSubmit = async () => {
-    setIsLoading(true); // Iniciar el loading
+// En la función handleSubmit, añadir la apertura del modal tras guardar exitosamente
+const handleSubmit = async () => {
+  // Validar campos si es necesario
+  if (!validateStep()) {
+    console.log("Errores en los campos: ", errors); 
+    return; 
+  }
 
-    const hoja = 3; // Cambia este valor según la hoja a la que corresponda el formulario
-    
-    const completarValoresConNo = (data) => {
-      const completado = {};
-      for (let key in data) {
-        completado[key] = data[key] === '' || data[key] === null || data[key] === undefined ? 'No' : data[key];
-      }
-      return completado;
-    };
+  setIsLoading(true); // Iniciar el loading
+
+  const hoja = 3; // Cambia este valor según la hoja a la que corresponda el formulario
   
-    const pasoData = {
-      aplicaCierre1: formData.aplicaCierre1 || 'No',
-      aplicaCierre2: formData.aplicaCierre2 || 'No',
-      aplicaCierre3: formData.aplicaCierre3 || 'No',
-    };
-
-    const pasoDataCompleto = completarValoresConNo(pasoData);
-
-    try {
-      // Guardar los datos del último paso en Google Sheets
-      await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-        id_solicitud: idSolicitud,
-        ...pasoDataCompleto,
-        paso: 5,
-        etapa_actual: 3,
-        hoja,
-        id_usuario,
-        name: userData.name,
-        
-      });
-
-      setCurrentSection(4);
-      navigate(`/formulario/4?solicitud=${idSolicitud}&paso=0`);
-    } catch (error) {
-      console.error('Error al guardar los datos del último paso:', error);
+  const completarValoresConNo = (data) => {
+    const completado = {};
+    for (let key in data) {
+      completado[key] = data[key] === '' || data[key] === null || data[key] === undefined ? 'No' : data[key];
     }
+    return completado;
   };
+
+  const pasoData = {
+    aplicaCierre1: formData.aplicaCierre1 || 'No',
+    aplicaCierre2: formData.aplicaCierre2 || 'No',
+    aplicaCierre3: formData.aplicaCierre3 || 'No',
+  };
+
+  const pasoDataCompleto = completarValoresConNo(pasoData);
+
+  try {
+    // Guardar los datos del último paso en Google Sheets
+    await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+      id_solicitud: idSolicitud,
+      ...pasoDataCompleto,
+      paso: 5,
+      etapa_actual: 3,
+      hoja,
+      id_usuario,
+      name: userData.name,
+    });
+
+    // Mostrar el modal de éxito después de guardar los datos
+    setShowModal(true);
+    setIsLoading(false);
+    
+    // No navegamos inmediatamente, esperamos a que el usuario elija una opción en el modal
+  } catch (error) {
+    console.error('Error al guardar los datos del último paso:', error);
+    setIsLoading(false);
+    // Podrías mostrar una alerta de error aquí
+  }
+};
   
   // Lógica del botón "Atrás"
   const handleBack = () => {
@@ -537,7 +563,7 @@ const PrintReportButton = () => {
           </Button>
           <Box sx={{ display: 'flex', gap: 2 }}> {/* Mayor espacio entre botones */}
             <Button 
-              onClick={() => setCurrentSection(2)} 
+              onClick={() => setCurrentSection(4)} 
               color="primary" 
               variant="outlined"
               sx={{ 
@@ -554,7 +580,7 @@ const PrintReportButton = () => {
                   setIsGeneratingReport(true);
                   const idSolicitud = localStorage.getItem('id_solicitud');
                   await openFormReport(idSolicitud, 3);
-                  setCurrentSection(2);
+                  setCurrentSection(4);
                 } catch (error) {
                   console.error('Error al generar el reporte:', error);
                   alert('Hubo un problema al generar el reporte');
@@ -575,7 +601,6 @@ const PrintReportButton = () => {
           </Box>
         </DialogActions>
       </Dialog>
-
     </Box>
   );
 }

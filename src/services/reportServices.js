@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { report1Config } from './reports/config/report1Config';
 import { report2Config } from './reports/config/report2Config';
+import { report3Config } from './reports/config/report3Config';
 
 const API_URL = 'https://siac-extension-server.vercel.app';
 
@@ -15,6 +16,8 @@ const getReportConfigByForm = (formNumber) => {
       return report1Config;
     case 2:
       return report2Config; 
+      case 3:
+        return report3Config;
     default:
       return {}; // Configuración vacía por defecto
   }

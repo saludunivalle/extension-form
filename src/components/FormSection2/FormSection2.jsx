@@ -340,16 +340,33 @@ const handleSaveGastos = async () => {
   });
   
   // Combinar todos los gastos
-  const todosLosGastos = [
+  let todosLosGastos = [
     ...gastosRegularesFiltrados,
     ...gastosExtras.filter(g => g.cantidad > 0 && g.valor_unit > 0)
   ];
   
-  // Añadir log detallado para diagnóstico
-  console.log("⚙️ Desglose de gastos a enviar:");
-  console.log("- Concepto 10:", gastosRegulares.find(g => g.id_conceptos === '10'));
-  console.log("- Concepto 1,3:", gastosRegulares.find(g => g.id_conceptos === '1,3'));
-  console.log("- Total gastos a enviar:", todosLosGastos.length);
+  // AÑADIR ESTO: Asegurar que siempre haya al menos un gasto, incluso con valores cero
+  if (todosLosGastos.length === 0) {
+    // Agregar un gasto predeterminado si no hay ninguno
+    todosLosGastos = [{
+      id_conceptos: '1',
+      cantidad: 1,
+      valor_unit: 0,
+      valor_total: 0,
+      descripcion: 'Costos de Personal',
+      es_padre: true,
+      nombre_conceptos: 'Costos de Personal',
+      tipo: "gasto_regular",
+      id_solicitud: formData.id_solicitud?.toString() || idSolicitud
+    }];
+  }
+  
+  // También verifica que el ID de solicitud sea válido
+  const solicitudId = formData.id_solicitud?.toString() || idSolicitud;
+  if (!solicitudId) {
+    console.error("Error: ID de solicitud no disponible");
+    return { success: false, error: "ID de solicitud no disponible" };
+  }
   
   // Generar versiones con coma para compatibilidad con la plantilla
   const gastosParaPlantilla = todosLosGastos.map(gasto => {
@@ -379,7 +396,7 @@ const handleSaveGastos = async () => {
     });
     
     const response = await axios.post('https://siac-extension-server.vercel.app/guardarGastos', {
-      id_solicitud: formData.id_solicitud.toString(),
+      id_solicitud: solicitudId,
       gastos: gastosParaPlantilla,  // Usar la versión con formatos adicionales
       actualizarConceptos: true,
     });
@@ -533,34 +550,115 @@ const handleNext = async () => {
   };
 
   const handleSubmit = async () => {
-    const hoja = 3;
+  // Validate the form data first
+  if (!validateStep()) {
+    console.log("Validation failed for the final step");
+    return;
+  }
+
+  setIsLoading(true); // Start loading indicator
   
-    // Resumen Financiero
+  const hoja = 3; // This is form 2
+  
+  try {
+    // Calculate financial summary values
+    const ingresos_cantidad = parseInt(formData.ingresos_cantidad) || 0;
+    const ingresos_vr_unit = parseInt(formData.ingresos_vr_unit) || 0;
+    const total_ingresos = ingresos_cantidad * ingresos_vr_unit;
+    
+    // Prepare data for the final step
     const pasoData = {
-      fondo_comun: formData.total_ingresos * 0.3,
-      facultad_instituto: formData.total_ingresos * 0.05,
-      escuela_departamento: (formData.total_ingresos * (formData.escuela_departamento_porcentaje || 0) / 100),
+      fondo_comun: Math.round(total_ingresos * 0.3),
+      facultad_instituto: Math.round(total_ingresos * 0.05),
+      escuela_departamento: Math.round(total_ingresos * (formData.escuela_departamento_porcentaje || 0) / 100),
+      total_ingresos: total_ingresos,
+      subtotal_gastos: totalGastos || 0,
+      imprevistos_3: Math.round((totalGastos || 0) * 0.03),
+      total_gastos_imprevistos: Math.round((totalGastos || 0) * 1.03),
+      ingresos_cantidad,
+      ingresos_vr_unit,
+      escuela_departamento_porcentaje: formData.escuela_departamento_porcentaje || 0
     };
-  
-    try {
-      // Guardar los datos del último paso
-      await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-        id_solicitud: idSolicitud,
-        formData: pasoData,
-        paso: 3,
-        hoja,
-        userData: {
-          id_usuario,
-          name: userData.name,
-        },
-      });
-  
-      setShowModal(true);  // Mostrar el modal cuando se guarda correctamente
-    } catch (error) {
-      console.error('Error al guardar el progreso:', error);
+    
+    console.log("🔍 Valores financieros a enviar:", pasoData);
+    
+    // IMPORTANTE: Crear objeto FormData o usar JSON dependiendo de lo que espera el servidor
+    let dataToSend = new FormData();
+    dataToSend.append('id_solicitud', idSolicitud);
+    dataToSend.append('paso', 3); // Final step for form 2
+    dataToSend.append('hoja', hoja);
+    dataToSend.append('etapa_actual', 3); // CAMBIO CRUCIAL: Avanzar a la etapa 3
+    dataToSend.append('formulario_completo', 'true'); // Add as string for FormData
+    dataToSend.append('id_usuario', userData.id_usuario);
+    dataToSend.append('name', userData.name);
+    
+    // Añadir también estado_formularios con el formulario 2 marcado como completado
+    const nuevoEstadoFormularios = { 
+      "1": "Completado", 
+      "2": "Completado", // Marcar explícitamente como completado
+      "3": "En progreso",
+      "4": "En progreso" 
+    };
+    dataToSend.append('estado_formularios', JSON.stringify(nuevoEstadoFormularios));
+    
+    // Add all fields from pasoData
+    Object.keys(pasoData).forEach((key) => {
+      if (pasoData[key] !== undefined && pasoData[key] !== null) {
+        dataToSend.append(key, pasoData[key]);
+      }
+    });
+    
+    // 1. Save main form data with FormData
+    const response = await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    // 2. NUEVO: Actualizar explícitamente el estado de progreso global
+    if (response.data && response.data.success) {
+      console.log("✅ Form data saved successfully");
+      
+      try {
+        // Actualizar el paso máximo permitido (CRUCIAL)
+        if (typeof updateMaxAllowedStep === 'function') {
+          await updateMaxAllowedStep(steps.length);
+          console.log("✅ Max allowed step updated");
+        }
+        
+        // NUEVO: Envío adicional para actualizar ETAPAS con el estado del formulario
+        await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso-global', {
+          id_solicitud: idSolicitud,
+          etapa_actual: 3, // Avanzar a formulario 3
+          paso_actual: 0,  // Comenzar desde paso inicial
+          actualizar_formularios_previos: true, // AÑADIR ESTE PARÁMETRO CRUCIAL
+          estado_formularios: nuevoEstadoFormularios // ENVIAR TAMBIÉN EL NUEVO ESTADO
+        });
+        console.log("✅ Global progress updated");
+      } catch (progressError) {
+        console.error("Error updating progress state:", progressError);
+      }
+      
+      // Store completion status in localStorage
+      localStorage.setItem(`form2_completed_${idSolicitud}`, 'true');
+      
+      // Show success modal
+      setShowModal(true);
+    } else {
+      console.error("⚠️ Error in server response:", response.data);
+      alert("Hubo un problema al guardar los datos. Por favor, inténtelo de nuevo.");
     }
-  };
-  
+  } catch (error) {
+    console.error('Error al guardar el progreso:', error);
+    if (error.response) {
+      console.error('Response data:', error.response.data);
+      console.error('Response status:', error.response.status);
+    } 
+    alert("No se pudieron guardar los datos. Por favor, compruebe su conexión e inténtelo de nuevo.");
+  } finally {
+    setIsLoading(false); // End loading state regardless of outcome
+  }
+};
 
   /*
     - Renderiza el componente correspondiente al paso actual del formulario basado en el índice del paso (`step`).
@@ -613,7 +711,7 @@ const PrintReportButton = () => {
       
       // Verificar caché primero
       const cacheKey = `form_status_${idSolicitud}_${formId}`;
-      const cachedStatus = requestCache.get(cacheKey, 120000); // 2 minutos de caché
+      const cachedStatus = requestCache.get(cacheKey, 60000); // 2 minutos de caché
       
       if (cachedStatus) {
         setIsFormCompletedBackend(cachedStatus === 'Completado');
@@ -826,7 +924,7 @@ const PrintReportButton = () => {
               </Button>
               <Box sx={{ display: 'flex', gap: 2 }}> {/* Mayor espacio entre botones */}
                 <Button 
-                  onClick={() => setCurrentSection(2)} 
+                  onClick={() => setCurrentSection(3)} // Cambiar de 2 a 3
                   color="primary" 
                   variant="outlined"
                   sx={{ 
@@ -842,8 +940,23 @@ const PrintReportButton = () => {
                     try {
                       setIsGeneratingReport(true);
                       const idSolicitud = localStorage.getItem('id_solicitud');
+                      
+                      // Marcar el formulario 2 como completado antes de generar el reporte
+                      await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso-global', {
+                        id_solicitud: idSolicitud,
+                        etapa_actual: 3,
+                        paso_actual: 0,
+                        actualizar_formularios_previos: true, // AÑADIR ESTE PARÁMETRO
+                        estado_formularios: {
+                          "1": "Completado", 
+                          "2": "Completado", // Marcar explícitamente como completado
+                          "3": "En progreso",
+                          "4": "En progreso"
+                        }
+                      });
+                      
                       await openFormReport(idSolicitud, 2);
-                      setCurrentSection(2);
+                      setCurrentSection(3); // Cambiar de 2 a 3
                     } catch (error) {
                       console.error('Error al generar el reporte:', error);
                       alert('Hubo un problema al generar el reporte');

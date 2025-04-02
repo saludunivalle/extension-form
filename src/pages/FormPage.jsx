@@ -87,31 +87,77 @@ useEffect(() => {
     if (!solicitudId) return;
     
     try {
+      // Primero verificar si hay un estado guardado localmente que podamos usar
+      const localStorageKey = `progreso_estado_${solicitudId}`;
+      const localData = localStorage.getItem(localStorageKey);
+      
+      // Intentar obtener datos del servidor
       const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
         id_solicitud: solicitudId,
-        etapa_destino: parseInt(formId, 10) || 1,
+        etapa_destino: formId || 1,
         paso_destino: 1
       });
       
-      if (response.data.success) {
-        const { estado } = response.data;
+      if (response.data.success && response.data.estado) {
+        const estado = response.data.estado;
         
-        // Actualizar el estado de completitud de cada sección
-        const nuevoFormCompletion = {};
-        Object.keys(estado.estadoFormularios).forEach(formId => {
-          nuevoFormCompletion[formId] = {
-            completed: estado.estadoFormularios[formId] === "Completado",
-            lastStep: formId === estado.etapaActual.toString() ? estado.pasoActual : 0
-          };
-        });
-        
-        setFormCompletion(nuevoFormCompletion);
-        
-        // Actualizar la sección más alta alcanzada
-        setHighestSectionReached(Math.max(...Object.keys(estado.estadoFormularios).map(Number)));
+        // Verificar que estadoFormularios realmente exista
+        if (estado.estadoFormularios) {
+          // Guardar estado en localStorage para uso futuro
+          localStorage.setItem(localStorageKey, JSON.stringify(estado));
+          
+          // Calcular el valor de highestSectionReached con seguridad
+          const formKeys = Object.keys(estado.estadoFormularios);
+          if (formKeys.length > 0) {
+            setHighestSectionReached(Math.max(...formKeys.map(Number)));
+          } else {
+            // Si no hay formularios, usar valor predeterminado
+            setHighestSectionReached(1);
+          }
+        } else {
+          console.warn('No se encontró estadoFormularios en la respuesta');
+          fallbackToLocalData();
+        }
+      } else {
+        console.warn('Respuesta del servidor sin datos válidos');
+        fallbackToLocalData();
       }
     } catch (error) {
       console.error('Error al cargar el estado global:', error);
+      fallbackToLocalData();
+    }
+    
+    // Función interna para usar datos locales como fallback
+    function fallbackToLocalData() {
+      console.log('Usando datos locales como fallback');
+      
+      // 1. Intentar usar datos guardados en localStorage
+      const localStorageKey = `progreso_estado_${solicitudId}`;
+      const localData = localStorage.getItem(localStorageKey);
+      
+      if (localData) {
+        try {
+          const savedState = JSON.parse(localData);
+          if (savedState.estadoFormularios) {
+            const formKeys = Object.keys(savedState.estadoFormularios);
+            if (formKeys.length > 0) {
+              setHighestSectionReached(Math.max(...formKeys.map(Number)));
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('Error al procesar datos locales:', e);
+        }
+      }
+      
+      // 2. Si no hay datos locales válidos, usar valor predeterminado de sección más alta
+      const savedHighestSection = localStorage.getItem(`highestSectionReached_${solicitudId}`);
+      if (savedHighestSection) {
+        setHighestSectionReached(parseInt(savedHighestSection, 10));
+      } else {
+        // 3. Último recurso: establecer valor predeterminado
+        setHighestSectionReached(1);
+      }
     }
   };
   
