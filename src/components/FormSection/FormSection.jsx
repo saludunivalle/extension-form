@@ -320,8 +320,8 @@ import api from '../../services/api';
                 const fecha = new Date(formData.fecha_solicitud);
                     pasoData = {
                       id_solicitud: idSolicitud,
-                      fecha_solicitud: fecha.toISOString().split('T')[0],
                       nombre_actividad: formData.nombre_actividad || 'N/A',
+                      fecha_solicitud: fecha.toISOString().split('T')[0],
                       nombre_solicitante: formData.nombre_solicitante || 'N/A',
                       dependencia_tipo: formData.dependencia_tipo || 'N/A',
                       nombre_escuela: formData.nombre_escuela || 'N/A',
