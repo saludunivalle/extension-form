@@ -32,8 +32,30 @@ function FormPage({ userData }) {
   const navigate = useNavigate();
   const isSmallScreen = useMediaQuery('(max-width:600px)');
 
-  // Obtenemos el id de solicitud exclusivamente de la URL
+  // Obtener el id de solicitud exclusivamente de la URL
   const solicitudId = searchParams.get('solicitud');
+
+  // Definir el mapping de totalSteps para cada formulario
+  const getTotalSteps = (fid) => {
+    const stepsMap = {
+      '1': 5, // FormSection tiene 5 pasos
+      '2': 3, // FormSection2 tiene 3 pasos
+      '3': 5, // FormSection3 tiene 5 pasos
+      '4': 5  // FormSection4 tiene 5 pasos (ajustar si es diferente)
+    };
+    return stepsMap[fid] || 5; // Valor por defecto si no se encuentra
+  };
+
+  // Calcular totalSteps basado en el formId actual
+  const totalSteps = getTotalSteps(formId);
+
+  // Estados para control de carga
+  const [estadoCargando, setEstadoCargando] = useState(false);
+  const [etapaActual, setEtapaActual] = useState(1);
+  const [pasoActual, setPasoActual] = useState(1);
+  const [estadoFormularios, setEstadoFormularios] = useState({});
+  const [formularioCompleto, setFormularioCompleto] = useState(false);
+  const [maxAllowedStep, setMaxAllowedStep] = useState(0);
 
   const [formCompletion, setFormCompletion] = useState({
     1: { completed: false, lastStep: 0 },
@@ -82,87 +104,97 @@ function FormPage({ userData }) {
 
   // Agregar useEffect para cargar el estado global inicial
 
+// En el componente de formulario
 useEffect(() => {
   const cargarEstadoGlobal = async () => {
     if (!solicitudId) return;
     
+    setEstadoCargando(true);
+    
     try {
-      // Primero verificar si hay un estado guardado localmente que podamos usar
-      const localStorageKey = `progreso_estado_${solicitudId}`;
-      const localData = localStorage.getItem(localStorageKey);
-      
-      // Intentar obtener datos del servidor
       const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
         id_solicitud: solicitudId,
         etapa_destino: formId || 1,
-        paso_destino: 1
+        paso_destino: 1,
+        id_usuario: userData?.id_usuario,
+        name: userData?.name
       });
-      
-      if (response.data.success && response.data.estado) {
-        const estado = response.data.estado;
+
+      if (response.data.success) {
+        const { estado } = response.data;
+        console.log("📊 Estado de progreso cargado:", estado);
         
-        // Verificar que estadoFormularios realmente exista
-        if (estado.estadoFormularios) {
-          // Guardar estado en localStorage para uso futuro
-          localStorage.setItem(localStorageKey, JSON.stringify(estado));
-          
-          // Calcular el valor de highestSectionReached con seguridad
-          const formKeys = Object.keys(estado.estadoFormularios);
-          if (formKeys.length > 0) {
-            setHighestSectionReached(Math.max(...formKeys.map(Number)));
-          } else {
-            // Si no hay formularios, usar valor predeterminado
-            setHighestSectionReached(1);
-          }
-        } else {
-          console.warn('No se encontró estadoFormularios en la respuesta');
-          fallbackToLocalData();
+        // Actualizar estados locales con la información del servidor
+        setEtapaActual(estado.etapaActual);
+        setPasoActual(estado.pasoActual);
+        setEstadoFormularios(estado.estadoFormularios);
+        
+        // Determinar si este formulario está completo
+        setFormularioCompleto(estado.estadoFormularios[formId] === "Completado");
+        
+        // Determinar el paso máximo permitido
+        let nuevoMaxAllowedStep = 0;
+        
+        // Si el formulario está completado o es anterior al actual, permitir todos los pasos
+        if (estado.estadoFormularios[formId] === "Completado" || formId < estado.etapaActual) {
+          nuevoMaxAllowedStep = totalSteps - 1;
+        } 
+        // Si estamos en el formulario actual, permitir hasta el paso actual
+        else if (formId === estado.etapaActual) {
+          nuevoMaxAllowedStep = Math.max(0, estado.pasoActual - 1);
         }
+        
+        setMaxAllowedStep(nuevoMaxAllowedStep);
       } else {
-        console.warn('Respuesta del servidor sin datos válidos');
-        fallbackToLocalData();
+        console.warn('Error controlado:', response.data.error);
+        inicializarEstadoLocal();
       }
     } catch (error) {
-      console.error('Error al cargar el estado global:', error);
-      fallbackToLocalData();
-    }
-    
-    // Función interna para usar datos locales como fallback
-    function fallbackToLocalData() {
-      console.log('Usando datos locales como fallback');
+      console.error('Error al cargar estado global:', error);
       
-      // 1. Intentar usar datos guardados en localStorage
-      const localStorageKey = `progreso_estado_${solicitudId}`;
-      const localData = localStorage.getItem(localStorageKey);
-      
-      if (localData) {
-        try {
-          const savedState = JSON.parse(localData);
-          if (savedState.estadoFormularios) {
-            const formKeys = Object.keys(savedState.estadoFormularios);
-            if (formKeys.length > 0) {
-              setHighestSectionReached(Math.max(...formKeys.map(Number)));
-              return;
-            }
-          }
-        } catch (e) {
-          console.warn('Error al procesar datos locales:', e);
+      // Intentar una vez más con parámetros adicionales para asegurar la creación
+      try {
+        console.log('Reintentando con datos de usuario adicionales...');
+        const retryResponse = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+          id_solicitud: solicitudId,
+          etapa_destino: 1,
+          paso_destino: 1,
+          id_usuario: userData?.id_usuario || 'usuario_desconocido',
+          name: userData?.name || 'Usuario sin nombre'
+        });
+        
+        if (retryResponse.data.success) {
+          console.log('✅ Reintento exitoso, cargando estado...');
+          cargarEstadoGlobal(); // Reintentar carga completa
+        } else {
+          inicializarEstadoLocal();
         }
+      } catch (retryError) {
+        console.error('Error en reintento:', retryError);
+        inicializarEstadoLocal();
       }
-      
-      // 2. Si no hay datos locales válidos, usar valor predeterminado de sección más alta
-      const savedHighestSection = localStorage.getItem(`highestSectionReached_${solicitudId}`);
-      if (savedHighestSection) {
-        setHighestSectionReached(parseInt(savedHighestSection, 10));
-      } else {
-        // 3. Último recurso: establecer valor predeterminado
-        setHighestSectionReached(1);
-      }
+    } finally {
+      setEstadoCargando(false);
     }
   };
   
+  // Función para inicializar estado local si falla la carga del servidor
+  const inicializarEstadoLocal = () => {
+    console.log('Inicializando estado local por fallback...');
+    setEtapaActual(1);
+    setPasoActual(1);
+    setEstadoFormularios({
+      "1": "En progreso", 
+      "2": "En progreso", 
+      "3": "En progreso", 
+      "4": "En progreso"
+    });
+    setFormularioCompleto(false);
+    setMaxAllowedStep(0); // Permitir solo el primer paso
+  };
+
   cargarEstadoGlobal();
-}, [solicitudId, formId]);
+}, [solicitudId, formId, userData, totalSteps]);
 
   // formData se inicializa con el id de solicitud obtenido de la URL
   const [formData, setFormData] = useState(() => {

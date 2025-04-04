@@ -19,6 +19,7 @@ import PropTypes from 'prop-types';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import Typography from '@mui/material/Typography';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+import api from '../../services/api';
 
   /* 
   Este componente se encarga de cambiar el color de fondo, el color del texto y otros estilos visuales del ícono:
@@ -413,12 +414,13 @@ import NavigateNextIcon from '@mui/icons-material/NavigateNext';
               dataToSend.append('pieza_grafica', formData.pieza_grafica);
           } else {
               dataToSend = {
-                  id_solicitud: idSolicitud,
-                  paso: activeStep + 1,
-                  hoja: hoja,
-                  id_usuario: userData.id,
-                  name: userData.name,
-                  ...pasoData,
+                id_solicitud: idSolicitud,
+                paso: activeStep + 1,
+                hoja: hoja,
+                id_usuario: userData?.id || '',  // Usar operador opcional para prevenir errores
+                name: userData?.name || '',
+                nombre_actividad: formData.nombre_actividad || 'Nueva actividad',  // Valor por defecto
+                ...pasoData,
               };
           }
 

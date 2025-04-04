@@ -93,24 +93,25 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
 const requestCache = {
   data: new Map(),
   timestamp: new Map(),
-  ttl: 60000, // 1 minuto de caché por defecto
-  
-  // Guardar datos en caché
-  set(key, data, customTtl) {
-    this.data.set(key, data);
-    this.timestamp.set(key, Date.now());
-    return data;
+  ttl: 60000,
+
+  get(key, customTtl = this.ttl) {
+    const data = this.data.get(key);
+    const timestamp = this.timestamp.get(key);
+    
+    // Check if data exists and is not expired
+    if (data !== undefined && timestamp) {
+      if ((Date.now() - timestamp) < customTtl) {
+        return data;
+      }
+    }
+    return undefined;
   },
   
-  // Obtener datos desde caché si están frescos
-  get(key, ttl = this.ttl) {
-    if (!this.data.has(key)) return null;
-    
-    const timestamp = this.timestamp.get(key);
-    if (Date.now() - timestamp > ttl) return null;
-    
-    console.log(`🔄 Usando datos en caché para: ${key}`);
-    return this.data.get(key);
+  set(key, value) {
+    this.data.set(key, value);
+    this.timestamp.set(key, Date.now());
+    return value;
   }
 };
 
@@ -709,17 +710,6 @@ const PrintReportButton = () => {
     const checkFormCompletion = async () => {
       if (!idSolicitud) return;
       
-      // Verificar caché primero
-      const cacheKey = `form_status_${idSolicitud}_${formId}`;
-      const cachedStatus = requestCache.get(cacheKey, 60000); // 2 minutos de caché
-      
-      if (cachedStatus) {
-        setIsFormCompletedBackend(cachedStatus === 'Completado');
-        return;
-      }
-      
-      // Solo consultar al servidor si estamos en línea
-      if (navigator.onLine) {
         try {
           const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
             id_solicitud: idSolicitud,
@@ -730,16 +720,13 @@ const PrintReportButton = () => {
           if (response.data.success && response.data.estado?.estadoFormularios) {
             const formStatus = response.data.estado.estadoFormularios[formId.toString()];
             setIsFormCompletedBackend(formStatus === 'Completado');
-            
-            // Guardar en caché
-            requestCache.set(cacheKey, formStatus);
+
           }
         } catch (error) {
           console.error('Error al verificar estado del formulario:', error);
           // Usar estado local si el servidor no responde
           const localStatus = localStorage.getItem(`form2_completed_${idSolicitud}`);
           setIsFormCompletedBackend(localStatus === 'true');
-        }
       }
     };
     
