@@ -929,11 +929,11 @@ const PrintReportButton = () => {
                       const idSolicitud = localStorage.getItem('id_solicitud');
                       
                       // Marcar el formulario 2 como completado antes de generar el reporte
-                      await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso-global', {
+                      await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
                         id_solicitud: idSolicitud,
-                        etapa_actual: 3,
-                        paso_actual: 0,
-                        actualizar_formularios_previos: true, // AÑADIR ESTE PARÁMETRO
+                        etapa_actual: (3),
+                        paso_actual: (1),
+                        actualizar_formularios_previos: (true), // AÑADIR ESTE PARÁMETRO
                         estado_formularios: {
                           "1": "Completado", 
                           "2": "Completado", // Marcar explícitamente como completado
@@ -946,6 +946,7 @@ const PrintReportButton = () => {
                       setCurrentSection(3); // Cambiar de 2 a 3
                     } catch (error) {
                       console.error('Error al generar el reporte:', error);
+                      console.error('Status code:', error.response.status);
                       alert('Hubo un problema al generar el reporte');
                     } finally {
                       setIsGeneratingReport(false);
