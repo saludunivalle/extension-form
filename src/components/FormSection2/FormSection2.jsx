@@ -1,22 +1,23 @@
 import { useEffect, useState } from 'react';
-import { Box, Button, Stepper, Step, StepLabel, Typography, CircularProgress, Alert, AlertTitle, } from '@mui/material';
-import Step1FormSection2 from './Step1FormSection2';
-import Step2FormSection2 from './Step2FormSection2';
-import Step3FormSection2 from './Step3FormSection2';
-import axios from 'axios'; 
-import useSafeFormNavigation from '../../hooks/useFormNavigation';
-import { useLocation } from 'react-router-dom';
-import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
-import { openFormReport, openReportPreview } from '../../services/reportServices';
+import { Box, Button, Stepper, Step, StepLabel, Typography, CircularProgress, Alert, AlertTitle, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import PrintIcon from '@mui/icons-material/Print';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import PropTypes from 'prop-types';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import CheckIcon from '@mui/icons-material/Check'; 
+import CheckIcon from '@mui/icons-material/Check';
+import WifiOffIcon from '@mui/icons-material/WifiOff'; 
 import { styled } from '@mui/system';
+import { useLocation } from 'react-router-dom';
+import Step1FormSection2 from './Step1FormSection2';
+import Step2FormSection2 from './Step2FormSection2';
+import Step3FormSection2 from './Step3FormSection2';
 import api from '../../services/api';
+import useSafeFormNavigation from '../../hooks/useFormNavigation';
+import useInternalNavigationGoogleSheets from '../../hooks/useInternalNavigationGoogleSheets';
+import { openFormReport, openReportPreview } from '../../services/reportServices';
+import axios from 'axios'; 
+import PropTypes from 'prop-types';
 
   /* 
   Este componente se encarga de cambiar el color de fondo, el color del texto y otros estilos visuales del ícono:
@@ -69,6 +70,8 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   const [totalGastos, setTotalGastos] = useState(0);
   const [previewData, setPreviewData] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [localFormData, setLocalFormData] = useState({...formData});
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   
   const { 
@@ -77,8 +80,7 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
     error: navError, 
     isStepAllowed, 
     updateMaxAllowedStep,
-    isOfflineMode
-  } = useSafeFormNavigation(idSolicitud, 2, steps.length);
+  } = useInternalNavigationGoogleSheets(idSolicitud, 2, steps.length);
 
   const handleUpdateTotalGastos = (total) => {
     setTotalGastos(total); 
@@ -118,7 +120,7 @@ const requestCache = {
   // 2. Optimizar fetchGastos para usar caché
 useEffect(() => {
   const fetchGastos = async () => {
-    if (!idSolicitud) return;
+    if (!idSolicitud || formData.gastosCargados) return;
     
     const cacheKey = `gastos_${idSolicitud}`;
     const cachedData = requestCache.get(cacheKey);
@@ -165,7 +167,7 @@ useEffect(() => {
           });
           
           // Actualizar estados
-          setFormData(prev => ({...prev, ...regularGastos}));
+          setFormData(prev => ({ ...prev, gastosCargados: true }));
           setExtraExpenses(extraGastosList);
           
           // Guardar en caché
@@ -179,7 +181,7 @@ useEffect(() => {
   };
   
   fetchGastos();
-}, [idSolicitud]);
+}, [idSolicitud, formData.gastosCargados]);
 
   useEffect(() => {
     if (currentStep < 0 || currentStep >= steps.length) {
@@ -195,24 +197,24 @@ useEffect(() => {
     }
   }, [currentStep, steps.length, idSolicitud]);  
 
-  useEffect(() => {
-    if (!navLoading && maxAllowedStep !== undefined) {
-      console.log('maxAllowedStep:', maxAllowedStep);
-      console.log('activeStep:', activeStep);
-      console.log('isStepAllowed para siguiente paso:', isStepAllowed(activeStep + 1));
-      
-      // Recuperar el paso más alto alcanzado previamente (si existe)
-      const savedHighestStep = localStorage.getItem(`form2_highestStep_${idSolicitud}`);
-      const previousHighest = savedHighestStep ? parseInt(savedHighestStep) : 0;
-      
-      // Actualiza el paso más alto alcanzado considerando tanto maxAllowedStep como el valor guardado
-      const newHighestStep = Math.max(previousHighest, maxAllowedStep);
-      setHighestStepReached(newHighestStep);
-      
-      // Guardar el nuevo valor más alto
-      localStorage.setItem(`form2_highestStep_${idSolicitud}`, newHighestStep.toString());
-    }
-  }, [maxAllowedStep, navLoading, activeStep, isStepAllowed, idSolicitud]);
+useEffect(() => {
+  if (!navLoading && maxAllowedStep !== undefined) {
+    console.log('maxAllowedStep:', maxAllowedStep);
+    console.log('activeStep:', activeStep);
+    console.log('isStepAllowed para siguiente paso:', isStepAllowed(activeStep + 1));
+    
+    // Recover the highest step previously reached (if exists)
+    const savedHighestStep = localStorage.getItem(`form2_highestStep_${idSolicitud}`);
+    const previousHighest = savedHighestStep ? parseInt(savedHighestStep) : 0;
+    
+    // Update the highest step reached considering both maxAllowedStep and the saved value
+    const newHighestStep = Math.max(previousHighest, maxAllowedStep);
+    setHighestStepReached(newHighestStep);
+    
+    // Save the new highest step
+    localStorage.setItem(`form2_highestStep_${idSolicitud}`, newHighestStep.toString());
+  }
+}, [maxAllowedStep, navLoading, activeStep, isStepAllowed, idSolicitud]);
 
   useEffect(() => {
     if (!idSolicitud || isNaN(parseInt(idSolicitud, 10))) {
@@ -278,6 +280,7 @@ useEffect(() => {
     // En handleSaveGastos
     // 3. Optimizar handleSaveGastos para evitar solicitudes duplicadas
 const handleSaveGastos = async () => {
+  if (formData.gastosGuardados) return; 
   // Generar clave única para los datos actuales
   const dataChecksum = JSON.stringify(extraExpenses) + JSON.stringify(formData);
   const cacheKey = `saveGastos_${idSolicitud}_${dataChecksum.length}`; // Usar longitud como aproximación simple de checksum
@@ -431,117 +434,59 @@ const handleSaveGastos = async () => {
     
   
     // 4. Optimizar handleNext para reducir llamadas y manejar errores sin bloquear flujo
-const handleNext = async () => {
-  if (!validateStep()) {
-    console.log("Errores en los campos");
-    return;
-  }
-
-  setIsLoading(true);
-
-  try {
-    if (activeStep === 1) {
-      // Consolidar llamadas y manejar errores sin bloquear el flujo
-      const allPromises = [];
-      
-      // 1. Guardar gastos (pero no esperar a que termine)
-      const saveGastosPromise = handleSaveGastos().catch(error => {
-        console.error("❌ Error al guardar gastos, continuando:", error);
-        return { success: false, error: error.message };
-      });
-      allPromises.push(saveGastosPromise);
-      
-      // 2. Preparar datos para SOLICITUDES2 (en paralelo)
-      const ingresos_cantidad = parseInt(formData.ingresos_cantidad) || 0;
-      const ingresos_vr_unit = parseInt(formData.ingresos_vr_unit) || 0;
-      const total_ingresos = ingresos_cantidad * ingresos_vr_unit;
-      const subtotal_gastos = totalGastos;
-
-      const imprevistos_3 = Math.round(subtotal_gastos * 0.03);
-      const imprevistos_3_porcentaje = 3;
-      const total_gastos_imprevistos = subtotal_gastos + imprevistos_3;
-      const currentDate = new Date().toISOString().split('T')[0];
-      
-      const solicitudesData = {
-        id_solicitud: idSolicitud,
-        nombre_actividad: formData.nombre_actividad || 'Actividad sin título',
-        fecha_solicitud: formData.fecha_solicitud || currentDate,
-        nombre_solicitante: formData.nombre_solicitante || userData.name || '',
-        ingresos_cantidad,
-        ingresos_vr_unit,
-        total_ingresos,
-        subtotal_gastos,
-        imprevistos_3,
-        imprevistos_3_porcentaje,
-        total_gastos_imprevistos,
-        total_recursos: total_gastos_imprevistos,
-        fondo_comun_porcentaje: formData.fondo_comun_porcentaje || 30,
-        facultadad_instituto_porcentaje: formData.facultadad_instituto_porcentaje || 5,
-        escuela_departamento_porcentaje: formData.escuela_departamento_porcentaje || 0,
-      };
-      
-      // Guardar también localmente (respaldo)
-      localStorage.setItem(`solicitud2_data_${idSolicitud}`, JSON.stringify(solicitudesData));
-      
-      // Verificar si tenemos conexión antes de intentar guardar en el servidor
-      if (navigator.onLine) {
-        // Solo enviamos al servidor si estamos en línea
-        const saveForm2Promise = api.post('/guardarForm2Paso2', {
-          id_solicitud: idSolicitud,
-          formData: solicitudesData,
-          id_usuario: userData.id_usuario,
-          name: userData.name
-        }).catch(error => {
-          console.warn("⚠️ Error al guardar datos. Guardando localmente para sincronización posterior");
-          localStorage.setItem(`pendingSolicitudes2_${idSolicitud}`, "true");
-          return { success: false, error: error.message };
-        });
-        allPromises.push(saveForm2Promise);
-      }
+  const handleNext = async () => {
+    if (!validateStep()) {
+      console.log("Errores en los campos");
+      return;
     }
 
-    // Actualizar progreso local independientemente del servidor
-    const newHighestStep = Math.max(highestStepReached, activeStep + 1);
-    setHighestStepReached(newHighestStep);
-    localStorage.setItem(`form2_highestStep_${idSolicitud}`, newHighestStep.toString());
-    
-    // Intentar actualizar el progreso en el servidor, pero no bloquear si falla
-    if (navigator.onLine) {
+    setIsLoading(true);
+
+    try {
+      // Specific logic for step 1 (if needed)
+      if (activeStep === 1) {
+        try {
+          await handleSaveGastos();
+        } catch (error) {
+          console.warn("Error saving expenses, continuing with local data:", error);
+          // Store pending changes for later sync
+          localStorage.setItem(`pendingGastos_${idSolicitud}`, 
+            JSON.stringify({timestamp: Date.now(), extraExpenses, formData}));
+        }
+      }
+
+      // Update local progress regardless of server success
+      const newHighestStep = Math.max(highestStepReached, activeStep + 1);
+      setHighestStepReached(newHighestStep);
+      localStorage.setItem(`form2_highestStep_${idSolicitud}`, newHighestStep.toString());
+      
+      // Try to update progress on server, but don't block UI if it fails
       try {
-        if (typeof updateMaxAllowedStep === 'function') {
-          updateMaxAllowedStep(activeStep + 1);
-        } else {
-          const cacheKey = `progreso_${idSolicitud}_${activeStep+1}`;
-          const cachedResponse = requestCache.get(cacheKey);
-          
-          if (!cachedResponse) {
-            axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
-              id_solicitud: idSolicitud,
-              etapa_actual: 2,
-              paso_actual: activeStep + 1
-            }).then(response => {
-              requestCache.set(cacheKey, response.data);
-            }).catch(error => {
-              console.warn("⚠️ No se pudo actualizar el progreso en el servidor, continuando localmente");
-            });
-          }
+        if (navigator.onLine) {
+          await updateMaxAllowedStep(activeStep + 1);
         }
       } catch (progressError) {
-        console.warn("⚠️ No se pudo actualizar el progreso en el servidor, continuando localmente");
+        console.warn("Error updating progress on server, continuing with local progress:", progressError);
       }
+      
+      // Always advance to next step even if server calls fail
+      setActiveStep(activeStep + 1);
+      localStorage.setItem(`form2_lastStep_${idSolicitud}`, (activeStep + 1).toString());
+      
+    } catch (error) {
+      console.error("General error:", error);
+      // Show a user-friendly message
+      alert("Hubo un problema al procesar tu información. Se han guardado los datos localmente y continuarás al siguiente paso.");
+      
+      // Still advance to next step by falling back to local state
+      const newHighestStep = Math.max(highestStepReached, activeStep + 1);
+      setHighestStepReached(newHighestStep);
+      localStorage.setItem(`form2_highestStep_${idSolicitud}`, newHighestStep.toString());
+      setActiveStep(activeStep + 1);
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Avanzar al siguiente paso independientemente de los errores del servidor
-    setActiveStep(activeStep + 1);
-    localStorage.setItem(`form2_lastStep_${idSolicitud}`, (activeStep + 1).toString());
-    
-  } catch (error) {
-    console.error("Error general:", error);
-    alert("Hubo un problema al procesar tu información. Se han guardado los datos localmente.");
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   //Lógica del botón "Atrás"
   const handleBack = () => {
@@ -818,6 +763,22 @@ const PrintReportButton = () => {
         </Box>
       )}
     <PrintReportButton />
+    {isOffline && (
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        bgcolor: '#fff3cd', 
+        color: '#856404', 
+        p: 1, 
+        borderRadius: 1,
+        mb: 2 
+      }}>
+        <WifiOffIcon sx={{ mr: 1 }} />
+        <Typography variant="body2">
+          Modo sin conexión. Los cambios se guardarán localmente.
+        </Typography>
+      </Box>
+    )}
     <Stepper
       activeStep={activeStep}
       sx={{
@@ -832,6 +793,12 @@ const PrintReportButton = () => {
             onClick={() => handleStepClick(index)}
             sx={{
               '& .MuiStepLabel-label': {
+                backgroundColor: index <= highestStepReached ? '#0056b3' : 'transparent',
+                color: index <= highestStepReached ? '#FFFFFF' : '#A0A0A0',
+                padding: index <= highestStepReached ? '5px 10px' : '0',
+                borderRadius: '20px',
+                fontWeight: index === activeStep ? 'bold' : 'normal',
+                cursor: index <= highestStepReached ? 'pointer' : 'default',
                 opacity: index <= highestStepReached ? 1 : 0.6,
               },
               '& .MuiStepIcon-root': {
