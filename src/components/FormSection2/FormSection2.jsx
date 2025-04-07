@@ -53,7 +53,7 @@ import PropTypes from 'prop-types';
   );
   
 
-function FormSection2({ formData, setFormData, handleInputChange, setCurrentSection, userData, totalAportesUnivalle, currentStep, validateStep, formId }) {
+function FormSection2({ formData, handleInputChange, setCurrentSection, userData, totalAportesUnivalle, currentStep, validateStep, formId }) {
   
   const steps = ['Datos Generales', 'Ingresos y Gastos', 'Resumen Financiero'];
 
@@ -91,11 +91,11 @@ function FormSection2({ formData, setFormData, handleInputChange, setCurrentSect
     console.log('Datos del usuario: ', userData);
   }, [formData, userData]);
 
-  // 1. Mejorar el sistema de caché local
+  // 1. Agregar sistema de caché local
 const requestCache = {
   data: new Map(),
   timestamp: new Map(),
-  ttl: 120000, // Aumentar de 60s a 120s (2 minutos)
+  ttl: 60000,
 
   get(key, customTtl = this.ttl) {
     const data = this.data.get(key);
@@ -104,7 +104,6 @@ const requestCache = {
     // Check if data exists and is not expired
     if (data !== undefined && timestamp) {
       if ((Date.now() - timestamp) < customTtl) {
-        console.log(`✅ Usando datos en caché para ${key}`);
         return data;
       }
     }
@@ -114,130 +113,71 @@ const requestCache = {
   set(key, value) {
     this.data.set(key, value);
     this.timestamp.set(key, Date.now());
-    // Almacenar en localStorage como respaldo para sesiones futuras
-    try {
-      localStorage.setItem(`cache_${key}`, JSON.stringify({
-        data: value,
-        timestamp: Date.now()
-      }));
-    } catch (e) {
-      console.warn('Error al guardar en localStorage:', e);
-    }
     return value;
-  },
-  
-  // Agregar método para recuperar de localStorage
-  loadFromStorage(key) {
-    try {
-      const stored = localStorage.getItem(`cache_${key}`);
-      if (stored) {
-        const { data, timestamp } = JSON.parse(stored);
-        if (Date.now() - timestamp < this.ttl * 2) { // TTL extendido para datos almacenados
-          this.data.set(key, data);
-          this.timestamp.set(key, timestamp);
-          return data;
-        }
-      }
-    } catch (e) {
-      console.warn('Error al cargar desde localStorage:', e);
-    }
-    return undefined;
   }
 };
 
-  // 2. Optimizar fetchGastos para usar caché y manejar errores
+  // 2. Optimizar fetchGastos para usar caché
 useEffect(() => {
   const fetchGastos = async () => {
     if (!idSolicitud || formData.gastosCargados) return;
     
     const cacheKey = `gastos_${idSolicitud}`;
-    const cachedData = requestCache.get(cacheKey) || requestCache.loadFromStorage(cacheKey);
+    const cachedData = requestCache.get(cacheKey);
     
     if (cachedData) {
       // Usar datos de caché
       const { regularGastos, extraGastosList } = cachedData;
-      console.log("📋 Usando datos de gastos en caché");
-      setFormData(prev => ({...prev, ...regularGastos, gastosCargados: true}));
+      setFormData(prev => ({...prev, ...regularGastos}));
       setExtraExpenses(extraGastosList);
       return;
     }
 
-    let retries = 0;
-    const maxRetries = 3;
-    
-    while (retries < maxRetries) {
-      try {
-        console.log(`📊 Obteniendo gastos desde el servidor (intento ${retries + 1})...`);
-        const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
-          id_solicitud: idSolicitud,
-          etapa_destino: 2,
-          paso_destino: 1
-        });
+    try {
+      console.log("📊 Obteniendo gastos desde el servidor...");
+      const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+        id_solicitud: idSolicitud,
+        etapa_destino: 2,
+        paso_destino: 1
+      });
+      
+      if (response.data.success) {
+        const gastos = response.data.estado.datosFormulario?.gastos || [];
         
-        if (response.data.success) {
-          const gastos = response.data.estado.datosFormulario?.gastos || [];
+        if (gastos.length > 0) {
+          const regularGastos = {};
+          const extraGastosList = [];
           
-          if (gastos.length > 0) {
-            const regularGastos = {};
-            const extraGastosList = [];
-            
-            gastos.forEach(gasto => {
-              // Código existente para procesar gastos
-              if (gasto.id_conceptos && gasto.id_conceptos.startsWith('15.')) {
-                // Es un gasto extra dinámico
-                extraGastosList.push({
-                  id: Date.now() + parseInt(gasto.id_conceptos.split('.')[1]),
-                  name: gasto.concepto || `Gasto Extra ${gasto.id_conceptos.split('.')[1]}`,
-                  cantidad: gasto.cantidad || 0,
-                  vr_unit: gasto.valor_unit || 0,
-                  key: gasto.id_conceptos
-                });
-              } else if (gasto.id_conceptos) {
-                // Es un gasto regular
-                regularGastos[`${gasto.id_conceptos}_cantidad`] = gasto.cantidad;
-                regularGastos[`${gasto.id_conceptos}_vr_unit`] = gasto.valor_unit;
-              }
-            });
-            
-            // Actualizar estados
-            setFormData(prev => ({ ...prev, gastosCargados: true, ...regularGastos }));
-            setExtraExpenses(extraGastosList);
-            
-            // Guardar en caché
-            requestCache.set(cacheKey, { regularGastos, extraGastosList });
-            return;
-          }
+          gastos.forEach(gasto => {
+            // Código existente para procesar gastos
+            if (gasto.id_conceptos.startsWith('15.')) {
+              // Es un gasto extra dinámico
+              extraGastosList.push({
+                id: Date.now() + parseInt(gasto.id_conceptos.split('.')[1]),
+                name: gasto.concepto || `Gasto Extra ${gasto.id_conceptos.split('.')[1]}`,
+                cantidad: gasto.cantidad || 0,
+                vr_unit: gasto.valor_unit || 0,
+                key: gasto.id_conceptos
+              });
+            } else {
+              // Es un gasto regular
+              regularGastos[`${gasto.id_conceptos}_cantidad`] = gasto.cantidad;
+              regularGastos[`${gasto.id_conceptos}_vr_unit`] = gasto.valor_unit;
+            }
+          });
+          
+          // Actualizar estados
+          setFormData(prev => ({ ...prev, gastosCargados: true }));
+          setExtraExpenses(extraGastosList);
+          
+          // Guardar en caché
+          requestCache.set(cacheKey, { regularGastos, extraGastosList });
         }
-        break; // Si llega aquí sin error pero sin datos, salir del bucle
-      } catch (error) {
-        retries++;
-        console.error(`Error al cargar los gastos (intento ${retries}):`, error);
-        
-        if (error.response?.data?.details?.includes('Quota exceeded')) {
-          console.warn("⚠️ Error de cuota excedida en Google Sheets, usando datos locales...");
-          // Intentar cargar desde localStorage en caso de error de cuota
-          const storedData = requestCache.loadFromStorage(cacheKey);
-          if (storedData) {
-            const { regularGastos, extraGastosList } = storedData;
-            setFormData(prev => ({ ...prev, gastosCargados: true, ...regularGastos }));
-            setExtraExpenses(extraGastosList);
-            return;
-          }
-        }
-        
-        if (retries >= maxRetries) {
-          console.warn("Máximo de reintentos alcanzado, usando interfaz manual");
-          break;
-        }
-        
-        // Espera exponencial entre reintentos
-        const delay = Math.min(1000 * Math.pow(2, retries), 8000);
-        await new Promise(r => setTimeout(r, delay));
       }
+    } catch (error) {
+      console.error('Error al cargar los gastos:', error);
+      // Continuar sin datos, mostrar interfaz para ingreso manual
     }
-    
-    // Si llega aquí, mostrar interfaz para ingreso manual
-    setFormData(prev => ({ ...prev, gastosCargados: true }));
   };
   
   fetchGastos();
@@ -999,7 +939,6 @@ const PrintReportButton = () => {
 
 FormSection2.propTypes = {
   formData: PropTypes.object.isRequired,
-  setFormData: PropTypes.func.isRequired,
   handleInputChange: PropTypes.func.isRequired,
   setCurrentSection: PropTypes.func.isRequired,
   userData: PropTypes.object.isRequired,
