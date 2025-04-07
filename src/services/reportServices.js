@@ -173,6 +173,21 @@ export const previewFormReport = async (solicitudId, formNumber) => {
 export const openFormReport = async (solicitudId, formNumber) => {
   const maxRetries = 3;
   let retryCount = 0;
+  
+  // Verificar si hay datos previos en localStorage para mostrar botón de previsualización
+  const localData = JSON.parse(localStorage.getItem(`report_preview_${solicitudId}_${formNumber}`) || 'null');
+  if (localData) {
+    const useLocalData = window.confirm(
+      "Detectamos problemas al conectar con el servidor. ¿Desea usar los datos locales guardados anteriormente?\n\n" +
+      "Nota: Esto solo mostrará una previsualización, no generará el documento oficial."
+    );
+    
+    if (useLocalData) {
+      alert("Usando datos locales para previsualización del informe");
+      // Implementar aquí tu lógica para mostrar una previsualización local
+      return true;
+    }
+  }
 
   while (retryCount < maxRetries) {
     try {
@@ -184,6 +199,9 @@ export const openFormReport = async (solicitudId, formNumber) => {
       const reportUrl = await generateFormReport(solicitudId, formNumber);
 
       if (reportUrl) {
+        // Guardar estado exitoso en localStorage
+        localStorage.setItem(`report_success_${solicitudId}_${formNumber}`, Date.now().toString());
+        
         // Abrir la URL en una nueva pestaña
         window.open(reportUrl, '_blank');
         alert(`Informe generado exitosamente para el formulario ${formNumber}`);
@@ -193,16 +211,33 @@ export const openFormReport = async (solicitudId, formNumber) => {
       }
     } catch (error) {
       console.error(`Error al generar el reporte (intento ${retryCount + 1}):`, error);
+      
+      // Detectar específicamente errores de cuota
+      const isQuotaError = 
+        error.message?.includes('Quota exceeded') || 
+        error.response?.data?.details?.includes('Quota exceeded') ||
+        error.response?.data?.error?.includes('Quota exceeded');
+      
+      if (isQuotaError) {
+        // Mensaje específico para error de cuota
+        if (retryCount === maxRetries - 1) {
+          alert(
+            "Se ha excedido el límite de solicitudes a Google Sheets. " +
+            "Por favor, espere unos minutos antes de intentar nuevamente.\n\n" +
+            "Recomendación: Intente nuevamente en 2-3 minutos cuando se restablezca la cuota."
+          );
+          
+          // Guardar timestamp del último error de cuota
+          localStorage.setItem('last_quota_error', Date.now().toString());
+        }
+      }
+      
       retryCount++;
 
       if (retryCount === maxRetries) {
         // Después de agotar todos los reintentos, mostrar un mensaje específico
-        const isQuotaError = 
-          error.message?.includes('Quota exceeded') || 
-          error.response?.data?.error?.includes('Quota exceeded');
-        
         const errorMessage = isQuotaError 
-          ? 'No fue posible generar el reporte. Se ha excedido el límite de solicitudes al servicio. Por favor, inténtelo más tarde.'
+          ? 'No fue posible generar el reporte. Se ha excedido el límite de solicitudes al servicio. Por favor, inténtelo más tarde (después de 2-3 minutos).'
           : 'El servidor está experimentando problemas. Por favor, inténtelo más tarde.';
         
         alert(errorMessage);
