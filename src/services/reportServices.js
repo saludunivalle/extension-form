@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toast } from 'react-toastify';
 import { report1Config } from './reports/config/report1Config';
 import { report2Config } from './reports/config/report2Config';
 import { report3Config } from './reports/config/report3Config';
@@ -171,83 +172,60 @@ export const previewFormReport = async (solicitudId, formNumber) => {
  * @returns {Promise<boolean>} - Éxito de la operación
  */
 export const openFormReport = async (solicitudId, formNumber) => {
-  const maxRetries = 3;
+  const maxRetries = 5;
   let retryCount = 0;
   
-  // Verificar si hay datos previos en localStorage para mostrar botón de previsualización
-  const localData = JSON.parse(localStorage.getItem(`report_preview_${solicitudId}_${formNumber}`) || 'null');
-  if (localData) {
-    const useLocalData = window.confirm(
-      "Detectamos problemas al conectar con el servidor. ¿Desea usar los datos locales guardados anteriormente?\n\n" +
-      "Nota: Esto solo mostrará una previsualización, no generará el documento oficial."
+  // Función para mostrar notificación de espera
+  const showWaitingNotification = (attempt) => {
+    toast.info(
+      attempt > 0 
+        ? `Reintentando generar reporte (intento ${attempt}/${maxRetries})... Esto puede tomar hasta 1 minuto.`
+        : `Generando reporte. Espere por favor, esto puede tomar hasta 1 minuto...`, 
+      { autoClose: 50000 }
     );
-    
-    if (useLocalData) {
-      alert("Usando datos locales para previsualización del informe");
-      // Implementar aquí tu lógica para mostrar una previsualización local
-      return true;
-    }
-  }
-
+  };
+  
+  // Mostrar notificación inicial
+  showWaitingNotification(0);
+  
+  // Esperar 10 segundos antes del primer intento para evitar saturar la API
+  await new Promise(resolve => setTimeout(resolve, 10000));
+  
   while (retryCount < maxRetries) {
     try {
-      // Log el intento actual si es un reintento
-      if (retryCount > 0) {
-        console.log(`📄 Intento #${retryCount + 1} de generar reporte para formulario ${formNumber}...`);
-      }
-
+      // Generar el reporte
       const reportUrl = await generateFormReport(solicitudId, formNumber);
-
+      
       if (reportUrl) {
-        // Guardar estado exitoso en localStorage
-        localStorage.setItem(`report_success_${solicitudId}_${formNumber}`, Date.now().toString());
-        
-        // Abrir la URL en una nueva pestaña
+        // Abrir en nueva pestaña
         window.open(reportUrl, '_blank');
-        alert(`Informe generado exitosamente para el formulario ${formNumber}`);
+        
+        // Mostrar notificación de éxito
+        toast.success(`Reporte generado exitosamente!`, {
+          position: "top-right",
+          autoClose: 5000
+        });
         return true;
       } else {
-        throw new Error('No se recibió una URL válida para el reporte');
+        throw new Error('No se recibió una URL válida');
       }
     } catch (error) {
       console.error(`Error al generar el reporte (intento ${retryCount + 1}):`, error);
-      
-      // Detectar específicamente errores de cuota
-      const isQuotaError = 
-        error.message?.includes('Quota exceeded') || 
-        error.response?.data?.details?.includes('Quota exceeded') ||
-        error.response?.data?.error?.includes('Quota exceeded');
-      
-      if (isQuotaError) {
-        // Mensaje específico para error de cuota
-        if (retryCount === maxRetries - 1) {
-          alert(
-            "Se ha excedido el límite de solicitudes a Google Sheets. " +
-            "Por favor, espere unos minutos antes de intentar nuevamente.\n\n" +
-            "Recomendación: Intente nuevamente en 2-3 minutos cuando se restablezca la cuota."
-          );
-          
-          // Guardar timestamp del último error de cuota
-          localStorage.setItem('last_quota_error', Date.now().toString());
-        }
-      }
-      
       retryCount++;
-
-      if (retryCount === maxRetries) {
-        // Después de agotar todos los reintentos, mostrar un mensaje específico
-        const errorMessage = isQuotaError 
-          ? 'No fue posible generar el reporte. Se ha excedido el límite de solicitudes al servicio. Por favor, inténtelo más tarde (después de 2-3 minutos).'
-          : 'El servidor está experimentando problemas. Por favor, inténtelo más tarde.';
+      
+      if (retryCount < maxRetries) {
+        // Mostrar notificación de espera para el próximo intento
+        showWaitingNotification(retryCount);
         
-        alert(errorMessage);
-        return false;
+        // Esperar 60 segundos (1 minuto) antes de reintentar para evitar límites de la API
+        await new Promise(resolve => setTimeout(resolve, 60000));
+      } else {
+        // Mensaje de error final después de todos los intentos
+        toast.error(`No se pudo generar el reporte después de ${maxRetries} intentos. Por favor intente más tarde.`, {
+          position: "top-right",
+          autoClose: 8000
+        });
       }
-
-      // Espera exponencial: esperar más tiempo entre cada reintento
-      const waitTime = Math.min(Math.pow(2, retryCount) * 1000, 8000); // 2^retryCount segundos, máximo 8 segundos
-      console.log(`Esperando ${waitTime/1000} segundos antes del próximo intento...`);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
     }
   }
   
