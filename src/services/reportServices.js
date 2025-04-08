@@ -17,8 +17,8 @@ const getReportConfigByForm = (formNumber) => {
       return report1Config;
     case 2:
       return report2Config; 
-      case 3:
-        return report3Config;
+    case 3:
+      return report3Config;
     default:
       return {}; // Configuración vacía por defecto
   }
