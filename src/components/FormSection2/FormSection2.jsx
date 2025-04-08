@@ -280,19 +280,26 @@ useEffect(() => {
     // En handleSaveGastos
     // 3. Optimizar handleSaveGastos para evitar solicitudes duplicadas
 const handleSaveGastos = async () => {
-  if (formData.gastosGuardados) return; 
+  // Validación básica
+  if (!idSolicitud) {
+    throw new Error("ID de solicitud no disponible");
+  }
+  
+  // Hacer copia para evitar mutaciones accidentales
+  const idSolicitudCopy = idSolicitud.toString();
+  
   // Generar clave única para los datos actuales
   const dataChecksum = JSON.stringify(extraExpenses) + JSON.stringify(formData);
-  const cacheKey = `saveGastos_${idSolicitud}_${dataChecksum.length}`; // Usar longitud como aproximación simple de checksum
+  const cacheKey = `saveGastos_${idSolicitudCopy}_${dataChecksum.length}`;
   
-  // Verificar si ya enviamos estos datos recientemente (en los últimos 10 segundos)
+  // Verificar caché para evitar duplicados
   const recentlySaved = requestCache.get(cacheKey, 10000);
   if (recentlySaved) {
     console.log("📋 Evitando envío duplicado (datos guardados recientemente)");
-    return recentlySaved; // Devolver resultado anterior
+    return recentlySaved;
   }
   
-  // Resto del código actual de handleSaveGastos
+  // Preparar gastos extras (dinámicos)
   const gastosExtras = extraExpenses.map((expense, index) => {
     const id_conceptos = `15.${index + 1}`;
     return {
@@ -301,127 +308,90 @@ const handleSaveGastos = async () => {
       cantidad: parseFloat(expense.cantidad || 0),
       valor_unit: parseFloat(expense.vr_unit || 0),
       valor_total: parseFloat(expense.cantidad || 0) * parseFloat(expense.vr_unit || 0),
-      concepto_padre: "15", 
+      concepto_padre: "15",
       descripcion: expense.name,
       es_padre: false,
       nombre_conceptos: expense.name,
       tipo: "gasto_dinamico",
-      id_solicitud: formData.id_solicitud.toString() 
+      id_solicitud: idSolicitudCopy
     };
   });
   
-  // Gastos regulares (se mantiene igual)
-  const gastosRegulares = gastosStructure2.map(item => {
-    const idKey = item.id_conceptos;
-    
-    // Asegurar valores mínimos para TODOS los gastos
-    let cantidad = parseFloat(formData[`${idKey}_cantidad`] || 0);
-    let valor_unit = parseFloat(formData[`${idKey}_vr_unit`] || 0);
-    
-    // Si ambos valores son 0, asignar un valor mínimo para que aparezca en el reporte
-    if (cantidad === 0 && valor_unit === 0) {
-      cantidad = 0;
-      valor_unit = 0;
-    }
-    
-    return {
-      id_conceptos: idKey,
-      cantidad: cantidad,
-      valor_unit: valor_unit,
-      valor_total: cantidad * valor_unit,
-      descripcion: item.label,
-      es_padre: !idKey.includes(',') && !idKey.includes('.'),
-      nombre_conceptos: item.label,
-      tipo: "gasto_regular",
-      id_solicitud: formData.id_solicitud.toString()
-    };
-  });
-  
-  // CAMBIO IMPORTANTE: Modificar el filtro para incluir siempre los IDs especiales
-  const gastosRegularesFiltrados = gastosRegulares.filter(g => {
-    const tieneValores = g.cantidad > 0 && g.valor_unit > 0;
-    return tieneValores;
-  });
+  // Preparar gastos regulares
+  const gastosRegulares = gastosStructure2
+    .filter(item => {
+      // Solo incluir conceptos con valores
+      const cantidadKey = `${item.id_conceptos}_cantidad`;
+      const valorUnitKey = `${item.id_conceptos}_vr_unit`;
+      const cantidad = parseFloat(formData[cantidadKey] || 0);
+      const valorUnit = parseFloat(formData[valorUnitKey] || 0);
+      return cantidad > 0 && valorUnit > 0;
+    })
+    .map(item => {
+      const idKey = item.id_conceptos;
+      const cantidad = parseFloat(formData[`${idKey}_cantidad`] || 0);
+      const valor_unit = parseFloat(formData[`${idKey}_vr_unit`] || 0);
+      const esPadre = !idKey.includes(',');
+      const conceptoPadre = esPadre ? idKey : idKey.split(',')[0];
+      
+      return {
+        id_conceptos: idKey,
+        cantidad: cantidad,
+        valor_unit: valor_unit,
+        valor_total: cantidad * valor_unit,
+        descripcion: item.label,
+        es_padre: esPadre,
+        nombre_conceptos: item.label,
+        tipo: "gasto_regular",
+        id_solicitud: idSolicitudCopy,
+        concepto_padre: conceptoPadre
+      };
+    });
   
   // Combinar todos los gastos
-  let todosLosGastos = [
-    ...gastosRegularesFiltrados,
-    ...gastosExtras.filter(g => g.cantidad > 0 && g.valor_unit > 0)
-  ];
+  const todosLosGastos = [...gastosRegulares, ...gastosExtras];
   
-  // AÑADIR ESTO: Asegurar que siempre haya al menos un gasto, incluso con valores cero
+  // Si no hay gastos, añadir al menos uno vacío para mantener la estructura
   if (todosLosGastos.length === 0) {
-    // Agregar un gasto predeterminado si no hay ninguno
-    todosLosGastos = [{
+    todosLosGastos.push({
       id_conceptos: '1',
-      cantidad: 1,
+      cantidad: 0,
       valor_unit: 0,
       valor_total: 0,
       descripcion: 'Costos de Personal',
       es_padre: true,
       nombre_conceptos: 'Costos de Personal',
       tipo: "gasto_regular",
-      id_solicitud: formData.id_solicitud?.toString() || idSolicitud
-    }];
+      id_solicitud: idSolicitudCopy,
+      concepto_padre: '1'
+    });
   }
   
-  // También verifica que el ID de solicitud sea válido
-  const solicitudId = formData.id_solicitud?.toString() || idSolicitud;
-  if (!solicitudId) {
-    console.error("Error: ID de solicitud no disponible");
-    return { success: false, error: "ID de solicitud no disponible" };
-  }
-  
-  // Generar versiones con coma para compatibilidad con la plantilla
-  const gastosParaPlantilla = todosLosGastos.map(gasto => {
-    // Crear una copia del objeto
-    const gastoConFormatos = {...gasto};
-    
-    // Si el ID contiene puntos, crear una versión con comas para la plantilla
-    if (gasto.id_conceptos.includes('.')) {
-      gastoConFormatos.id_conceptos_template = gasto.id_conceptos.replace('.', ',');
-    } 
-    // Si el ID contiene comas, crear una versión con puntos para el sistema
-    else if (gasto.id_conceptos.includes(',')) {
-      gastoConFormatos.id_conceptos_sistema = gasto.id_conceptos.replace(',', '.');
-    }
-    
-    return gastoConFormatos;
-  });
-  
-  console.log("📊 Datos preparados para la plantilla:", gastosParaPlantilla);
-  
-  // Luego continuar con el envío habitual
   try {
-    console.log("📊 Datos enviados a guardarGastos:", {
-      id_solicitud: formData.id_solicitud.toString(),
-      gastos: gastosParaPlantilla,  // Usar la versión con formatos adicionales
+    // Enviar al servidor
+    const response = await axios.post('https://siac-extension-server.vercel.app/guardarGastos', {
+      id_solicitud: idSolicitudCopy,
+      gastos: todosLosGastos,
       actualizarConceptos: true
     });
     
-    const response = await axios.post('https://siac-extension-server.vercel.app/guardarGastos', {
-      id_solicitud: solicitudId,
-      gastos: gastosParaPlantilla,  // Usar la versión con formatos adicionales
-      actualizarConceptos: true,
-    });
-    
     if (response.data.success) {
-      console.log("✅ Gastos registrados correctamente");
+      console.log("✅ Gastos guardados correctamente");
       
       // Guardar resultado en caché para evitar envíos duplicados
       requestCache.set(cacheKey, response.data);
       
       return response.data;
+    } else {
+      throw new Error(response.data.error || "Error al guardar gastos");
     }
   } catch (error) {
-    console.error("Error:", error.response?.data);
-    console.log(`🚨 Error: ${error.response?.data?.error || error.message}`);
+    console.error("Error al guardar gastos:", error);
     
     // Guardar datos localmente para reintento posterior
-    const localStorageKey = `pendingGastos_${idSolicitud}`;
-    localStorage.setItem(localStorageKey, JSON.stringify({
+    localStorage.setItem(`pendingGastos_${idSolicitudCopy}`, JSON.stringify({
       timestamp: Date.now(),
-      gastos: gastosParaPlantilla
+      gastos: todosLosGastos
     }));
     
     throw error;
@@ -433,60 +403,184 @@ const handleSaveGastos = async () => {
     };
     
   
-    // 4. Optimizar handleNext para reducir llamadas y manejar errores sin bloquear flujo
-  const handleNext = async () => {
-    if (!validateStep()) {
-      console.log("Errores en los campos");
-      return;
+    // 4. Optimizar handleNext para reducir llamadas y manejar errores adecuadamente
+const handleNext = async () => {
+  if (!validateStep()) {
+    console.log("Errores en los campos");
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    // Construir datos según el paso actual
+    const hoja = 2; // Formulario 2
+    let pasoData = {};
+    
+    switch (activeStep) {
+      case 0:
+        // Datos del paso 1 (Datos Generales)
+        pasoData = {
+          nombre_actividad: formData.nombre_actividad || '',
+          fecha_solicitud: formData.fecha_solicitud || '',
+          // Campo adicional necesario para SOLICITUDES2
+          formulario: 'Formulario 2'
+        };
+        break;
+      case 1:
+  try {
+    // 1. Primero guardar los gastos en la hoja GASTOS
+    await handleSaveGastos();
+    
+    // 2. Obtener los gastos actualizados desde el servidor para calcular el total real
+    const gastosResponse = await axios.get('https://siac-extension-server.vercel.app/getGastos', {
+      params: { id_solicitud: idSolicitud }
+    });
+    
+    // 3. Calcular el subtotal_gastos como la suma de todos los valor_total
+    let subtotal_gastos = 0;
+    if (gastosResponse.data && gastosResponse.data.data) {
+      subtotal_gastos = gastosResponse.data.data.reduce((sum, gasto) => {
+        return sum + parseFloat(gasto.valor_total || 0);
+      }, 0);
+    } else {
+      // Si no hay respuesta, usar el valor calculado localmente como respaldo
+      subtotal_gastos = totalGastos || 0;
+    }
+    
+    // 4. Preparar datos para SOLICITUDES2
+    const ingresos_cantidad = parseInt(formData.ingresos_cantidad) || 0;
+    const ingresos_vr_unit = parseInt(formData.ingresos_vr_unit) || 0;
+    const total_ingresos = ingresos_cantidad * ingresos_vr_unit;
+    
+    pasoData = {
+      ingresos_cantidad: ingresos_cantidad,
+      ingresos_vr_unit: ingresos_vr_unit,
+      total_ingresos: total_ingresos,
+      subtotal_gastos: subtotal_gastos,
+      imprevistos_3: Math.round(subtotal_gastos * 0.03),
+      total_gastos_imprevistos: Math.round(subtotal_gastos * 1.03)
+    };
+    
+    console.log("Guardando en SOLICITUDES2 con subtotal_gastos calculado del servidor:", subtotal_gastos);
+  } catch (error) {
+    console.warn("Error al guardar gastos, continuando con datos básicos:", error);
+    
+    // Si falló, usar totalGastos como respaldo
+    const ingresos_cantidad = parseInt(formData.ingresos_cantidad) || 0;
+    const ingresos_vr_unit = parseInt(formData.ingresos_vr_unit) || 0;
+    const total_ingresos = ingresos_cantidad * ingresos_vr_unit;
+    
+    pasoData = {
+      ingresos_cantidad: ingresos_cantidad,
+      ingresos_vr_unit: ingresos_vr_unit,
+      total_ingresos: total_ingresos,
+      subtotal_gastos: totalGastos || 0,
+      imprevistos_3: Math.round((totalGastos || 0) * 0.03),
+      total_gastos_imprevistos: Math.round((totalGastos || 0) * 1.03)
+    };
+  }
+  break;
+      case 2:
+        
+        const totalIngresos = (parseFloat(formData.ingresos_cantidad) || 0) * 
+                             (parseFloat(formData.ingresos_vr_unit) || 0);
+        const fondoComunPorcentaje = formData.fondo_comun_porcentaje || 30;
+        const fondoComun = Math.round((fondoComunPorcentaje / 100) * totalIngresos);
+        const facultadInstituto = Math.round(totalIngresos * 0.05);
+        const escuelaDeptoPorcentaje = formData.escuela_departamento_porcentaje || 0;
+        const escuelaDepartamento = Math.round((escuelaDeptoPorcentaje / 100) * totalIngresos);
+        const totalAportes = fondoComun + facultadInstituto + escuelaDepartamento;
+        
+        pasoData = {
+          fondo_comun_porcentaje: fondoComunPorcentaje,
+          fondo_comun: fondoComun,
+          facultad_instituto: facultadInstituto,
+          escuela_departamento_porcentaje: escuelaDeptoPorcentaje,
+          escuela_departamento: escuelaDepartamento,
+          total_aportes: totalAportes,
+          observaciones: formData.observaciones || '',
+          responsable_financiero: formData.responsable_financiero || ''
+        };
+      
+      break;
+      default:
+      break;
+    }
+  
+
+    // Guardar en caché para evitar duplicados
+    const cacheKey = `saveProgress_${idSolicitud}_${activeStep}`;
+    const cachedResponse = requestCache.get(cacheKey, 5000); // 5 segundos
+    
+    if (cachedResponse) {
+      console.log("Usando respuesta en caché para evitar duplicados");
+    } else {
+      console.log(`Enviando datos para el paso ${activeStep + 1}:`, {
+        id_solicitud: idSolicitud,
+        paso: activeStep + 1,
+        hoja: hoja,
+        id_usuario: userData?.id_usuario || '',
+        name: userData?.name || '',
+        ...pasoData
+      });
+      
+      // Enviar datos al servidor
+      const response = await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+        id_solicitud: idSolicitud,
+        paso: activeStep + 1,
+        hoja: hoja,
+        id_usuario: userData?.id_usuario || '',
+        name: userData?.name || '',
+        ...pasoData
+      });
+      
+      // Guardar respuesta en caché
+      requestCache.set(cacheKey, response.data);
     }
 
-    setIsLoading(true);
-
-    try {
-      // Specific logic for step 1 (if needed)
-      if (activeStep === 1) {
-        try {
-          await handleSaveGastos();
-        } catch (error) {
-          console.warn("Error saving expenses, continuing with local data:", error);
-          // Store pending changes for later sync
-          localStorage.setItem(`pendingGastos_${idSolicitud}`, 
-            JSON.stringify({timestamp: Date.now(), extraExpenses, formData}));
-        }
+    // Actualizar estado local independientemente del resultado del servidor
+    setCompletedSteps(prev => {
+      const newCompleted = [...prev];
+      if (!newCompleted.includes(activeStep)) {
+        newCompleted.push(activeStep);
       }
-
-      // Update local progress regardless of server success
-      const newHighestStep = Math.max(highestStepReached, activeStep + 1);
-      setHighestStepReached(newHighestStep);
-      localStorage.setItem(`form2_highestStep_${idSolicitud}`, newHighestStep.toString());
-      
-      // Try to update progress on server, but don't block UI if it fails
+      return newCompleted;
+    });
+    
+    // Actualizar el progreso máximo permitido
+    if (typeof updateMaxAllowedStep === 'function') {
       try {
-        if (navigator.onLine) {
-          await updateMaxAllowedStep(activeStep + 1);
-        }
-      } catch (progressError) {
-        console.warn("Error updating progress on server, continuing with local progress:", progressError);
+        await updateMaxAllowedStep(activeStep + 1);
+      } catch (error) {
+        console.warn("Error al actualizar paso máximo:", error);
       }
-      
-      // Always advance to next step even if server calls fail
-      setActiveStep(activeStep + 1);
-      localStorage.setItem(`form2_lastStep_${idSolicitud}`, (activeStep + 1).toString());
-      
-    } catch (error) {
-      console.error("General error:", error);
-      // Show a user-friendly message
-      alert("Hubo un problema al procesar tu información. Se han guardado los datos localmente y continuarás al siguiente paso.");
-      
-      // Still advance to next step by falling back to local state
-      const newHighestStep = Math.max(highestStepReached, activeStep + 1);
-      setHighestStepReached(newHighestStep);
-      localStorage.setItem(`form2_highestStep_${idSolicitud}`, newHighestStep.toString());
-      setActiveStep(activeStep + 1);
-    } finally {
-      setIsLoading(false);
     }
-  };
+    
+    // Guardar el paso actual en localStorage
+    localStorage.setItem(`form2_lastStep_${idSolicitud}`, (activeStep + 1).toString());
+    
+    // Avanzar al siguiente paso
+    setActiveStep(activeStep + 1);
+    setHighestStepReached(prev => Math.max(prev, activeStep + 1, maxAllowedStep));
+    
+  } catch (error) {
+    console.error('Error al guardar el progreso:', error);
+    
+    // Mostrar detalles adicionales del error si están disponibles
+    if (error.response && error.response.data) {
+      console.error('Detalles del error:', error.response.data);
+    }
+    
+    // Guardar datos localmente para no perderlos
+    localStorage.setItem(`form2_data_step${activeStep}_${idSolicitud}`, 
+      JSON.stringify(formData));
+    
+    alert('Hubo un problema al guardar los datos. Se han guardado localmente para intentarlo más tarde.');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   //Lógica del botón "Atrás"
   const handleBack = () => {
@@ -496,25 +590,21 @@ const handleSaveGastos = async () => {
   };
 
   const handleSubmit = async () => {
-  // Validate the form data first
   if (!validateStep()) {
-    console.log("Validation failed for the final step");
+    console.log("Errores en la validación del paso final");
     return;
   }
 
-  setIsLoading(true); // Start loading indicator
-  
-  const hoja = 3; // This is form 2
-  
+  setIsLoading(true);
+
   try {
-    // Calculate financial summary values
+    // Resumen financiero
     const ingresos_cantidad = parseInt(formData.ingresos_cantidad) || 0;
     const ingresos_vr_unit = parseInt(formData.ingresos_vr_unit) || 0;
     const total_ingresos = ingresos_cantidad * ingresos_vr_unit;
     
-    // Prepare data for the final step
     const pasoData = {
-      fondo_comun: Math.round(total_ingresos * 0.3),
+      fondo_comun: Math.round(total_ingresos * (formData.fondo_comun_porcentaje || 30) / 100),
       facultad_instituto: Math.round(total_ingresos * 0.05),
       escuela_departamento: Math.round(total_ingresos * (formData.escuela_departamento_porcentaje || 0) / 100),
       total_ingresos: total_ingresos,
@@ -523,86 +613,53 @@ const handleSaveGastos = async () => {
       total_gastos_imprevistos: Math.round((totalGastos || 0) * 1.03),
       ingresos_cantidad,
       ingresos_vr_unit,
-      escuela_departamento_porcentaje: formData.escuela_departamento_porcentaje || 0
+      escuela_departamento_porcentaje: formData.escuela_departamento_porcentaje || 0,
+      fondo_comun_porcentaje: formData.fondo_comun_porcentaje || 30
     };
     
-    console.log("🔍 Valores financieros a enviar:", pasoData);
-    
-    // IMPORTANTE: Crear objeto FormData o usar JSON dependiendo de lo que espera el servidor
-    let dataToSend = new FormData();
+    // Envío final con todos los datos
+    const dataToSend = new FormData();
     dataToSend.append('id_solicitud', idSolicitud);
-    dataToSend.append('paso', 3); // Final step for form 2
-    dataToSend.append('hoja', hoja);
-    dataToSend.append('etapa_actual', 3); // CAMBIO CRUCIAL: Avanzar a la etapa 3
-    dataToSend.append('formulario_completo', 'true'); // Add as string for FormData
+    dataToSend.append('paso', 3); // Paso final del formulario 2
+    dataToSend.append('hoja', 2);
+    dataToSend.append('formulario_completo', 'true');
     dataToSend.append('id_usuario', userData.id_usuario);
     dataToSend.append('name', userData.name);
     
-    // Añadir también estado_formularios con el formulario 2 marcado como completado
+    // Añadir estado de formularios
     const nuevoEstadoFormularios = { 
       "1": "Completado", 
-      "2": "Completado", // Marcar explícitamente como completado
+      "2": "Completado", 
       "3": "En progreso",
       "4": "En progreso" 
     };
     dataToSend.append('estado_formularios', JSON.stringify(nuevoEstadoFormularios));
     
-    // Add all fields from pasoData
-    Object.keys(pasoData).forEach((key) => {
+    // Agregar todos los campos
+    Object.keys(pasoData).forEach(key => {
       if (pasoData[key] !== undefined && pasoData[key] !== null) {
         dataToSend.append(key, pasoData[key]);
       }
     });
     
-    // 1. Save main form data with FormData
-    const response = await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    // Guardar datos finales
+    const response = await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend);
     
-    // 2. NUEVO: Actualizar explícitamente el estado de progreso global
     if (response.data && response.data.success) {
-      console.log("✅ Form data saved successfully");
-      
-      try {
-        // Actualizar el paso máximo permitido (CRUCIAL)
-        if (typeof updateMaxAllowedStep === 'function') {
-          await updateMaxAllowedStep(steps.length);
-          console.log("✅ Max allowed step updated");
-        }
-        
-        // NUEVO: Envío adicional para actualizar ETAPAS con el estado del formulario
-        await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso-global', {
-          id_solicitud: idSolicitud,
-          etapa_actual: 3, // Avanzar a formulario 3
-          paso_actual: 0,  // Comenzar desde paso inicial
-          actualizar_formularios_previos: true, // AÑADIR ESTE PARÁMETRO CRUCIAL
-          estado_formularios: nuevoEstadoFormularios // ENVIAR TAMBIÉN EL NUEVO ESTADO
-        });
-        console.log("✅ Global progress updated");
-      } catch (progressError) {
-        console.error("Error updating progress state:", progressError);
-      }
-      
-      // Store completion status in localStorage
+      // Actualizar estado local
       localStorage.setItem(`form2_completed_${idSolicitud}`, 'true');
       
-      // Show success modal
+      // Mostrar modal de éxito
       setShowModal(true);
     } else {
-      console.error("⚠️ Error in server response:", response.data);
+      console.error("Error en respuesta del servidor:", response.data);
       alert("Hubo un problema al guardar los datos. Por favor, inténtelo de nuevo.");
     }
   } catch (error) {
     console.error('Error al guardar el progreso:', error);
-    if (error.response) {
-      console.error('Response data:', error.response.data);
-      console.error('Response status:', error.response.status);
-    } 
     alert("No se pudieron guardar los datos. Por favor, compruebe su conexión e inténtelo de nuevo.");
   } finally {
-    setIsLoading(false); // End loading state regardless of outcome
+    setIsLoading(false);
   }
 };
 
