@@ -21,7 +21,10 @@ export const report2Config = {
       'subtotal_gastos', 'imprevistos_3', 'imprevistos_3%', 'total_gastos_imprevistos',
       'fondo_comun_porcentaje', 'facultadad_instituto_porcentaje', 
       'escuela_departamento_porcentaje', 'total_recursos',
-      'observaciones', 'responsable_financiero'
+      'observaciones', 'responsable_financiero',
+      'subtotal_costos_directos', 'costos_indirectos_cantidad', 
+      'administracion_cantidad', 'descuentos_cantidad',
+      'total_costo_actividad', 'excedente_cantidad', 'valor_inscripcion_individual'
     ];
     
     // Inicializar todos con cadenas vacías

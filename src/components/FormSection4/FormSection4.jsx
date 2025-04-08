@@ -593,7 +593,8 @@ const PrintReportButton = () => {
   const handleGenerateReport = async () => {
     try {
       setIsGeneratingReport(true);
-      await openFormReport(idSolicitud, formId); // Usar el formId correspondiente
+      const idSolicitud = localStorage.getItem('id_solicitud');
+      await openFormReport(idSolicitud, 4); // Use form number 4
     } catch (error) {
       console.error('Error al generar el reporte:', error);
       alert('Hubo un problema al generar el reporte');

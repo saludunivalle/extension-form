@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { report1Config } from './reports/config/report1Config';
 import { report2Config } from './reports/config/report2Config';
 import { report3Config } from './reports/config/report3Config';
+import { report4Config } from './reports/config/report4Config'; // Add this import
 
 const API_URL = 'https://siac-extension-server.vercel.app';
 
@@ -19,6 +20,8 @@ const getReportConfigByForm = (formNumber) => {
       return report2Config; 
     case 3:
       return report3Config;
+    case 4:
+      return report4Config; // Add this case
     default:
       return {}; // Configuración vacía por defecto
   }
