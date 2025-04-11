@@ -153,30 +153,71 @@ export const report2Config = {
     if (!transformedData['imprevistos_3%']) transformedData['imprevistos_3%'] = '3';
     
     // 6. PROCESAR GASTOS
+    // Separar los gastos normales de los dinámicos (los que tienen ID que empieza por 15.)
+    const gastosNormales = [];
+    const gastosDinamicos = [];
+    
     if (Array.isArray(formData.gastos) && formData.gastos.length > 0) {
       console.log(`Procesando ${formData.gastos.length} gastos`);
       
       formData.gastos.forEach(gasto => {
         if (!gasto.id_conceptos) return;
         
-        // La plantilla usa formato con coma (1,1)
-        const idConComa = gasto.id_conceptos.replace(/\./g, ',');
-        
-        // Actualizar los valores en el formato que espera la plantilla
+        // Procesar el gasto con valores formateados
         const cantidad = parseFloat(gasto.cantidad) || 0;
         const valorUnit = parseFloat(gasto.valor_unit) || 0;
         const valorTotal = parseFloat(gasto.valor_total) || cantidad * valorUnit;
-
-        // Asegurarnos de que los valores sean correctos
-        console.log(`🔍 Gasto procesado: ID=${idConComa}, Cantidad=${cantidad}, Valor Unitario=${valorUnit}, Valor Total=${valorTotal}`);
-
-        // Asignar valores al objeto transformedData
-        transformedData[`gasto_${idConComa}_cantidad`] = cantidad.toString();
-        transformedData[`gasto_${idConComa}_valor_unit`] = valorUnit.toString(); // Valor numérico puro
-        transformedData[`gasto_${idConComa}_valor_unit_formatted`] = formatCurrency(valorUnit); // Valor formateado
-        transformedData[`gasto_${idConComa}_valor_total`] = valorTotal.toString(); // Valor numérico puro
-        transformedData[`gasto_${idConComa}_valor_total_formatted`] = formatCurrency(valorTotal); // Valor formateado
+        
+        // Formatear valores monetarios
+        const valorUnit_formatted = formatCurrency(valorUnit);
+        const valorTotal_formatted = formatCurrency(valorTotal);
+        
+        // Crear objeto de gasto procesado
+        const gastoProcesado = {
+          id: gasto.id_conceptos,
+          id_concepto: gasto.id_conceptos,
+          descripcion: gasto.descripcion || '',
+          cantidad: cantidad,
+          valorUnit: valorUnit,
+          valorTotal: valorTotal,
+          valor_unit: valorUnit,
+          valor_total: valorTotal,
+          valorUnit_formatted: valorUnit_formatted,
+          valorTotal_formatted: valorTotal_formatted,
+          valor_unit_formatted: valorUnit_formatted,
+          valor_total_formatted: valorTotal_formatted
+        };
+        
+        // Determinar si es un gasto dinámico (ID que empieza por 15.)
+        if (gasto.id_conceptos.startsWith('15.')) {
+          gastosDinamicos.push(gastoProcesado);
+          console.log(`🔄 Gasto dinámico procesado: ID=${gasto.id_conceptos}, Total=${valorTotal_formatted}`);
+        } else {
+          gastosNormales.push(gastoProcesado);
+          
+          // La plantilla usa formato con coma (1,1)
+          const idConComa = gasto.id_conceptos.replace(/\./g, ',');
+          
+          // Asignar valores al objeto transformedData
+          transformedData[`gasto_${idConComa}_cantidad`] = cantidad.toString();
+          transformedData[`gasto_${idConComa}_valor_unit`] = valorUnit.toString();
+          transformedData[`gasto_${idConComa}_valor_unit_formatted`] = valorUnit_formatted;
+          transformedData[`gasto_${idConComa}_valor_total`] = valorTotal.toString();
+          transformedData[`gasto_${idConComa}_valor_total_formatted`] = valorTotal_formatted;
+          transformedData[`gasto_${idConComa}_descripcion`] = gasto.descripcion || '';
+          
+          console.log(`✅ Gasto normal procesado: ID=${idConComa}, Total=${valorTotal_formatted}`);
+        }
       });
+      
+      // Si hay gastos dinámicos, añadirlos al objeto para procesamiento especial
+      if (gastosDinamicos.length > 0) {
+        transformedData['__FILAS_DINAMICAS__'] = {
+          gastos: gastosDinamicos,
+          insertarEn: 'E45:AK45' // Ubicación por defecto (se puede ajustar)
+        };
+        console.log(`✅ Configurados ${gastosDinamicos.length} gastos dinámicos para inserción en el reporte`);
+      }
     }
     
     // 7. LIMPIEZA FINAL - eliminar placeholders no reemplazados

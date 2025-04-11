@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Box, Button, Stepper, Step, StepLabel, Typography, CircularProgress, Alert, AlertTitle, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import PrintIcon from '@mui/icons-material/Print';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
@@ -120,20 +120,43 @@ const requestCache = {
   // 2. Optimizar fetchGastos para usar caché
 useEffect(() => {
   const fetchGastos = async () => {
-    if (!idSolicitud || formData.gastosCargados) return;
+    if (!idSolicitud) return;
     
-    const cacheKey = `gastos_${idSolicitud}`;
-    const cachedData = requestCache.get(cacheKey);
+    setIsLoading(true);
+    let dataLoaded = false;
     
-    if (cachedData) {
-      // Usar datos de caché
-      const { regularGastos, extraGastosList } = cachedData;
-      setFormData(prev => ({...prev, ...regularGastos}));
-      setExtraExpenses(extraGastosList);
-      return;
-    }
-
     try {
+      // Primero intentar cargar datos locales
+      const cacheKey = `gastos_${idSolicitud}`;
+      const cachedData = requestCache.get(cacheKey);
+      const localStorageData = localStorage.getItem(`solicitud2_gastos_${idSolicitud}`);
+      const localStorageTimestamp = localStorage.getItem(`solicitud2_gastos_timestamp_${idSolicitud}`);
+      
+      // Variables para almacenar los datos recuperados
+      let regularGastos = {};
+      let extraGastosList = [];
+      
+      // Si hay datos en caché, usarlos
+      if (cachedData) {
+        console.log("📊 Usando datos de gastos desde caché interna");
+        regularGastos = cachedData.regularGastos || {};
+        extraGastosList = cachedData.extraGastosList || [];
+        dataLoaded = true;
+      } 
+      // Si hay datos en localStorage, usarlos
+      else if (localStorageData) {
+        try {
+          console.log("📊 Usando datos de gastos desde localStorage");
+          const parsedData = JSON.parse(localStorageData);
+          regularGastos = parsedData.regularGastos || {};
+          extraGastosList = parsedData.extraGastosList || [];
+          dataLoaded = true;
+        } catch (error) {
+          console.error("Error al parsear datos locales:", error);
+        }
+      }
+      
+      // Intentar obtener datos del servidor (incluso si ya tenemos datos locales)
       console.log("📊 Obteniendo gastos desde el servidor...");
       const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
         id_solicitud: idSolicitud,
@@ -143,16 +166,17 @@ useEffect(() => {
       
       if (response.data.success) {
         const gastos = response.data.estado.datosFormulario?.gastos || [];
+        const serverTimestamp = response.data.timestamp || Date.now();
         
         if (gastos.length > 0) {
-          const regularGastos = {};
-          const extraGastosList = [];
+          const serverRegularGastos = {};
+          const serverExtraGastosList = [];
           
           gastos.forEach(gasto => {
-            // Código existente para procesar gastos
+            // Procesar gastos
             if (gasto.id_conceptos.startsWith('15.')) {
               // Es un gasto extra dinámico
-              extraGastosList.push({
+              serverExtraGastosList.push({
                 id: Date.now() + parseInt(gasto.id_conceptos.split('.')[1]),
                 name: gasto.concepto || `Gasto Extra ${gasto.id_conceptos.split('.')[1]}`,
                 cantidad: gasto.cantidad || 0,
@@ -161,27 +185,66 @@ useEffect(() => {
               });
             } else {
               // Es un gasto regular
-              regularGastos[`${gasto.id_conceptos}_cantidad`] = gasto.cantidad;
-              regularGastos[`${gasto.id_conceptos}_vr_unit`] = gasto.valor_unit;
+              serverRegularGastos[`${gasto.id_conceptos}_cantidad`] = gasto.cantidad;
+              serverRegularGastos[`${gasto.id_conceptos}_vr_unit`] = gasto.valor_unit;
             }
           });
           
-          // Actualizar estados
-          setFormData(prev => ({ ...prev, gastosCargados: true }));
-          setExtraExpenses(extraGastosList);
+          // Verificar si los datos del servidor son más recientes que los locales
+          const useServerData = !localStorageTimestamp || serverTimestamp > parseInt(localStorageTimestamp);
           
-          // Guardar en caché
+          if (useServerData) {
+            console.log("📊 Usando datos más recientes del servidor");
+            regularGastos = serverRegularGastos;
+            extraGastosList = serverExtraGastosList;
+          } else {
+            console.log("📊 Manteniendo datos locales más recientes");
+          }
+          
+          // Guardar en caché y localStorage
           requestCache.set(cacheKey, { regularGastos, extraGastosList });
+          localStorage.setItem(`solicitud2_gastos_${idSolicitud}`, 
+                             JSON.stringify({ regularGastos, extraGastosList }));
+          localStorage.setItem(`solicitud2_gastos_timestamp_${idSolicitud}`, 
+                             serverTimestamp.toString());
+          
+          dataLoaded = true;
         }
+      }
+      
+      // Actualizar el estado con los datos recuperados, si hay alguno
+      if (dataLoaded) {
+        setFormData(prev => ({ ...prev, ...regularGastos, gastosCargados: true }));
+        setExtraExpenses(extraGastosList);
+        console.log("✅ Datos de gastos cargados correctamente");
       }
     } catch (error) {
       console.error('Error al cargar los gastos:', error);
-      // Continuar sin datos, mostrar interfaz para ingreso manual
+      // Si hay un error, intentar usar los datos de localStorage como respaldo
+      try {
+        const localData = localStorage.getItem(`solicitud2_data_${idSolicitud}`);
+        const localExtraExpenses = localStorage.getItem(`solicitud2_extraExpenses_${idSolicitud}`);
+        
+        if (localData) {
+          console.log("⚠️ Usando datos locales como respaldo debido a error");
+          const parsedData = JSON.parse(localData);
+          setFormData(prev => ({ ...prev, ...parsedData, gastosCargados: true }));
+        }
+        
+        if (localExtraExpenses) {
+          const parsedExtraExpenses = JSON.parse(localExtraExpenses);
+          setExtraExpenses(parsedExtraExpenses);
+        }
+      } catch (localError) {
+        console.error("Error al recuperar datos locales:", localError);
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
   
   fetchGastos();
-}, [idSolicitud, formData.gastosCargados]);
+}, [idSolicitud]);
 
   useEffect(() => {
     if (currentStep < 0 || currentStep >= steps.length) {
@@ -367,6 +430,30 @@ const handleSaveGastos = async () => {
     });
   }
   
+  // SIEMPRE guardar localmente primero para garantizar persistencia
+  try {
+    // Crear una estructura para almacenar en formato para recuperar
+    const regularGastos = {};
+    gastosRegulares.forEach(gasto => {
+      regularGastos[`${gasto.id_conceptos}_cantidad`] = gasto.cantidad;
+      regularGastos[`${gasto.id_conceptos}_vr_unit`] = gasto.valor_unit;
+    });
+    
+    // Guardar en localStorage
+    localStorage.setItem(
+      `solicitud2_gastos_${idSolicitudCopy}`, 
+      JSON.stringify({ regularGastos, extraGastosList: extraExpenses })
+    );
+    localStorage.setItem(
+      `solicitud2_gastos_timestamp_${idSolicitudCopy}`,
+      Date.now().toString()
+    );
+    
+    console.log("✅ Datos de gastos guardados localmente");
+  } catch (localError) {
+    console.error("Error al guardar datos localmente:", localError);
+  }
+  
   try {
     // Enviar al servidor
     const response = await axios.post('https://siac-extension-server.vercel.app/guardarGastos', {
@@ -376,17 +463,17 @@ const handleSaveGastos = async () => {
     });
     
     if (response.data.success) {
-      console.log("✅ Gastos guardados correctamente");
+      console.log("✅ Gastos guardados correctamente en el servidor");
       
       // Guardar resultado en caché para evitar envíos duplicados
       requestCache.set(cacheKey, response.data);
       
       return response.data;
     } else {
-      throw new Error(response.data.error || "Error al guardar gastos");
+      throw new Error(response.data.error || "Error al guardar gastos en el servidor");
     }
   } catch (error) {
-    console.error("Error al guardar gastos:", error);
+    console.error("Error al guardar gastos en el servidor:", error);
     
     // Guardar datos localmente para reintento posterior
     localStorage.setItem(`pendingGastos_${idSolicitudCopy}`, JSON.stringify({
@@ -394,7 +481,12 @@ const handleSaveGastos = async () => {
       gastos: todosLosGastos
     }));
     
-    throw error;
+    // Devolver un objeto indicando éxito parcial (guardado local)
+    return {
+      success: true,
+      local_only: true,
+      message: "Datos guardados localmente. Se sincronizarán cuando haya conexión."
+    };
   }
 };
 
@@ -897,6 +989,96 @@ const PrintReportButton = () => {
   );
 };
   
+
+  // Almacenamiento local para los datos del formulario y gastos extras
+useEffect(() => {
+  // Función para guardar los datos del formulario en localStorage
+  const saveFormDataLocally = () => {
+    if (idSolicitud) {
+      // Guardar los datos del formulario
+      localStorage.setItem(`solicitud2_data_${idSolicitud}`, JSON.stringify(formData));
+      
+      // Guardar los gastos extras por separado para mejor rendimiento
+      localStorage.setItem(`solicitud2_extraExpenses_${idSolicitud}`, JSON.stringify(extraExpenses));
+      
+      console.log("Datos del formulario guardados localmente");
+    }
+  };
+  
+  // Guardar datos automáticamente cuando cambien
+  saveFormDataLocally();
+  
+  // También configurar un intervalo para guardar periódicamente (cada 10 segundos)
+  const saveInterval = setInterval(saveFormDataLocally, 10000);
+  
+  return () => clearInterval(saveInterval);
+}, [formData, extraExpenses, idSolicitud]);
+
+// Cargar datos del formulario y gastos extras desde localStorage al inicio
+useEffect(() => {
+  if (idSolicitud) {
+    try {
+      // Recuperar datos del formulario
+      const savedFormData = localStorage.getItem(`solicitud2_data_${idSolicitud}`);
+      if (savedFormData) {
+        const parsedData = JSON.parse(savedFormData);
+        setFormData(prevData => ({...prevData, ...parsedData}));
+        console.log("Datos del formulario recuperados desde almacenamiento local");
+      }
+      
+      // Recuperar gastos extras
+      const savedExtraExpenses = localStorage.getItem(`solicitud2_extraExpenses_${idSolicitud}`);
+      if (savedExtraExpenses) {
+        const parsedExtraExpenses = JSON.parse(savedExtraExpenses);
+        setExtraExpenses(parsedExtraExpenses);
+        console.log("Gastos extras recuperados desde almacenamiento local");
+      }
+    } catch (error) {
+      console.error("Error al recuperar datos guardados localmente:", error);
+    }
+  }
+}, [idSolicitud]);
+
+// Función para guardar datos específicos del paso 3
+const saveStep3Data = useCallback(() => {
+  if (!idSolicitud) return;
+  
+  // Extraer solo los campos relevantes para el paso 3
+  const step3Data = {
+    fondo_comun_porcentaje: formData.fondo_comun_porcentaje,
+    escuela_departamento_porcentaje: formData.escuela_departamento_porcentaje,
+    observaciones: formData.observaciones,
+    responsable_financiero: formData.responsable_financiero
+  };
+  
+  // Guardar en localStorage
+  localStorage.setItem(`solicitud2_step3_${idSolicitud}`, JSON.stringify(step3Data));
+  console.log("Datos del paso 3 guardados localmente");
+}, [idSolicitud, formData.fondo_comun_porcentaje, formData.escuela_departamento_porcentaje, 
+    formData.observaciones, formData.responsable_financiero]);
+
+// Llamar a saveStep3Data cuando cambien los campos específicos del paso 3
+useEffect(() => {
+  if (activeStep === 2) { // Solo guardar cuando estemos en el paso 3
+    saveStep3Data();
+  }
+}, [activeStep, saveStep3Data]);
+
+// Cargar datos del paso 3 cuando se navegue a ese paso
+useEffect(() => {
+  if (idSolicitud && activeStep === 2) {
+    try {
+      const savedStep3Data = localStorage.getItem(`solicitud2_step3_${idSolicitud}`);
+      if (savedStep3Data) {
+        const parsedData = JSON.parse(savedStep3Data);
+        setFormData(prevData => ({...prevData, ...parsedData}));
+        console.log("Datos del paso 3 recuperados desde almacenamiento local");
+      }
+    } catch (error) {
+      console.error("Error al recuperar datos del paso 3:", error);
+    }
+  }
+}, [idSolicitud, activeStep]);
 
   return (
     <Box sx={{ position: 'relative' }}>
