@@ -195,7 +195,8 @@ function Step2FormSection2({
   };
 
   const subtotalGastos = calculateSubtotalGastos();
-  const imprevistos = subtotalGastos * 0.03; // 3% de los gastos
+  // Calcular imprevistos como exactamente 3% del subtotal de gastos
+  const imprevistos = subtotalGastos * 0.03; // 3% fijo para los gastos
   const totalGastosImprevistos = subtotalGastos + imprevistos;
 
   // Llama a la función callback cada vez que se calcule el total

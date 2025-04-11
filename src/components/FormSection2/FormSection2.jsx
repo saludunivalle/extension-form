@@ -453,13 +453,17 @@ const handleNext = async () => {
     const ingresos_vr_unit = parseInt(formData.ingresos_vr_unit) || 0;
     const total_ingresos = ingresos_cantidad * ingresos_vr_unit;
     
+    // Calcular exactamente 3% para imprevistos
+    const imprevistos_3 = subtotal_gastos * 0.03; 
+    
     pasoData = {
       ingresos_cantidad: ingresos_cantidad,
       ingresos_vr_unit: ingresos_vr_unit,
       total_ingresos: total_ingresos,
       subtotal_gastos: subtotal_gastos,
-      imprevistos_3: Math.round(subtotal_gastos * 0.03),
-      total_gastos_imprevistos: Math.round(subtotal_gastos * 1.03)
+      'imprevistos_3%': 3, // Porcentaje fijo
+      imprevistos_3: imprevistos_3,
+      total_gastos_imprevistos: subtotal_gastos + imprevistos_3
     };
     
     console.log("Guardando en SOLICITUDES2 con subtotal_gastos calculado del servidor:", subtotal_gastos);
@@ -471,13 +475,17 @@ const handleNext = async () => {
     const ingresos_vr_unit = parseInt(formData.ingresos_vr_unit) || 0;
     const total_ingresos = ingresos_cantidad * ingresos_vr_unit;
     
+    // Calcular exactamente 3% para imprevistos
+    const imprevistos_3 = totalGastos * 0.03; 
+    
     pasoData = {
       ingresos_cantidad: ingresos_cantidad,
       ingresos_vr_unit: ingresos_vr_unit,
       total_ingresos: total_ingresos,
       subtotal_gastos: totalGastos || 0,
-      imprevistos_3: Math.round((totalGastos || 0) * 0.03),
-      total_gastos_imprevistos: Math.round((totalGastos || 0) * 1.03)
+      'imprevistos_3%': 3, // Porcentaje fijo
+      imprevistos_3: imprevistos_3,
+      total_gastos_imprevistos: totalGastos + imprevistos_3
     };
   }
   break;
@@ -485,20 +493,29 @@ const handleNext = async () => {
         
         const totalIngresos = (parseFloat(formData.ingresos_cantidad) || 0) * 
                              (parseFloat(formData.ingresos_vr_unit) || 0);
-        const fondoComunPorcentaje = formData.fondo_comun_porcentaje || 30;
-        const fondoComun = Math.round((fondoComunPorcentaje / 100) * totalIngresos);
-        const facultadInstituto = Math.round(totalIngresos * 0.05);
-        const escuelaDeptoPorcentaje = formData.escuela_departamento_porcentaje || 0;
-        const escuelaDepartamento = Math.round((escuelaDeptoPorcentaje / 100) * totalIngresos);
-        const totalAportes = fondoComun + facultadInstituto + escuelaDepartamento;
+        const fondoComunPorcentaje = parseFloat(formData.fondo_comun_porcentaje) || 30;
+        const facultadInstitutoPorcentaje = 5; // Fijo en 5%
+        const escuelaDeptoPorcentaje = parseFloat(formData.escuela_departamento_porcentaje) || 0;
+        
+        // Calcular valores monetarios basados en porcentajes
+        const fondoComun = totalIngresos * (fondoComunPorcentaje / 100);
+        const facultadInstituto = totalIngresos * (facultadInstitutoPorcentaje / 100);
+        const escuelaDepartamento = totalIngresos * (escuelaDeptoPorcentaje / 100);
+        const totalRecursos = fondoComun + facultadInstituto + escuelaDepartamento;
         
         pasoData = {
+          // Porcentajes
           fondo_comun_porcentaje: fondoComunPorcentaje,
+          facultad_instituto_porcentaje: facultadInstitutoPorcentaje,
+          escuela_departamento_porcentaje: escuelaDeptoPorcentaje,
+          
+          // Valores monetarios
           fondo_comun: fondoComun,
           facultad_instituto: facultadInstituto,
-          escuela_departamento_porcentaje: escuelaDeptoPorcentaje,
           escuela_departamento: escuelaDepartamento,
-          total_aportes: totalAportes,
+          total_recursos: totalRecursos,
+          
+          // Otros campos
           observaciones: formData.observaciones || '',
           responsable_financiero: formData.responsable_financiero || ''
         };
@@ -590,78 +607,147 @@ const handleNext = async () => {
   };
 
   const handleSubmit = async () => {
-  if (!validateStep()) {
-    console.log("Errores en la validación del paso final");
-    return;
-  }
-
-  setIsLoading(true);
-
-  try {
-    // Resumen financiero
-    const ingresos_cantidad = parseInt(formData.ingresos_cantidad) || 0;
-    const ingresos_vr_unit = parseInt(formData.ingresos_vr_unit) || 0;
-    const total_ingresos = ingresos_cantidad * ingresos_vr_unit;
-    
-    const pasoData = {
-      fondo_comun: Math.round(total_ingresos * (formData.fondo_comun_porcentaje || 30) / 100),
-      facultad_instituto: Math.round(total_ingresos * 0.05),
-      escuela_departamento: Math.round(total_ingresos * (formData.escuela_departamento_porcentaje || 0) / 100),
-      total_ingresos: total_ingresos,
-      subtotal_gastos: totalGastos || 0,
-      imprevistos_3: Math.round((totalGastos || 0) * 0.03),
-      total_gastos_imprevistos: Math.round((totalGastos || 0) * 1.03),
-      ingresos_cantidad,
-      ingresos_vr_unit,
-      escuela_departamento_porcentaje: formData.escuela_departamento_porcentaje || 0,
-      fondo_comun_porcentaje: formData.fondo_comun_porcentaje || 30
-    };
-    
-    // Envío final con todos los datos
-    const dataToSend = new FormData();
-    dataToSend.append('id_solicitud', idSolicitud);
-    dataToSend.append('paso', 3); // Paso final del formulario 2
-    dataToSend.append('hoja', 2);
-    dataToSend.append('formulario_completo', 'true');
-    dataToSend.append('id_usuario', userData.id_usuario);
-    dataToSend.append('name', userData.name);
-    
-    // Añadir estado de formularios
-    const nuevoEstadoFormularios = { 
-      "1": "Completado", 
-      "2": "Completado", 
-      "3": "En progreso",
-      "4": "En progreso" 
-    };
-    dataToSend.append('estado_formularios', JSON.stringify(nuevoEstadoFormularios));
-    
-    // Agregar todos los campos
-    Object.keys(pasoData).forEach(key => {
-      if (pasoData[key] !== undefined && pasoData[key] !== null) {
-        dataToSend.append(key, pasoData[key]);
-      }
-    });
-    
-    // Guardar datos finales
-    const response = await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend);
-    
-    if (response.data && response.data.success) {
-      // Actualizar estado local
-      localStorage.setItem(`form2_completed_${idSolicitud}`, 'true');
-      
-      // Mostrar modal de éxito
-      setShowModal(true);
-    } else {
-      console.error("Error en respuesta del servidor:", response.data);
-      alert("Hubo un problema al guardar los datos. Por favor, inténtelo de nuevo.");
+    if (!validateStep()) {
+      console.log("Errores en la validación del paso final");
+      return;
     }
-  } catch (error) {
-    console.error('Error al guardar el progreso:', error);
-    alert("No se pudieron guardar los datos. Por favor, compruebe su conexión e inténtelo de nuevo.");
-  } finally {
-    setIsLoading(false);
-  }
-};
+
+    setIsLoading(true);
+
+    try {
+      // Resumen financiero
+      const ingresos_cantidad = parseInt(formData.ingresos_cantidad) || 0;
+      const ingresos_vr_unit = parseInt(formData.ingresos_vr_unit) || 0;
+      const total_ingresos = ingresos_cantidad * ingresos_vr_unit;
+      
+      // Calcular 3% exacto para imprevistos
+      const subtotal_gastos = totalGastos || 0;
+      const imprevistos_3 = subtotal_gastos * 0.03;
+      
+      // Calcular valores monetarios basados en porcentajes
+      const fondo_comun_porcentaje = parseFloat(formData.fondo_comun_porcentaje) || 30;
+      const facultad_instituto_porcentaje = 5; // Fijo en 5%
+      const escuela_departamento_porcentaje = parseFloat(formData.escuela_departamento_porcentaje) || 0;
+      
+      const fondo_comun = total_ingresos * (fondo_comun_porcentaje / 100);
+      const facultad_instituto = total_ingresos * (facultad_instituto_porcentaje / 100);
+      const escuela_departamento = total_ingresos * (escuela_departamento_porcentaje / 100);
+      const total_recursos = fondo_comun + facultad_instituto + escuela_departamento;
+      
+      // 1. Primero intentar con el endpoint específico para el paso 3
+      try {
+        const paso3Response = await axios.post('https://siac-extension-server.vercel.app/guardarForm2Paso3', {
+          id_solicitud: idSolicitud,
+          id_usuario: userData.id_usuario,
+          // Porcentajes
+          fondo_comun_porcentaje: fondo_comun_porcentaje,
+          facultad_instituto_porcentaje: facultad_instituto_porcentaje,
+          escuela_departamento_porcentaje: escuela_departamento_porcentaje,
+          
+          // Valores monetarios
+          fondo_comun: fondo_comun,
+          facultad_instituto: facultad_instituto,
+          escuela_departamento: escuela_departamento,
+          total_recursos: total_recursos,
+          
+          // Ingresos
+          total_ingresos: total_ingresos,
+          ingresos_cantidad,
+          ingresos_vr_unit,
+          
+          // Gastos
+          subtotal_gastos: subtotal_gastos,
+          'imprevistos_3%': 3, // Porcentaje fijo
+          imprevistos_3: imprevistos_3,
+          total_gastos_imprevistos: subtotal_gastos + imprevistos_3
+        });
+        
+        console.log('Respuesta del endpoint específico:', paso3Response.data);
+        
+        if (paso3Response.data && paso3Response.data.success) {
+          // Actualizar estado local
+          localStorage.setItem(`form2_completed_${idSolicitud}`, 'true');
+          
+          // Mostrar modal de éxito
+          setShowModal(true);
+          setIsLoading(false);
+          return;
+        }
+      } catch (endpointError) {
+        console.warn('Error al usar endpoint específico, intentando con método general:', endpointError);
+        // Continuar con el método general si falla el específico
+      }
+      
+      // 2. Si falla el endpoint específico, usar el método general
+      const pasoData = {
+        // Porcentajes
+        fondo_comun_porcentaje: fondo_comun_porcentaje,
+        facultad_instituto_porcentaje: facultad_instituto_porcentaje,
+        escuela_departamento_porcentaje: escuela_departamento_porcentaje,
+        
+        // Valores monetarios
+        fondo_comun: fondo_comun,
+        facultad_instituto: facultad_instituto,
+        escuela_departamento: escuela_departamento,
+        total_recursos: total_recursos,
+        
+        // Ingresos
+        total_ingresos: total_ingresos,
+        ingresos_cantidad,
+        ingresos_vr_unit,
+        
+        // Gastos
+        subtotal_gastos: subtotal_gastos,
+        'imprevistos_3%': 3, // Porcentaje fijo
+        imprevistos_3: imprevistos_3,
+        total_gastos_imprevistos: subtotal_gastos + imprevistos_3
+      };
+      
+      // Envío final con todos los datos
+      const dataToSend = new FormData();
+      dataToSend.append('id_solicitud', idSolicitud);
+      dataToSend.append('paso', 3); // Paso final del formulario 2
+      dataToSend.append('hoja', 2);
+      dataToSend.append('formulario_completo', 'true');
+      dataToSend.append('id_usuario', userData.id_usuario);
+      dataToSend.append('name', userData.name);
+      
+      // Añadir estado de formularios
+      const nuevoEstadoFormularios = { 
+        "1": "Completado", 
+        "2": "Completado", 
+        "3": "En progreso",
+        "4": "En progreso" 
+      };
+      dataToSend.append('estado_formularios', JSON.stringify(nuevoEstadoFormularios));
+      
+      // Agregar todos los campos
+      Object.keys(pasoData).forEach(key => {
+        if (pasoData[key] !== undefined && pasoData[key] !== null) {
+          dataToSend.append(key, pasoData[key]);
+        }
+      });
+      
+      // Guardar datos finales
+      const response = await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend);
+      
+      if (response.data && response.data.success) {
+        // Actualizar estado local
+        localStorage.setItem(`form2_completed_${idSolicitud}`, 'true');
+        
+        // Mostrar modal de éxito
+        setShowModal(true);
+      } else {
+        console.error("Error en respuesta del servidor:", response.data);
+        alert("Hubo un problema al guardar los datos. Por favor, inténtelo de nuevo.");
+      }
+    } catch (error) {
+      console.error('Error al guardar el progreso:', error);
+      alert("No se pudieron guardar los datos. Por favor, compruebe su conexión e inténtelo de nuevo.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   /*
     - Renderiza el componente correspondiente al paso actual del formulario basado en el índice del paso (`step`).
