@@ -19,41 +19,40 @@ import Step4FormSection3 from './Step4FormSection3';
 import Step5FormSection3 from './Step5FormSection3';
 
 import CheckIcon from '@mui/icons-material/Check'; // Importa el ícono del check
-  import { styled } from '@mui/system';
+import { styled } from '@mui/system';
 
-  /* 
-  Este componente se encarga de cambiar el color de fondo, el color del texto y otros estilos visuales del ícono:
-  - Si el paso está completado (`completed`), el fondo es azul oscuro y el texto blanco.
-  - Si el paso está activo (`active`), el fondo también es azul oscuro y el texto blanco. (Sin embargo con el otro componente se le añade el icono check)
-  - Si el paso está pendiente, el fondo es gris claro y el texto gris oscuro.
-  */
-  const CustomStepIconRoot = styled('div')(({ ownerState }) => ({
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 36,
-    height: 36,
-    borderRadius: '50%', 
-    backgroundColor: ownerState.completed
-      ? '#0056b3' 
-      : ownerState.active
-      ? '#0056b3' 
-      : '#E0E0E0', 
-    color: ownerState.completed || ownerState.active ? '#FFFFFF' : '#4F4F4F', 
-    fontWeight: 'bold',
-  }));
-  
-    /*
-  Este componente se encarga de renderizar el contenido del ícono.
-  - Si el paso está completado (`completed`), muestra un ícono de verificación (`CheckIcon`).
-  - Si el paso no está completado, muestra el ícono correspondiente al paso (`icon`).
-  */
-  const CustomStepIcon = ({ active, completed, icon }) => (
-    <CustomStepIconRoot ownerState={{ active, completed }}>
-      {completed ? <CheckIcon /> : icon}
-    </CustomStepIconRoot>
-  );
-  
+/* 
+Este componente se encarga de cambiar el color de fondo, el color del texto y otros estilos visuales del ícono:
+- Si el paso está completado (`completed`), el fondo es azul oscuro y el texto blanco.
+- Si el paso está activo (`active`), el fondo también es azul oscuro y el texto blanco. (Sin embargo con el otro componente se le añade el icono check)
+- Si el paso está pendiente, el fondo es gris claro y el texto gris oscuro.
+*/
+const CustomStepIconRoot = styled('div')(({ ownerState }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 36,
+  height: 36,
+  borderRadius: '50%', 
+  backgroundColor: ownerState.completed
+    ? '#0056b3' 
+    : ownerState.active
+    ? '#0056b3' 
+    : '#E0E0E0', 
+  color: ownerState.completed || ownerState.active ? '#FFFFFF' : '#4F4F4F', 
+  fontWeight: 'bold',
+}));
+
+/*
+Este componente se encarga de renderizar el contenido del ícono.
+- Si el paso está completado (`completed`), muestra un ícono de verificación (`CheckIcon`).
+- Si el paso no está completado, muestra el ícono correspondiente al paso (`icon`).
+*/
+const CustomStepIcon = ({ active, completed, icon }) => (
+  <CustomStepIconRoot ownerState={{ active, completed }}>
+    {completed ? <CheckIcon /> : icon}
+  </CustomStepIconRoot>
+);
 
 function FormSection3({ formData, handleInputChange, userData, currentStep, setCurrentSection, formId}) {
   // Step labels
@@ -98,6 +97,11 @@ const validateStep = () => {
         stepErrors[field] = "Este campo es obligatorio";
       }
     });
+    
+    // Mostrar mensaje de error en UI si hay campos obligatorios vacíos
+    if (Object.keys(stepErrors).length > 0) {
+      alert("Por favor complete todos los campos obligatorios marcados con *");
+    }
   }
   else if (activeStep === 1) { // Validación para el segundo paso (diseño)
     /* No son obligatorios

@@ -18,7 +18,7 @@ const CustomStepIconRoot = styled('div')(({ ownerState }) => ({
     : ownerState.active
     ? '#0056b3' // Activo: azul oscuro
     : ownerState.accessible
-    ? '#78a9df' // Accesible pero no activo: azul claro
+    ? '#a7c5ed' // Accesible pero no activo: azul más claro
     : '#E0E0E0', // No accesible: gris
   color: ownerState.completed || ownerState.active || ownerState.accessible
     ? '#ffffff' // Blanco para pasos completados, activos o accesibles

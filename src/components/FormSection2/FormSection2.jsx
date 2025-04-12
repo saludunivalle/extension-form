@@ -73,6 +73,28 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   const [localFormData, setLocalFormData] = useState({...formData});
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
+  // Define setFormData as a function that updates formData through handleInputChange
+  const setFormData = (newDataOrCallback) => {
+    // Handle both function and object parameter styles
+    if (typeof newDataOrCallback === 'function') {
+      const newData = newDataOrCallback(localFormData);
+      setLocalFormData(newData);
+      // Apply each field individually through handleInputChange
+      Object.entries(newData).forEach(([key, value]) => {
+        if (key in formData || !(key in localFormData) || formData[key] !== value) {
+          handleInputChange({ target: { name: key, value } });
+        }
+      });
+    } else {
+      setLocalFormData(prevData => ({...prevData, ...newDataOrCallback}));
+      // Apply each field individually through handleInputChange
+      Object.entries(newDataOrCallback).forEach(([key, value]) => {
+        if (key in formData || !(key in localFormData) || formData[key] !== value) {
+          handleInputChange({ target: { name: key, value } });
+        }
+      });
+    }
+  };
   
   const { 
     maxAllowedStep, 
@@ -126,24 +148,38 @@ useEffect(() => {
     let dataLoaded = false;
     
     try {
-      // Primero intentar cargar datos locales
+      // 1. Check if we already have data in memory cache (most efficient)
       const cacheKey = `gastos_${idSolicitud}`;
       const cachedData = requestCache.get(cacheKey);
+      
+      // 2. Check localStorage for more persistent cache
       const localStorageData = localStorage.getItem(`solicitud2_gastos_${idSolicitud}`);
       const localStorageTimestamp = localStorage.getItem(`solicitud2_gastos_timestamp_${idSolicitud}`);
+      const cacheExpiry = 30 * 60 * 1000; // 30 minutes cache validity
+      const now = Date.now();
+      const isCacheValid = localStorageTimestamp && (now - parseInt(localStorageTimestamp) < cacheExpiry);
       
       // Variables para almacenar los datos recuperados
       let regularGastos = {};
       let extraGastosList = [];
       
-      // Si hay datos en caché, usarlos
+      // 3. Try memory cache first (fastest)
       if (cachedData) {
         console.log("📊 Usando datos de gastos desde caché interna");
         regularGastos = cachedData.regularGastos || {};
         extraGastosList = cachedData.extraGastosList || [];
         dataLoaded = true;
+        
+        // If cache is still valid, don't make API request
+        if (isCacheValid) {
+          console.log("📊 Cache still valid, skipping API request");
+          setFormData(prev => ({ ...prev, ...regularGastos, gastosCargados: true }));
+          setExtraExpenses(extraGastosList);
+          setIsLoading(false);
+          return;
+        }
       } 
-      // Si hay datos en localStorage, usarlos
+      // 4. Try localStorage if memory cache not available
       else if (localStorageData) {
         try {
           console.log("📊 Usando datos de gastos desde localStorage");
@@ -151,68 +187,98 @@ useEffect(() => {
           regularGastos = parsedData.regularGastos || {};
           extraGastosList = parsedData.extraGastosList || [];
           dataLoaded = true;
+          
+          // Apply cached data immediately while we fetch from API
+          setFormData(prev => ({ ...prev, ...regularGastos, gastosCargados: true }));
+          setExtraExpenses(extraGastosList);
+          
+          // If cache is still valid, don't make API request
+          if (isCacheValid) {
+            console.log("📊 Cache still valid, skipping API request");
+            setIsLoading(false);
+            return;
+          }
         } catch (error) {
           console.error("Error al parsear datos locales:", error);
         }
       }
       
-      // Intentar obtener datos del servidor (incluso si ya tenemos datos locales)
-      console.log("📊 Obteniendo gastos desde el servidor...");
-      const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
-        id_solicitud: idSolicitud,
-        etapa_destino: 2,
-        paso_destino: 1
-      });
-      
-      if (response.data.success) {
-        const gastos = response.data.estado.datosFormulario?.gastos || [];
-        const serverTimestamp = response.data.timestamp || Date.now();
+      // 5. Try the API if we don't have valid cache, or if we want to refresh outdated cache
+      try {
+        console.log("📊 Obteniendo gastos desde el servidor...");
+        const apiTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('API request timeout')), 8000)
+        );
         
-        if (gastos.length > 0) {
-          const serverRegularGastos = {};
-          const serverExtraGastosList = [];
+        // Use Promise.race to implement a timeout
+        const response = await Promise.race([
+          axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+            id_solicitud: idSolicitud,
+            etapa_destino: 2,
+            paso_destino: 1
+          }),
+          apiTimeout
+        ]);
+        
+        if (response.data.success) {
+          const gastos = response.data.estado.datosFormulario?.gastos || [];
+          const serverTimestamp = response.data.timestamp || Date.now();
           
-          gastos.forEach(gasto => {
-            // Procesar gastos
-            if (gasto.id_conceptos.startsWith('15.')) {
-              // Es un gasto extra dinámico
-              serverExtraGastosList.push({
-                id: Date.now() + parseInt(gasto.id_conceptos.split('.')[1]),
-                name: gasto.concepto || `Gasto Extra ${gasto.id_conceptos.split('.')[1]}`,
-                cantidad: gasto.cantidad || 0,
-                vr_unit: gasto.valor_unit || 0,
-                key: gasto.id_conceptos
-              });
+          if (gastos.length > 0) {
+            const serverRegularGastos = {};
+            const serverExtraGastosList = [];
+            
+            gastos.forEach(gasto => {
+              // Procesar gastos
+              if (gasto.id_conceptos.startsWith('15.')) {
+                // Es un gasto extra dinámico
+                serverExtraGastosList.push({
+                  id: Date.now() + parseInt(gasto.id_conceptos.split('.')[1]),
+                  name: gasto.concepto || `Gasto Extra ${gasto.id_conceptos.split('.')[1]}`,
+                  cantidad: gasto.cantidad || 0,
+                  vr_unit: gasto.valor_unit || 0,
+                  key: gasto.id_conceptos
+                });
+              } else {
+                // Es un gasto regular
+                serverRegularGastos[`${gasto.id_conceptos}_cantidad`] = gasto.cantidad;
+                serverRegularGastos[`${gasto.id_conceptos}_vr_unit`] = gasto.valor_unit;
+              }
+            });
+            
+            // Always use server data if available, as it should be authoritative
+            // But check if we have newer local modifications
+            const useServerData = !localStorageTimestamp || serverTimestamp > parseInt(localStorageTimestamp);
+            
+            if (useServerData) {
+              console.log("📊 Usando datos más recientes del servidor");
+              regularGastos = serverRegularGastos;
+              extraGastosList = serverExtraGastosList;
             } else {
-              // Es un gasto regular
-              serverRegularGastos[`${gasto.id_conceptos}_cantidad`] = gasto.cantidad;
-              serverRegularGastos[`${gasto.id_conceptos}_vr_unit`] = gasto.valor_unit;
+              console.log("📊 Manteniendo datos locales más recientes");
             }
-          });
-          
-          // Verificar si los datos del servidor son más recientes que los locales
-          const useServerData = !localStorageTimestamp || serverTimestamp > parseInt(localStorageTimestamp);
-          
-          if (useServerData) {
-            console.log("📊 Usando datos más recientes del servidor");
-            regularGastos = serverRegularGastos;
-            extraGastosList = serverExtraGastosList;
-          } else {
-            console.log("📊 Manteniendo datos locales más recientes");
+            
+            // Guardar en caché y localStorage
+            requestCache.set(cacheKey, { regularGastos, extraGastosList });
+            localStorage.setItem(`solicitud2_gastos_${idSolicitud}`, 
+                               JSON.stringify({ regularGastos, extraGastosList }));
+            localStorage.setItem(`solicitud2_gastos_timestamp_${idSolicitud}`, 
+                               now.toString());
+            
+            dataLoaded = true;
           }
-          
-          // Guardar en caché y localStorage
-          requestCache.set(cacheKey, { regularGastos, extraGastosList });
-          localStorage.setItem(`solicitud2_gastos_${idSolicitud}`, 
-                             JSON.stringify({ regularGastos, extraGastosList }));
-          localStorage.setItem(`solicitud2_gastos_timestamp_${idSolicitud}`, 
-                             serverTimestamp.toString());
-          
-          dataLoaded = true;
+        }
+      } catch (apiError) {
+        console.error('API error:', apiError);
+        // API error - use cached data if we have it
+        if (dataLoaded) {
+          console.log("⚠️ API error but using cached data");
+        } else {
+          throw apiError; // Rethrow to be caught by outer catch
         }
       }
       
-      // Actualizar el estado con los datos recuperados, si hay alguno
+      // 6. Update state with whatever data we have
       if (dataLoaded) {
         setFormData(prev => ({ ...prev, ...regularGastos, gastosCargados: true }));
         setExtraExpenses(extraGastosList);
@@ -220,8 +286,9 @@ useEffect(() => {
       }
     } catch (error) {
       console.error('Error al cargar los gastos:', error);
-      // Si hay un error, intentar usar los datos de localStorage como respaldo
+      // Si hay un error, intentar usar los datos de localStorage como respaldo final
       try {
+        console.log("⚠️ Intentando usar datos locales como último recurso");
         const localData = localStorage.getItem(`solicitud2_data_${idSolicitud}`);
         const localExtraExpenses = localStorage.getItem(`solicitud2_extraExpenses_${idSolicitud}`);
         
@@ -244,6 +311,34 @@ useEffect(() => {
   };
   
   fetchGastos();
+  
+  // Set up periodic refresh at a reasonable interval (e.g., every 5 minutes)
+  // but only if the user is actively interacting with the app
+  const refreshInterval = 5 * 60 * 1000; // 5 minutes
+  let lastUserActivity = Date.now();
+  
+  const activityHandler = () => {
+    lastUserActivity = Date.now();
+  };
+  
+  // Track user activity
+  window.addEventListener('click', activityHandler);
+  window.addEventListener('keypress', activityHandler);
+  window.addEventListener('scroll', activityHandler);
+  
+  const intervalId = setInterval(() => {
+    // Only refresh if the user has been active in the last 10 minutes
+    if (Date.now() - lastUserActivity < 10 * 60 * 1000) {
+      fetchGastos();
+    }
+  }, refreshInterval);
+  
+  return () => {
+    clearInterval(intervalId);
+    window.removeEventListener('click', activityHandler);
+    window.removeEventListener('keypress', activityHandler);
+    window.removeEventListener('scroll', activityHandler);
+  };
 }, [idSolicitud]);
 
   useEffect(() => {
@@ -885,33 +980,79 @@ const handleNext = async () => {
 // 5. Optimizar PrintReportButton para reducir llamadas al verificar estado
 const PrintReportButton = () => {
   const [isFormCompletedBackend, setIsFormCompletedBackend] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
+  const [lastCheckTime, setLastCheckTime] = useState(0);
+  const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
   
   useEffect(() => {
     const checkFormCompletion = async () => {
       if (!idSolicitud) return;
       
-        try {
-          const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
-            id_solicitud: idSolicitud,
-            etapa_destino: formId || 2,
-            paso_destino: 1
-          });
+      // Check if we have a recent cached result to avoid unnecessary API calls
+      const now = Date.now();
+      const cacheKey = `form${formId}_completed_check_${idSolicitud}`;
+      const cachedResult = localStorage.getItem(cacheKey);
+      
+      // Use cached result if it's recent enough
+      if (cachedResult && now - lastCheckTime < CACHE_TTL) {
+        const parsedResult = JSON.parse(cachedResult);
+        setIsFormCompletedBackend(parsedResult.isCompleted);
+        console.log("Using cached form completion status");
+        return;
+      }
+      
+      // Only proceed with API call if not already checking
+      if (isChecking) return;
+      
+      setIsChecking(true);
+      
+      try {
+        // First try to use cached value from localStorage, even if outdated
+        const localStatus = localStorage.getItem(`form${formId}_completed_${idSolicitud}`);
+        if (localStatus === 'true') {
+          setIsFormCompletedBackend(true);
+        }
+        
+        // Then try to get an updated status from the server
+        const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+          id_solicitud: idSolicitud,
+          etapa_destino: formId || 2,
+          paso_destino: 1
+        });
+        
+        if (response.data.success && response.data.estado?.estadoFormularios) {
+          const formStatus = response.data.estado.estadoFormularios[formId.toString()];
+          const isCompleted = formStatus === 'Completado';
           
-          if (response.data.success && response.data.estado?.estadoFormularios) {
-            const formStatus = response.data.estado.estadoFormularios[formId.toString()];
-            setIsFormCompletedBackend(formStatus === 'Completado');
-
-          }
-        } catch (error) {
-          console.error('Error al verificar estado del formulario:', error);
-          // Usar estado local si el servidor no responde
-          const localStatus = localStorage.getItem(`form2_completed_${idSolicitud}`);
-          setIsFormCompletedBackend(localStatus === 'true');
+          // Update state and cache the result
+          setIsFormCompletedBackend(isCompleted);
+          setLastCheckTime(now);
+          
+          localStorage.setItem(cacheKey, JSON.stringify({
+            isCompleted,
+            timestamp: now
+          }));
+          
+          // Also update the simpler cache
+          localStorage.setItem(`form${formId}_completed_${idSolicitud}`, isCompleted.toString());
+        }
+      } catch (error) {
+        console.error('Error al verificar estado del formulario:', error);
+        // Usar estado local si el servidor no responde
+        const localStatus = localStorage.getItem(`form${formId}_completed_${idSolicitud}`);
+        setIsFormCompletedBackend(localStatus === 'true');
+      } finally {
+        setIsChecking(false);
       }
     };
     
     checkFormCompletion();
-  }, [idSolicitud]);
+    
+    // Set up a periodic check with a reasonable interval
+    const checkInterval = setInterval(checkFormCompletion, CACHE_TTL);
+    
+    return () => clearInterval(checkInterval);
+  }, [idSolicitud, formId, isChecking, lastCheckTime]);
   
   // NUEVA LÓGICA: Si el formulario no está completado según el backend,
   // el botón solo se habilita en el último paso Y después de enviar los datos
@@ -951,7 +1092,7 @@ const PrintReportButton = () => {
       marginLeft: '20px',
       marginRight: '-70px',
     }}>
-      {navLoading && (
+      {(navLoading || isChecking) && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
           <CircularProgress size={24} />
         </Box>
