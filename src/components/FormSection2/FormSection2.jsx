@@ -32,22 +32,30 @@ import PropTypes from 'prop-types';
     width: 36,
     height: 36,
     borderRadius: '50%', 
-    backgroundColor: ownerState.completed
-      ? '#0056b3' 
-      : ownerState.active
-      ? '#0056b3' 
-      : '#E0E0E0', 
-    color: ownerState.completed || ownerState.active ? '#FFFFFF' : '#4F4F4F', 
-    fontWeight: 'bold',
-  }));
+    backgroundColor: 
+    ownerState.active
+    ? '#0056b3' // Activo: azul oscuro (donde estoy parado) 
+    : ownerState.completed
+    ? '#81bef7' // Completado no activo: azul claro (completado pero no estoy parado ahí)
+    : ownerState.accessible
+    ? '#81bef7' // Accesible pero no completado: azul más claro
+    : '#E0E0E0', // No accesible: gris
+  color: ownerState.completed || ownerState.active || ownerState.accessible ? '#FFFFFF' : '#4F4F4F', 
+  fontWeight: 'bold',
+  transition: 'all 0.2s ease',
+  '&:hover': {
+    transform: ownerState.accessible || ownerState.completed ? 'scale(1.05)' : 'none',
+    boxShadow: ownerState.accessible || ownerState.completed ? '0 2px 5px rgba(0,0,0,0.2)' : 'none',
+  }
+}));
   
     /*
   Este componente se encarga de renderizar el contenido del ícono.
   - Si el paso está completado (`completed`), muestra un ícono de verificación (`CheckIcon`).
   - Si el paso no está completado, muestra el ícono correspondiente al paso (`icon`).
   */
-  const CustomStepIcon = ({ active, completed, icon }) => (
-    <CustomStepIconRoot ownerState={{ active, completed }}>
+  const CustomStepIcon = ({ active, completed, icon, accessible }) => (
+    <CustomStepIconRoot ownerState={{ active, completed, accessible }}>
       {completed ? <CheckIcon /> : icon}
     </CustomStepIconRoot>
   );
@@ -1257,10 +1265,26 @@ useEffect(() => {
         <Step key={index} sx={{ marginBottom: '20px' }}>
           <StepLabel
             onClick={() => handleStepClick(index)}
+            StepIconComponent={(props) => (
+              <CustomStepIcon 
+                {...props} 
+                active={index === activeStep}
+                completed={completedSteps.includes(index)}
+                accessible={index <= highestStepReached}
+              />
+            )}
             sx={{
               '& .MuiStepLabel-label': {
-                backgroundColor: index <= highestStepReached ? '#0056b3' : 'transparent',
-                color: index <= highestStepReached ? '#FFFFFF' : '#A0A0A0',
+                backgroundColor: index === activeStep
+                  ? '#0056b3' // Activo: azul oscuro
+                  : completedSteps.includes(index)
+                    ? '#81bef7' // Completado no activo: azul claro
+                    : index <= highestStepReached
+                      ? '#81bef7' // Accesible no completado: azul claro
+                      : 'transparent', // No accesible: sin fondo
+                color: index === activeStep || index <= highestStepReached 
+                  ? '#FFFFFF' 
+                  : '#A0A0A0',
                 padding: index <= highestStepReached ? '5px 10px' : '0',
                 borderRadius: '20px',
                 fontWeight: index === activeStep ? 'bold' : 'normal',
@@ -1268,7 +1292,13 @@ useEffect(() => {
                 opacity: index <= highestStepReached ? 1 : 0.6,
               },
               '& .MuiStepIcon-root': {
-                color: index <= highestStepReached ? '#0056b3' : '#E0E0E0',
+                color: index === activeStep
+                  ? '#0056b3' // Activo: azul oscuro
+                  : completedSteps.includes(index)
+                    ? '#81bef7' // Completado no activo: azul claro
+                    : index <= highestStepReached
+                      ? '#81bef7' // Accesible no completado: azul claro
+                      : '#E0E0E0', // No accesible: gris
                 fontSize: '28px',
               },
               '& .MuiStepIcon-root.Mui-active': { color: '#0056b3' },
