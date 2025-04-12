@@ -7,6 +7,14 @@ export const report3Config = {
   
   transformData: (formData) => {
     console.log("🔄 Transformando datos para reporte 3 (frontend)");
+    console.log("- DATOS ORIGINALES:", JSON.stringify(formData, null, 2));
+    console.log("- Campo 'programa':", formData.programa);
+    console.log("- Campos diseño:", {
+      aplicaDiseno1: formData.aplicaDiseno1,
+      aplicaDiseno2: formData.aplicaDiseno2,
+      aplicaDiseno3: formData.aplicaDiseno3,
+      aplicaDiseno4: formData.aplicaDiseno4
+    });
     
     // Crear objeto vacío para resultado
     const transformedData = {};
@@ -81,11 +89,32 @@ export const report3Config = {
       
     camposRiesgo.forEach(campo => {
       const valor = transformedData[campo];
-      if (valor === true || valor === 'true' || valor === 'Sí' || valor === 'Si' || valor === 'si' || valor === 'sí') {
+      // Valores considerados afirmativos
+      if (
+        valor === true || 
+        valor === 'true' || 
+        valor === 'TRUE' || 
+        valor === 'Sí' || 
+        valor === 'Si' || 
+        valor === 'SI' || 
+        valor === 'si' || 
+        valor === 'sí' || 
+        valor === 'SÍ' ||
+        valor === 'S' ||
+        valor === 's' ||
+        valor === 'Y' || 
+        valor === 'y' ||
+        valor === 'Yes' ||
+        valor === 'yes'
+      ) {
         transformedData[campo] = 'Sí aplica';
       } else {
+        // Si no es afirmativo o está vacío, considerarlo como "No aplica"
         transformedData[campo] = 'No aplica';
       }
+      
+      // Log para depuración
+      console.log(`Campo ${campo}: original = "${valor}", transformado = "${transformedData[campo]}"`);
     });
       
     // 5. VALORES POR DEFECTO PARA CAMPOS CRÍTICOS
