@@ -13,12 +13,13 @@ const CustomStepIconRoot = styled('div')(({ ownerState }) => ({
   width: 36,
   height: 36,
   borderRadius: '50%',
-  backgroundColor: ownerState.completed
-    ? '#0056b3' // Completado: azul oscuro
-    : ownerState.active
-    ? '#0056b3' // Activo: azul oscuro
+  backgroundColor: 
+    ownerState.active
+    ? '#0056b3' // Activo: azul oscuro (donde estoy parado)
+    : ownerState.completed
+    ? '#81bef7' // Completado no activo: azul medio (completado pero no estoy parado ahí)
     : ownerState.accessible
-    ? '#a7c5ed' // Accesible pero no activo: azul más claro
+    ? '#81bef7' // Accesible pero no completado: azul más claro
     : '#E0E0E0', // No accesible: gris
   color: ownerState.completed || ownerState.active || ownerState.accessible
     ? '#ffffff' // Blanco para pasos completados, activos o accesibles
@@ -26,8 +27,8 @@ const CustomStepIconRoot = styled('div')(({ ownerState }) => ({
   fontSize: 18,
   transition: 'all 0.2s ease',
   '&:hover': {
-    transform: ownerState.accessible ? 'scale(1.05)' : 'none',
-    boxShadow: ownerState.accessible ? '0 2px 5px rgba(0,0,0,0.2)' : 'none',
+    transform: ownerState.accessible || ownerState.completed ? 'scale(1.05)' : 'none',
+    boxShadow: ownerState.accessible || ownerState.completed ? '0 2px 5px rgba(0,0,0,0.2)' : 'none',
   }
 }));
 
@@ -131,10 +132,12 @@ const FormStepper = ({
                   // Estilos para la etiqueta
                   '& .MuiStepLabel-label': {
                     color: index === activeStep 
-                      ? '#0056b3'
+                      ? '#0056b3' // Activo: azul oscuro
+                      : completedSteps.includes(index)
+                      ? '#81bef7' // Completado no activo: azul medio
                       : isAccessible
-                      ? '#4F4F4F'
-                      : '#A0A0A0',
+                      ? '#81bef7' // Accesible no completado: azul claro
+                      : '#A0A0A0', // No accesible: gris
                     fontWeight: index === activeStep ? 'bold' : 'normal',
                   }
                 }}
