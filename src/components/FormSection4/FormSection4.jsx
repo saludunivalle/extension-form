@@ -81,10 +81,12 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
   
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
 
-  const { maxAllowedStep, loading: navLoading, error: navError, isStepAllowed } = 
+  const { maxAllowedStep, loading: navLoading, error: navError, isStepAllowed,
+    updateMaxAllowedStep } = 
   useInternalNavigationGoogleSheets(idSolicitud, 4, steps.length);
 
   const [errors, setErrors] = useState({});
+  const [validationErrors, setValidationErrors] = useState({});
 
   /*
   Esta función se encarga de validar los campos requeridos del formulario en función del paso activo (`activeStep`).
@@ -123,6 +125,12 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
         stepErrors.estrategiasCompetencia = "Este campo es obligatorio";
       }
     } else if (activeStep === 2) {
+      // Añadir log de los valores de los checkboxes cruciales para depuración
+      console.log('Valores de checkboxes en validación:', {
+        personasInteresChecked: formData.personasInteresChecked,
+        personasMatriculadasChecked: formData.personasMatriculadasChecked
+      });
+      
       const checkboxGroups = [
         {
           checkboxes: ['personasInteresChecked', 'personasMatriculadasChecked', 'otroInteresChecked'],
@@ -306,7 +314,18 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
       const completarValoresConNo = (data) => {
           const completado = {};
           for (let key in data) {
-              completado[key] = data[key] === '' || data[key] === null || data[key] === undefined ? 'No' : data[key];
+              // Si el campo está definido como string y tiene algún contenido, lo dejamos tal cual
+              if (typeof data[key] === 'string' && data[key].trim() !== '') {
+                  completado[key] = data[key];
+              } 
+              // Solo convertir a 'No' si es undefined, null o cadena vacía
+              else if (data[key] === '' || data[key] === null || data[key] === undefined) {
+                  completado[key] = 'No';
+              } 
+              // Para cualquier otro caso, mantener el valor original
+              else {
+                  completado[key] = data[key];
+              }
           }
           return completado;
       };
@@ -331,76 +350,166 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
               };
               break;
           case 2:
+              // Campos principales que deben enviarse a Google Sheets
+              console.log('Valores de los checkboxes antes de enviar:', {
+                personasInteresChecked: formData.personasInteresChecked,
+                personasMatriculadasChecked: formData.personasMatriculadasChecked,
+                otroInteresChecked: formData.otroInteresChecked
+              });
+              
+              // Debug completo para el paso 3
+              console.log('PASO 3 - DATOS COMPLETOS:', {
+                // Grupo 1 - Indicadores previos
+                personasInteresChecked: formData.personasInteresChecked,
+                personasMatriculadasChecked: formData.personasMatriculadasChecked,
+                otroInteresChecked: formData.otroInteresChecked,
+                otroInteres: formData.otroInteres,
+                
+                // Grupo 2 - Variables mercadeo
+                innovacion: formData.innovacion,
+                solicitudExterno: formData.solicitudExterno,
+                interesSondeo: formData.interesSondeo,
+                otroMercadeoChecked: formData.otroMercadeoChecked,
+                otroMercadeo: formData.otroMercadeo,
+                
+                // Grupo 3 - Estrategias sondeo
+                llamadas: formData.llamadas,
+                encuestas: formData.encuestas,
+                webinar: formData.webinar,
+                pautas_redes: formData.pautas_redes,
+                otroEstrategiasChecked: formData.otroEstrategiasChecked,
+                otroEstrategias: formData.otroEstrategias,
+                
+                // Grupo 4 - Preregistro
+                preregistroFisico: formData.preregistroFisico,
+                preregistroGoogle: formData.preregistroGoogle,
+                preregistroOtroChecked: formData.preregistroOtroChecked,
+                preregistroOtro: formData.preregistroOtro
+              });
+              
+              // Trace específico de los campos 'otro' y sus checkboxes relacionados
+              console.log('CAMPOS OTRO - FORMATO DETALLADO:', {
+                // 'Otros indicadores' y su checkbox
+                otroInteresChecked: formData.otroInteresChecked,
+                otroInteresValue: formData.otroInteres,
+                otroInteresFinal: formData.otroInteresChecked === 'Sí' ? (formData.otroInteres || '') : 'No',
+                
+                // 'Otro mercadeo' y su checkbox
+                otroMercadeoChecked: formData.otroMercadeoChecked, 
+                otroMercadeoValue: formData.otroMercadeo,
+                otroMercadeoFinal: formData.otroMercadeoChecked === 'Sí' ? (formData.otroMercadeo || 'Valor vacío') : 'No',
+                
+                // 'Otras estrategias' y su checkbox
+                otroEstrategiasChecked: formData.otroEstrategiasChecked,
+                otroEstrategiasValue: formData.otroEstrategias,
+                otroEstrategiasFinal: formData.otroEstrategiasChecked === 'Sí' ? (formData.otroEstrategias || '') : 'No',
+              });
+              
               pasoData = {
                   personasInteresChecked: formData.personasInteresChecked || 'No',
                   personasMatriculadasChecked: formData.personasMatriculadasChecked || 'No',
-                  otroInteresChecked: formData.otroInteresChecked || 'No',
-                  otroInteres: formData.otroInteres || 'No',
+                  otroInteres: formData.otroInteresChecked === 'Sí' ? (formData.otroInteres || '') : 'No',
                   innovacion: formData.innovacion || 'No',
                   solicitudExterno: formData.solicitudExterno || 'No',
                   interesSondeo: formData.interesSondeo || 'No',
-                  otroMercadeoChecked: formData.otroMercadeoChecked || 'No',
-                  otroMercadeo: formData.otroMercadeo || 'No',
+                  otroMercadeo: formData.otroMercadeoChecked === 'Sí' ? (formData.otroMercadeo || 'Valor vacío') : 'No',
                   llamadas: formData.llamadas || 'No',
                   encuestas: formData.encuestas || 'No',
                   webinar: formData.webinar || 'No',
                   pautas_redes: formData.pautas_redes || 'No',
-                  otroEstrategiasChecked: formData.otroEstrategiasChecked || 'No',
-                  otroEstrategias: formData.otroEstrategias || 'No',
+                  otroEstrategias: formData.otroEstrategiasChecked === 'Sí' ? (formData.otroEstrategias || '') : 'No',
+                  // Enviar cada campo de preregistro individualmente en lugar de combinarlos
                   preregistroFisico: formData.preregistroFisico || 'No',
                   preregistroGoogle: formData.preregistroGoogle || 'No',
-                  preregistroOtroChecked: formData.preregistroOtroChecked || 'No',
-                  preregistroOtro: formData.preregistroOtro || 'No',
+                  preregistroOtro: formData.preregistroOtroChecked === 'Sí' ? (formData.preregistroOtro || '') : 'No',
               };
               break;
           case 3:
+              // Debug completo para el paso 4
+              console.log('PASO 4 - DATOS COMPLETOS:', {
+                // Grupo 1 - Mesas de trabajo
+                gremios: formData.gremios,
+                sectores_empresariales: formData.sectores_empresariales,
+                politicas_publicas: formData.politicas_publicas,
+                otros_mesas_trabajoChecked: formData.otros_mesas_trabajoChecked,
+                otros_mesas_trabajo: formData.otros_mesas_trabajo,
+                
+                // Grupo 2 - Actividades de mercadeo
+                focusGroup: formData.focusGroup,
+                desayunosTrabajo: formData.desayunosTrabajo,
+                almuerzosTrabajo: formData.almuerzosTrabajo,
+                openHouse: formData.openHouse,
+                ferias_colegios: formData.ferias_colegios,
+                ferias_empresarial: formData.ferias_empresarial,
+                otros_mercadeoChecked: formData.otros_mercadeoChecked,
+                otros_mercadeo: formData.otros_mercadeo,
+                
+                // Grupo 3 - Modalidad y valor económico
+                valorEconomico: formData.valorEconomico,
+                modalidadPresencial: formData.modalidadPresencial,
+                modalidadVirtual: formData.modalidadVirtual,
+                modalidadSemipresencial: formData.modalidadSemipresencial,
+                traslados_docente: formData.traslados_docente,
+                modalidad_asistida_tecnologia: formData.modalidad_asistida_tecnologia
+              });
+            
               pasoData = {
-                  gremios: formData.gremios || 'No',
-                  sectores_empresariales: formData.sectores_empresariales || 'No',
-                  politicas_publicas: formData.politicas_publicas || 'No',
-                  otros_mesas_trabajo: formData.otros_mesas_trabajo || 'No',
-                  focusGroup: formData.focusGroup || 'No',
-                  desayunosTrabajo: formData.desayunosTrabajo || 'No',
-                  almuerzosTrabajo: formData.almuerzosTrabajo || 'No',
-                  openHouse: formData.openHouse || 'No',
-                  otros_mercadeoChecked: formData.otros_mercadeoChecked || 'No',
-                  otros_mercadeo: formData.otros_mercadeo || 'No',
-                  ferias_colegios: formData.ferias_colegios || 'No',
-                  ferias_empresarial: formData.ferias_empresarial || 'No',
-                  valorEconomico: formData.valorEconomico || 'No',
-                  modalidadPresencial: formData.modalidadPresencial || 'No',
-                  modalidadVirtual: formData.modalidadVirtual || 'No',
-                  modalidadSemipresencial: formData.modalidadSemipresencial || 'No',
-                  traslados_docente: formData.traslados_docente || 'No',
-                  modalidad_asistida_tecnologia: formData.modalidad_asistida_tecnologia || 'No',
+                whatsapp: formData.whatsapp === true ? 'Sí' : 'No',
+                distribucion_correos: formData.distribucion_correos === true ? 'Sí' : 'No',
+                bases_datos: formData.bases_datos === true ? 'Sí' : 'No',
+                redes_sociales: formData.redes_sociales === true ? 'Sí' : 'No',
+                preregistro: formData.preregistroFisico || formData.preregistroGoogle || formData.preregistroOtro ? 'Sí' : 'No',
+                asambleas: formData.asambleas === true ? 'Sí' : 'No',
+                stand: formData.stand === true ? 'Sí' : 'No',
+                visitas: formData.visitas === true ? 'Sí' : 'No',
+                webinar: formData.webinar === true ? 'Sí' : 'No',
+                pautas_redes: formData.pautas_redes === true ? 'Sí' : 'No',
+                otroEstrategias: formData.otroEstrategias || 'No',
+                feria_calendario: formData.feria_calendario === true ? 'Sí' : 'No',
               };
               break;
           case 4:
+            // Debug completo para el paso 5
+            console.log('PASO 5 - DATOS COMPLETOS:', {
+              // Beneficios
+              beneficiosTangibles: formData.beneficiosTangibles,
+              beneficiosIntangibles: formData.beneficiosIntangibles,
+              
+              // Públicos potenciales
+              particulares: formData.particulares,
+              colegios: formData.colegios,
+              empresas: formData.empresas,
+              egresados: formData.egresados,
+              colaboradores: formData.colaboradores,
+              otros_publicos_potencialesChecked: formData.otros_publicos_potencialesChecked,
+              otros_publicos_potenciales: formData.otros_publicos_potenciales,
+              
+              // Tendencias y DOFA
+              tendenciasActuales: formData.tendenciasActuales,
+              dofaDebilidades: formData.dofaDebilidades,
+              dofaOportunidades: formData.dofaOportunidades,
+              dofaFortalezas: formData.dofaFortalezas,
+              dofaAmenazas: formData.dofaAmenazas,
+              
+              // Canales de divulgación
+              paginaWeb: formData.paginaWeb,
+              facebook: formData.facebook,
+              instagram: formData.instagram,
+              linkedin: formData.linkedin,
+              correo: formData.correo,
+              prensa: formData.prensa,
+              boletin: formData.boletin,
+              llamadas_redes: formData.llamadas_redes,
+              otro_canalChecked: formData.otro_canalChecked,
+              otro_canal: formData.otro_canal
+            });
+            
             pasoData = {
-              beneficiosTangibles: formData.beneficiosTangibles || 'No',
-              beneficiosIntangibles: formData.beneficiosIntangibles || 'No',
-              particulares: formData.particulares || 'No',
-              colegios: formData.colegios || 'No',
-              empresas: formData.empresas || 'No',
-              egresados: formData.egresados || 'No',
-              colaboradores: formData.colaboradores || 'No',
-              otros_publicos_potenciales: formData.otros_publicos_potenciales || 'No',
-              otros_publicos_potencialesChecked: formData.otros_publicos_potencialesChecked || 'No',
-              otro_canalChecked: formData.otro_canalChecked || 'No',
-              tendenciasActuales: formData.tendenciasActuales || 'No',
-              dofaDebilidades: formData.dofaDebilidades || 'No',
-              dofaOportunidades: formData.dofaOportunidades || 'No',
-              dofaFortalezas: formData.dofaFortalezas || 'No',
-              dofaAmenazas: formData.dofaAmenazas || 'No',
-              paginaWeb: formData.paginaWeb || 'No',
-              facebook: formData.facebook || 'No',
-              instagram: formData.instagram || 'No',
-              linkedin: formData.linkedin || 'No',
-              correo: formData.correo || 'No',
-              prensa: formData.prensa || 'No',
-              boletin: formData.boletin || 'No',
-              llamadas_redes: formData.llamadas_redes || 'No',
-              otro_canal: formData.otro_canal || 'No',
+              personasInteresChecked: formData.personasInteresChecked === true ? 'Sí' : 'No',
+              personasInteresadas: formData.personasInteresadas || '0',
+              personasMatriculadasChecked: formData.personasMatriculadasChecked === true ? 'Sí' : 'No',
+              personasMatriculadas: formData.personasMatriculadas || '0',
+              observaciones: formData.observaciones || ''
             };
               break;
           default:
@@ -410,14 +519,38 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
       const pasoDataCompleto = completarValoresConNo(pasoData);
 
       try {
+          // Ver todos los datos que se enviarán al servidor
+          console.log('Datos completos del formulario:', formData);
+          console.log('Datos del paso que se enviarán al servidor:', pasoDataCompleto);
+          
+          // Verificación específica de otroMercadeo
+          console.log('VERIFICACIÓN CRÍTICA DE otroMercadeo:', {
+            checkbox: formData.otroMercadeoChecked,
+            valor_original: formData.otroMercadeo,
+            valor_procesado: pasoDataCompleto.otroMercadeo
+          });
+          
+          console.log('Enviando datos al servidor:', {
+            id_solicitud: idSolicitud,
+            ...pasoDataCompleto,
+            paso: activeStep + 1,
+            hoja: 4,
+            id_usuario: userData.id_usuario,
+            name: userData.name,
+          });
+          
           await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
             id_solicitud: idSolicitud,
             ...pasoDataCompleto,
             paso: activeStep + 1,
-            hoja,
+            hoja: 4,
             id_usuario: userData.id_usuario,
             name: userData.name,
           });
+          
+          // Actualizar progreso en el servidor para controlar los pasos disponibles
+          await updateMaxAllowedStep(activeStep + 1);
+          
           setIsLoading(false); // Finalizar el loading
           setCompletedSteps((prevCompleted) => {
             const newCompleted = [...prevCompleted];
@@ -442,33 +575,100 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
     }
   };
 
-  const handleSubmit = async () => {
-    setIsLoading(true); // Finalizar el loading
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setValidationErrors({});
 
-      const hoja = 4; // Cambia este valor según la hoja a la que corresponda el formulario
-
+    try {
+        // Inicializar pasoDataCompleto con todos los datos necesarios
       const completarValoresConNo = (data) => {
           const completado = {};
           for (let key in data) {
-              completado[key] = data[key] === '' || data[key] === null || data[key] === undefined ? 'No' : data[key];
+              // Si el campo está definido como string y tiene algún contenido, lo dejamos tal cual
+              if (typeof data[key] === 'string' && data[key].trim() !== '') {
+                  completado[key] = data[key];
+              } 
+              // Solo convertir a 'No' si es undefined, null o cadena vacía
+              else if (data[key] === '' || data[key] === null || data[key] === undefined) {
+                  completado[key] = 'No';
+              } 
+              // Para cualquier otro caso, mantener el valor original
+              else {
+                  completado[key] = data[key];
+              }
           }
           return completado;
       };
 
-      const pasoData = {
+        // Compilar todos los datos del formulario para el envío final
+        const allFormData = {
+            // Paso 1
+            descripcionPrograma: formData.descripcionPrograma || 'No',
+            identificacionNecesidades: formData.identificacionNecesidades || 'No',
+            
+            // Paso 2
+            atributosBasicos: formData.atributosBasicos || 'No',
+            atributosDiferenciadores: formData.atributosDiferenciadores || 'No',
+            competencia: formData.competencia || 'No',
+            programa: formData.programa || 'No',
+            programasSimilares: formData.programasSimilares || 'No',
+            estrategiasCompetencia: formData.estrategiasCompetencia || 'No',
+            
+            // Paso 3
+            personasInteresChecked: formData.personasInteresChecked || 'No',
+            personasMatriculadasChecked: formData.personasMatriculadasChecked || 'No',
+            otroInteres: formData.otroInteresChecked === 'Sí' ? (formData.otroInteres || '') : 'No',
+            innovacion: formData.innovacion || 'No',
+            solicitudExterno: formData.solicitudExterno || 'No',
+            interesSondeo: formData.interesSondeo || 'No',
+            otroMercadeo: formData.otroMercadeoChecked === 'Sí' ? (formData.otroMercadeo || 'Valor vacío') : 'No',
+            llamadas: formData.llamadas || 'No',
+            encuestas: formData.encuestas || 'No',
+            webinar: formData.webinar || 'No',
+            pautas_redes: formData.pautas_redes || 'No',
+            otroEstrategias: formData.otroEstrategiasChecked === 'Sí' ? (formData.otroEstrategias || '') : 'No',
+            preregistro: (formData.preregistroFisico === 'Sí' ? 'Físico ' : '') + 
+                        (formData.preregistroGoogle === 'Sí' ? 'Google ' : '') + 
+                        (formData.preregistroOtroChecked === 'Sí' ? formData.preregistroOtro : '') || 'No',
+            
+            // Paso 4
+            gremios: formData.gremios || 'No',
+            sectores_empresariales: formData.sectores_empresariales || 'No',
+            politicas_publicas: formData.politicas_publicas || 'No',
+            otros_mesas_trabajo: formData.otros_mesas_trabajoChecked === 'Sí' ? (formData.otros_mesas_trabajo || '') : 'No',
+            
+            focusGroup: formData.focusGroup || 'No',
+            desayunosTrabajo: formData.desayunosTrabajo || 'No',
+            almuerzosTrabajo: formData.almuerzosTrabajo || 'No',
+            openHouse: formData.openHouse || 'No',
+            ferias_colegios: formData.ferias_colegios || 'No',
+            ferias_empresarial: formData.ferias_empresarial || 'No',
+            otros_mercadeo: formData.otros_mercadeoChecked === 'Sí' ? (formData.otros_mercadeo || '') : 'No',
+            
+            valorEconomico: formData.valorEconomico || 'No',
+            modalidadPresencial: formData.modalidadPresencial || 'No',
+            modalidadVirtual: formData.modalidadVirtual || 'No',
+            modalidadSemipresencial: formData.modalidadSemipresencial || 'No',
+            traslados_docente: formData.traslados_docente || 'No',
+            modalidad_asistida_tecnologia: formData.modalidad_asistida_tecnologia || 'No',
+            
+            // Paso 5
           beneficiosTangibles: formData.beneficiosTangibles || 'No',
           beneficiosIntangibles: formData.beneficiosIntangibles || 'No',
+            
           particulares: formData.particulares || 'No',
           colegios: formData.colegios || 'No',
           empresas: formData.empresas || 'No',
           egresados: formData.egresados || 'No',
           colaboradores: formData.colaboradores || 'No',
-          otros_publicos_potenciales: formData.otros_publicos_potenciales || 'No',
+            otros_publicos_potenciales: formData.otros_publicos_potencialesChecked === 'Sí' ? (formData.otros_publicos_potenciales || '') : 'No',
+            
           tendenciasActuales: formData.tendenciasActuales || 'No',
           dofaDebilidades: formData.dofaDebilidades || 'No',
           dofaOportunidades: formData.dofaOportunidades || 'No',
           dofaFortalezas: formData.dofaFortalezas || 'No',
           dofaAmenazas: formData.dofaAmenazas || 'No',
+            
           paginaWeb: formData.paginaWeb || 'No',
           facebook: formData.facebook || 'No',
           instagram: formData.instagram || 'No',
@@ -476,32 +676,92 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
           correo: formData.correo || 'No',
           prensa: formData.prensa || 'No',
           boletin: formData.boletin || 'No',
-          llamadas: formData.llamadas || 'No',
-          otro_canal: formData.otro_canal || 'No',
-      };
+            llamadas_redes: formData.llamadas_redes || 'No',
+            otro_canal: formData.otro_canalChecked === 'Sí' ? (formData.otro_canal || '') : 'No',
+        };
 
-      const pasoDataCompleto = completarValoresConNo(pasoData);
-
-      try {
-          await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-              id_solicitud: idSolicitud, // El ID único de la solicitud
-              ...pasoDataCompleto, // Datos del último paso (Paso 5)
-              paso: 5, // El número del último paso
-              etapa_actual: 5, // Indica que es el último formulario
-              hoja, // Indica qué hoja se está usando
-              id_usuario: userData.id_usuario, // Enviar el id_usuario
-              name: userData.name, // Enviar el nombre del usuario
-          });
+        const pasoDataCompleto = completarValoresConNo(allFormData);
+        
+        // Logging detallado de los campos "otros" para diagnóstico
+        console.log('DIAGNÓSTICO DETALLADO DE CAMPOS OTROS EN FINAL:', {
+            // otroMercadeo
+            otroMercadeoChecked_original: formData.otroMercadeoChecked,
+            otroMercadeo_original: formData.otroMercadeo,
+            otroMercadeo_procesado: allFormData.otroMercadeo,
+            otroMercadeo_final: pasoDataCompleto.otroMercadeo,
+            
+            // otros_mercadeo (paso 4)
+            otros_mercadeoChecked_original: formData.otros_mercadeoChecked,
+            otros_mercadeo_original: formData.otros_mercadeo,
+            otros_mercadeo_procesado: allFormData.otros_mercadeo,
+            otros_mercadeo_final: pasoDataCompleto.otros_mercadeo,
+            
+            // otros campos con similar estructura
+            otroEstrategias_final: pasoDataCompleto.otroEstrategias,
+            otroInteres_final: pasoDataCompleto.otroInteres,
+            otros_mesas_trabajo_final: pasoDataCompleto.otros_mesas_trabajo,
+            otros_publicos_potenciales_final: pasoDataCompleto.otros_publicos_potenciales,
+            otro_canal_final: pasoDataCompleto.otro_canal,
+        });
+        
+        console.log('Enviando datos finales del formulario:', {
+            id_solicitud: idSolicitud,
+            ...pasoDataCompleto,
+            paso: 5,
+            hoja: 4,
+            etapa_actual: 5,
+            id_usuario: userData.id_usuario,
+            name: userData.name,
+        });
+        
+        // Verificar campos específicos antes del envío final
+        console.log('VALIDACIÓN FINAL DE CAMPOS CRÍTICOS:', {
+            otroMercadeo: pasoDataCompleto.otroMercadeo,
+            otroEstrategias: pasoDataCompleto.otroEstrategias,
+            otroInteres: pasoDataCompleto.otroInteres,
+            preregistro: pasoDataCompleto.preregistro || 'No se está enviando',
+            // Comprobar si los campos que requieren tratamiento especial 
+            // tienen el formato correcto
+            personasInteresCheckedValue: formData.personasInteresChecked,
+            personasInteresadasValue: formData.personasInteresadas,
+            personasMatriculadasCheckedValue: formData.personasMatriculadasChecked,
+            personasMatriculadasValue: formData.personasMatriculadas
+        });
+        
+        // Verificación específica de otroMercadeo
+        console.log('VERIFICACIÓN CRÍTICA FINAL DE otroMercadeo:', {
+            checkbox: formData.otroMercadeoChecked,
+            valor_original: formData.otroMercadeo,
+            valor_procesado: pasoDataCompleto.otroMercadeo
+        });
+        
+        const response = await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+            id_solicitud: idSolicitud,
+            ...pasoDataCompleto,
+            paso: 5,
+            hoja: 4,
+            etapa_actual: 5,
+            id_usuario: userData.id_usuario,
+            name: userData.name,
+        });
+        
+        console.log('Respuesta del servidor:', response.data);
+        
+        // Actualizar progreso en el servidor para completar el formulario
+        await updateMaxAllowedStep(5);
+        
           setIsLoading(false); // Finalizar el loading
           setOpenModal(true); // Abre el modal
       } catch (error) {
-          console.error('Error al guardar los datos del último paso:', error);
+        console.error('Error al guardar los datos del último paso:', error.response?.data || error.message);
+        setIsLoading(false);
+        alert('Error al guardar datos. Revisa la consola para más detalles.');
       }
   };
 
   const handleStepClick = (stepIndex) => {
-    if (stepIndex <= highestStepReached) {
-      setActiveStep(stepIndex); // Cambiar al paso clicado si es alcanzado
+    if (isStepAllowed(stepIndex)) {
+      setActiveStep(stepIndex); // Cambiar al paso clicado si está permitido
     }
   };
 
@@ -681,7 +941,7 @@ const PrintReportButton = () => {
                 {...props} 
                 active={index === activeStep}
                 completed={completedSteps.includes(index)}
-                accessible={index <= highestStepReached}
+                accessible={isStepAllowed(index)}
               />
             )}
             sx={{
@@ -690,24 +950,24 @@ const PrintReportButton = () => {
                   ? '#0056b3' // Activo: azul oscuro
                   : completedSteps.includes(index)
                     ? '#81bef7' // Completado no activo: azul claro
-                    : index <= highestStepReached
+                    : isStepAllowed(index)
                       ? '#81bef7' // Accesible no completado: azul claro
                       : 'transparent', // No accesible: sin fondo
-                color: index === activeStep || index <= highestStepReached 
+                color: index === activeStep || isStepAllowed(index) 
                   ? '#FFFFFF' 
                   : '#A0A0A0',
-                padding: index <= highestStepReached ? '5px 10px' : '0',
+                padding: isStepAllowed(index) ? '5px 10px' : '0',
                 borderRadius: '20px',
                 fontWeight: index === activeStep ? 'bold' : 'normal',
-                cursor: index <= highestStepReached ? 'pointer' : 'default',
-                opacity: index <= highestStepReached ? 1 : 0.6,
+                cursor: isStepAllowed(index) ? 'pointer' : 'default',
+                opacity: isStepAllowed(index) ? 1 : 0.6,
               },
               '& .MuiStepIcon-root': {
                 color: index === activeStep
                   ? '#0056b3' // Activo: azul oscuro
                   : completedSteps.includes(index)
                     ? '#81bef7' // Completado no activo: azul claro
-                    : index <= highestStepReached
+                    : isStepAllowed(index)
                       ? '#E0E0E0' // Accesible no completado: azul claro
                       : '#E0E0E0', // No accesible: gris
                 fontSize: '28px',

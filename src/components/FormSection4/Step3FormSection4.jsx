@@ -5,12 +5,43 @@ function Step3FormSection4({ formData, handleInputChange, errors }) {
   
   const handleCheckboxChange = (event) => {
     const { name, checked } = event.target;
+    console.log(`Checkbox cambiado: ${name} = ${checked ? 'Sí' : 'No'}`);
+    
+    // Debugging especial para otroMercadeoChecked
+    if (name === 'otroMercadeoChecked') {
+      console.log('BEFORE otroMercadeoChecked change:', {
+        otroMercadeoChecked: formData.otroMercadeoChecked,
+        otroMercadeo: formData.otroMercadeo
+      });
+    }
+    
     handleInputChange({
       target: {
         name,
         value: checked ? 'Sí' : 'No',
       },
     });
+    
+    // Si se está deseleccionando el checkbox, limpiar el valor del texto asociado
+    if (!checked && name === 'otroMercadeoChecked') {
+      handleInputChange({
+        target: {
+          name: 'otroMercadeo',
+          value: '',
+        },
+      });
+    }
+    
+    // Debuggear después del cambio para otroMercadeoChecked
+    if (name === 'otroMercadeoChecked') {
+      // Este timeout es para asegurar que vemos el estado después de que React actualiza el estado
+      setTimeout(() => {
+        console.log('AFTER otroMercadeoChecked change:', {
+          otroMercadeoChecked: formData.otroMercadeoChecked,
+          otroMercadeo: formData.otroMercadeo
+        });
+      }, 100);
+    }
   };
 
   return (
@@ -124,7 +155,14 @@ function Step3FormSection4({ formData, handleInputChange, errors }) {
           label="¿Cuál?"
           name="otroMercadeo"
           value={formData.otroMercadeo || ''}
-          onChange={handleInputChange}
+          onChange={(e) => {
+            console.log('Texto en otroMercadeo cambiado a:', e.target.value);
+            handleInputChange(e);
+            // Verificar después del cambio
+            setTimeout(() => {
+              console.log('DESPUÉS del cambio de texto en otroMercadeo:', formData.otroMercadeo);
+            }, 100);
+          }}
           fullWidth
           margin="normal"
         />
