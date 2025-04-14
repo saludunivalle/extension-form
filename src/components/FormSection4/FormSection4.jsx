@@ -454,6 +454,30 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
               });
             
               pasoData = {
+                // Grupo 1 - Mesas de trabajo
+                gremios: formData.gremios || 'No',
+                sectores_empresariales: formData.sectores_empresariales || 'No',
+                politicas_publicas: formData.politicas_publicas || 'No',
+                otros_mesas_trabajo: formData.otros_mesas_trabajoChecked === 'Sí' ? (formData.otros_mesas_trabajo || '') : 'No',
+                
+                // Grupo 2 - Actividades de mercadeo
+                focusGroup: formData.focusGroup || 'No',
+                desayunosTrabajo: formData.desayunosTrabajo || 'No',
+                almuerzosTrabajo: formData.almuerzosTrabajo || 'No',
+                openHouse: formData.openHouse || 'No',
+                ferias_colegios: formData.ferias_colegios || 'No',
+                ferias_empresarial: formData.ferias_empresarial || 'No',
+                otros_mercadeo: formData.otros_mercadeoChecked === 'Sí' ? (formData.otros_mercadeo || '') : 'No',
+                
+                // Grupo 3 - Modalidad y valor económico
+                valorEconomico: formData.valorEconomico || 'No',
+                modalidadPresencial: formData.modalidadPresencial || 'No',
+                modalidadVirtual: formData.modalidadVirtual || 'No',
+                modalidadSemipresencial: formData.modalidadSemipresencial || 'No',
+                traslados_docente: formData.traslados_docente || 'No',
+                modalidad_asistida_tecnologia: formData.modalidad_asistida_tecnologia || 'No',
+                
+                // Mantener los campos existentes para compatibilidad
                 whatsapp: formData.whatsapp === true ? 'Sí' : 'No',
                 distribucion_correos: formData.distribucion_correos === true ? 'Sí' : 'No',
                 bases_datos: formData.bases_datos === true ? 'Sí' : 'No',
