@@ -428,7 +428,6 @@ import api from '../../services/api';
                 hoja: hoja,
                 id_usuario: userData?.id || '',  // Usar operador opcional para prevenir errores
                 name: userData?.name || '',
-                ...(activeStep === 0 ? { nombre_actividad: formData.nombre_actividad || 'Nueva actividad' } : {}),  // Valor por defecto
                 ...pasoData,
               };
           }
