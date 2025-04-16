@@ -1,11 +1,26 @@
 import axios from 'axios';
-import { toast } from 'react-toastify';
 import { report1Config } from './reports/config/report1Config';
 import { report2Config } from './reports/config/report2Config';
 import { report3Config } from './reports/config/report3Config';
-import { report4Config } from './reports/config/report4Config'; // Add this import
+import { report4Config } from './reports/config/report4Config';
 
 const API_URL = 'https://siac-extension-server.vercel.app';
+
+// Simple notification handler that doesn't depend on react-toastify
+const notify = {
+  info: (message) => console.log(`INFO: ${message}`),
+  success: (message) => console.log(`SUCCESS: ${message}`),
+  error: (message) => console.log(`ERROR: ${message}`),
+  // Add optional callback for UI components to implement their own notifications
+  setNotifyCallback: null
+};
+
+// Function to set a custom notification handler from UI components
+export const setNotificationHandler = (handler) => {
+  if (typeof handler === 'object' && handler !== null) {
+    notify.setNotifyCallback = handler;
+  }
+};
 
 /**
  * Obtiene la configuración adecuada según el número de formulario
@@ -21,9 +36,9 @@ const getReportConfigByForm = (formNumber) => {
     case 3:
       return report3Config;
     case 4:
-      return report4Config; // Add this case
+      return report4Config;
     default:
-      return {}; // Configuración vacía por defecto
+      return {};
   }
 };
 
@@ -166,7 +181,7 @@ export const previewFormReport = async (solicitudId, formNumber) => {
     console.error('Error al previsualizar el reporte:', error);
     return null;
   }
-}
+};
 
 /**
  * Abre un reporte en una nueva pestaña y muestra una notificación
@@ -180,12 +195,16 @@ export const openFormReport = async (solicitudId, formNumber) => {
   
   // Función para mostrar notificación de espera
   const showWaitingNotification = (attempt) => {
-    toast.info(
-      attempt > 0 
-        ? `Reintentando generar reporte (intento ${attempt}/${maxRetries})... Esto puede tomar hasta 1 minuto.`
-        : `Generando reporte. Espere por favor, esto puede tomar hasta 1 minuto...`, 
-      { autoClose: 50000 }
-    );
+    const message = attempt > 0 
+      ? `Reintentando generar reporte (intento ${attempt}/${maxRetries})... Esto puede tomar hasta 1 minuto.`
+      : `Generando reporte. Espere por favor, esto puede tomar hasta 1 minuto...`;
+    
+    // Use available notification handler or fallback to console
+    if (notify.setNotifyCallback && typeof notify.setNotifyCallback.info === 'function') {
+      notify.setNotifyCallback.info(message, { autoClose: 50000 });
+    } else {
+      notify.info(message);
+    }
   };
   
   // Mostrar notificación inicial
@@ -204,10 +223,14 @@ export const openFormReport = async (solicitudId, formNumber) => {
         window.open(reportUrl, '_blank');
         
         // Mostrar notificación de éxito
-        toast.success(`Reporte generado exitosamente!`, {
-          position: "top-right",
-          autoClose: 5000
-        });
+        if (notify.setNotifyCallback && typeof notify.setNotifyCallback.success === 'function') {
+          notify.setNotifyCallback.success(`Reporte generado exitosamente!`, {
+            position: "top-right",
+            autoClose: 5000
+          });
+        } else {
+          notify.success(`Reporte generado exitosamente!`);
+        }
         return true;
       } else {
         throw new Error('No se recibió una URL válida');
@@ -224,10 +247,15 @@ export const openFormReport = async (solicitudId, formNumber) => {
         await new Promise(resolve => setTimeout(resolve, 60000));
       } else {
         // Mensaje de error final después de todos los intentos
-        toast.error(`No se pudo generar el reporte después de ${maxRetries} intentos. Por favor intente más tarde.`, {
-          position: "top-right",
-          autoClose: 8000
-        });
+        const errorMessage = `No se pudo generar el reporte después de ${maxRetries} intentos. Por favor intente más tarde.`;
+        if (notify.setNotifyCallback && typeof notify.setNotifyCallback.error === 'function') {
+          notify.setNotifyCallback.error(errorMessage, {
+            position: "top-right",
+            autoClose: 8000
+          });
+        } else {
+          notify.error(errorMessage);
+        }
       }
     }
   }
