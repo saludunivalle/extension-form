@@ -466,27 +466,32 @@ const handleSaveGastos = async () => {
   }
   
   // Preparar gastos extras (dinámicos)
-  const gastosExtras = extraExpenses.map((expense, index) => {
-    const id_conceptos = `15.${index + 1}`;
-    return {
-      id_conceptos: id_conceptos,
-      concepto: expense.name, 
-      cantidad: parseFloat(expense.cantidad || 0),
-      valor_unit: parseFloat(expense.vr_unit || 0),
-      valor_total: parseFloat(expense.cantidad || 0) * parseFloat(expense.vr_unit || 0),
-      concepto_padre: "15",
-      descripcion: expense.name,
-      es_padre: false,
-      nombre_conceptos: expense.name,
-      tipo: "gasto_dinamico",
-      id_solicitud: idSolicitudCopy
-    };
-  });
+  const gastosExtras = extraExpenses
+    .filter(isValidExpense) // Only include expenses with valid quantity and unit value
+    .map((expense, index) => {
+      // Use COMMA as separator for consistency
+      const id_conceptos = `15,${index + 1}`;
+      const cantidad = parseFloat(expense.cantidad || 0);
+      const valor_unit = parseFloat(expense.vr_unit || 0);
+      return {
+        id_conceptos: id_conceptos,
+        concepto: expense.name || `Gasto Extra ${index + 1}`, // Use 'concepto' for the user-entered name
+        cantidad: cantidad,
+        valor_unit: valor_unit,
+        valor_total: cantidad * valor_unit,
+        concepto_padre: "15", // Padre is always '15' for these
+        descripcion: expense.name || `Gasto Extra ${index + 1}`, // Use user-entered name for description
+        es_padre: false, // Extra expenses are always sub-concepts of 15
+        nombre_conceptos: expense.name || `Gasto Extra ${index + 1}`, // Use user-entered name
+        tipo: "particular", // Use 'particular' as requested
+        id_solicitud: idSolicitudCopy
+      };
+    });
   
   // Preparar gastos regulares
   const gastosRegulares = gastosStructure2
     .filter(item => {
-      // Solo incluir conceptos con valores
+      // Only include concepts with valid values
       const cantidadKey = `${item.id_conceptos}_cantidad`;
       const valorUnitKey = `${item.id_conceptos}_vr_unit`;
       const cantidad = parseFloat(formData[cantidadKey] || 0);
@@ -497,20 +502,22 @@ const handleSaveGastos = async () => {
       const idKey = item.id_conceptos;
       const cantidad = parseFloat(formData[`${idKey}_cantidad`] || 0);
       const valor_unit = parseFloat(formData[`${idKey}_vr_unit`] || 0);
+      // Determine es_padre based on COMMA
       const esPadre = !idKey.includes(',');
+      // Determine concepto_padre based on COMMA
       const conceptoPadre = esPadre ? idKey : idKey.split(',')[0];
-      
+
       return {
         id_conceptos: idKey,
         cantidad: cantidad,
         valor_unit: valor_unit,
         valor_total: cantidad * valor_unit,
-        descripcion: item.label,
+        descripcion: item.label, // Use the predefined label
         es_padre: esPadre,
-        nombre_conceptos: item.label,
-        tipo: "gasto_regular",
+        nombre_conceptos: item.label, // Use the predefined label
+        tipo: "estándar", // Use 'estándar' as requested
         id_solicitud: idSolicitudCopy,
-        concepto_padre: conceptoPadre
+        concepto_padre: conceptoPadre // Correctly calculated padre
       };
     });
   
