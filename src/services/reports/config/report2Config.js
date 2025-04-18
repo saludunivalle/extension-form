@@ -212,10 +212,49 @@ export const report2Config = {
       
       // Si hay gastos dinámicos, añadirlos al objeto para procesamiento especial
       if (gastosDinamicos.length > 0) {
+        console.log(`Procesando ${gastosDinamicos.length} gastos dinámicos para el reporte`);
+        
+        // Asegurarnos de que los gastos tienen el formato correcto para la inserción
+        const gastosProcesados = gastosDinamicos.map(gasto => {
+          // Asegurarse de que tenemos el ID en formato correcto (con punto)
+          const id = gasto.id?.replace(',', '.') || 
+                     gasto.id_conceptos?.replace(',', '.') || '';
+          
+          // Formatear valores monetarios si no están formateados
+          const formatCurrency = (value) => {
+            if (!value && value !== 0) return '$0';
+            const numValue = parseFloat(value);
+            return isNaN(numValue) ? '$0' : 
+              new Intl.NumberFormat('es-CO', {
+                style: 'currency',
+                currency: 'COP',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+              }).format(numValue);
+          };
+          
+          return {
+            id: id,
+            id_conceptos: id,
+            descripcion: gasto.descripcion || gasto.concepto || '',
+            concepto: gasto.descripcion || gasto.concepto || '',
+            cantidad: gasto.cantidad?.toString() || '0',
+            valorUnit: gasto.valorUnit || gasto.valor_unit || 0,
+            valorUnit_formatted: gasto.valorUnit_formatted || gasto.valor_unit_formatted || 
+                                 formatCurrency(gasto.valorUnit || gasto.valor_unit || 0),
+            valorTotal: gasto.valorTotal || gasto.valor_total || 0,
+            valorTotal_formatted: gasto.valorTotal_formatted || gasto.valor_total_formatted || 
+                                  formatCurrency(gasto.valorTotal || gasto.valor_total || 0)
+          };
+        });
+        
+        // Configurar el objeto especial con la información necesaria
         transformedData['__FILAS_DINAMICAS__'] = {
-          gastos: gastosDinamicos,
-          insertarEn: 'E45:AK45' // Ubicación por defecto (se puede ajustar)
+          gastos: gastosProcesados,
+          insertarEn: "A44:AK44",
+          insertStartRow: 45
         };
+        
         console.log(`✅ Configurados ${gastosDinamicos.length} gastos dinámicos para inserción en el reporte`);
       }
     }
