@@ -467,62 +467,55 @@ const handleSaveGastos = async () => {
   
   // Preparar gastos extras (dinámicos)
   const gastosExtras = extraExpenses
-    .filter(isValidExpense) // Only include expenses with valid quantity and unit value
-    .map((expense, index) => {
-      // Use COMMA as separator for consistency
-      const id_conceptos = `15,${index + 1}`;
-      const cantidad = parseFloat(expense.cantidad || 0);
-      const valor_unit = parseFloat(expense.vr_unit || 0);
-      return {
-        id_conceptos: id_conceptos,
-        concepto: expense.name || `Gasto Extra ${index + 1}`, // Use 'concepto' for the user-entered name
-        cantidad: cantidad,
-        valor_unit: valor_unit,
-        valor_total: cantidad * valor_unit,
-        concepto_padre: "15", // Padre is always '15' for these
-        descripcion: expense.name || `Gasto Extra ${index + 1}`, // Use user-entered name for description
-        es_padre: false, // Extra expenses are always sub-concepts of 15
-        nombre_conceptos: expense.name || `Gasto Extra ${index + 1}`, // Use user-entered name
-        tipo: "particular", // Use 'particular' as requested
-        id_solicitud: idSolicitudCopy
-      };
-    });
+  .filter(isValidExpense)
+  .map((expense, index) => {
+    const id_conceptos   = `15.${index + 1}`;
+    const cantidad       = parseFloat(expense.cantidad  || 0);
+    const valor_unit     = parseFloat(expense.vr_unit    || 0);
+    const descripcion    = expense.name || `Gasto Extra ${index + 1}`;
+    return {
+      id_conceptos,                    // 👉 clave para CONCEPTO$
+      descripcion,                     // 👉 descripción
+      nombre_conceptos: descripcion,   // 👉 nombre_conceptos
+      es_padre: false,                 // 👉 siempre sub-conceptos
+      tipo: 'particular',              // 👉 particular para extras
+      id_solicitud: idSolicitudCopy,   // 👉 pasa id_solicitud
+      cantidad,
+      valor_unit,
+      valor_total: cantidad * valor_unit,
+      concepto_padre: '15'
+    };
+  });
   
   // Preparar gastos regulares
   const gastosRegulares = gastosStructure2
-    .filter(item => {
-      // Only include concepts with valid values
-      const cantidadKey = `${item.id_conceptos}_cantidad`;
-      const valorUnitKey = `${item.id_conceptos}_vr_unit`;
-      const cantidad = parseFloat(formData[cantidadKey] || 0);
-      const valorUnit = parseFloat(formData[valorUnitKey] || 0);
-      return cantidad > 0 && valorUnit > 0;
-    })
-    .map(item => {
-      const idKey = item.id_conceptos;
-      const cantidad = parseFloat(formData[`${idKey}_cantidad`] || 0);
-      const valor_unit = parseFloat(formData[`${idKey}_vr_unit`] || 0);
-      // Determine es_padre based on COMMA
-      const esPadre = !idKey.includes(',');
-      // Determine concepto_padre based on COMMA
-      const conceptoPadre = esPadre ? idKey : idKey.split(',')[0];
+  .filter(item => {
+    const c = parseFloat(formData[`${item.id_conceptos}_cantidad`] || 0);
+    const v = parseFloat(formData[`${item.id_conceptos}_vr_unit`] || 0);
+    return c > 0 && v > 0;
+  })
+  .map(item => {
+    const id_conceptos = item.id_conceptos;
+    const cantidad     = parseFloat(formData[`${id_conceptos}_cantidad`] || 0);
+    const valor_unit   = parseFloat(formData[`${id_conceptos}_vr_unit`] || 0);
+    const descripcion  = item.label;
+    const esPadre      = !id_conceptos.includes(',');
+    const conceptoPadre= esPadre ? id_conceptos : id_conceptos.split(',')[0];
+    return {
+      id_conceptos,                   // 👉 clave para CONCEPTO$
+      descripcion,                    // 👉 descripción
+      nombre_conceptos: descripcion,  // 👉 nombre_conceptos
+      es_padre: esPadre,              // 👉 true/false según corresponda
+      tipo: 'estándar',               // 👉 estándar para regulares
+      id_solicitud: idSolicitudCopy,  // 👉 pasa id_solicitud
+      cantidad,
+      valor_unit,
+      valor_total: cantidad * valor_unit,
+      concepto_padre: conceptoPadre
+    };
+  });
 
-      return {
-        id_conceptos: idKey,
-        cantidad: cantidad,
-        valor_unit: valor_unit,
-        valor_total: cantidad * valor_unit,
-        descripcion: item.label, // Use the predefined label
-        es_padre: esPadre,
-        nombre_conceptos: item.label, // Use the predefined label
-        tipo: "estándar", // Use 'estándar' as requested
-        id_solicitud: idSolicitudCopy,
-        concepto_padre: conceptoPadre // Correctly calculated padre
-      };
-    });
-  
-  // Combinar todos los gastos
-  const todosLosGastos = [...gastosRegulares, ...gastosExtras];
+const todosLosGastos = [...gastosRegulares, ...gastosExtras];
   
   // Si no hay gastos, añadir al menos uno vacío para mantener la estructura
   if (todosLosGastos.length === 0) {
