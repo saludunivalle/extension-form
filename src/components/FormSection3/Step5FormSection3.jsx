@@ -8,6 +8,7 @@ import PropTypes from "prop-types";
 import axios from 'axios';
 import RiesgosDinamicos from './RiesgosDinamicos';
 
+
 const solicitud3Step5Fields = [
   'aplicaCierre1', 'aplicaCierre2', 'aplicaCierre3',
   'riesgoExtra1', 'riesgoExtra2', 'riesgoExtra3',

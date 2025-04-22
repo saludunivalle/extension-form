@@ -1,8 +1,7 @@
-// src/components/FormSection3/OtrosRiesgos.jsx
 import { useState, useEffect } from 'react';
 import { 
   Typography, Box, Grid, Checkbox, TextField, Button, 
-  CircularProgress, Card, CardContent, Divider,
+  CircularProgress, Snackbar, Alert, Card, CardContent, Divider
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -10,128 +9,204 @@ import EditIcon from '@mui/icons-material/Edit';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import PropTypes from "prop-types";
-import axios from 'axios';
+import axios from 'axios'; // Importar axios para las peticiones HTTP
 
 function OtrosRiesgos({ idSolicitud, userData, categoria }) {
   const [riesgos, setRiesgos] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Cambiar a true para indicar carga inicial
   const [agregarNuevo, setAgregarNuevo] = useState(false);
   const [nuevoRiesgo, setNuevoRiesgo] = useState({ nombre: '', aplica: false, mitigacion: '' });
   const [editando, setEditando] = useState(null);
-  const [guardando, setGuardando] = useState(false);
+  const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
 
-  // Cargar los riesgos específicos para esta categoría
+  // Cargar riesgos existentes de esta categoría al iniciar el componente
   useEffect(() => {
     const cargarRiesgos = async () => {
-      if (!idSolicitud) return;
-      
-      setLoading(true);
       try {
-        const response = await axios.get(`https://siac-extension-server.vercel.app/riesgos?id_solicitud=${idSolicitud}&categoria=${categoria}`);
-        if (response.data && response.data.success) {
-          setRiesgos(response.data.data || []);
+        setLoading(true);
+        // Obtener todos los riesgos de esta solicitud
+        const response = await axios.get(`https://siac-extension-server.vercel.app/riesgos?id_solicitud=${idSolicitud}`);
+        
+        if (response.data.success) {
+          // Filtrar solo los riesgos de la categoría específica
+          const riesgosFiltrados = response.data.data.filter(r => r.categoria === categoria);
+          setRiesgos(riesgosFiltrados);
         }
       } catch (error) {
-        console.error("Error cargando riesgos:", error);
+        console.error('Error al cargar riesgos:', error);
+        setNotification({
+          open: true,
+          message: 'Error al cargar riesgos',
+          severity: 'error'
+        });
       } finally {
         setLoading(false);
       }
     };
-    
-    cargarRiesgos();
+
+    if (idSolicitud) {
+      cargarRiesgos();
+    }
   }, [idSolicitud, categoria]);
 
-  const handleGuardarNuevo = async () => {
+  // Función para agregar un nuevo riesgo (persistente)
+  const agregarRiesgo = async () => {
     if (!nuevoRiesgo.nombre.trim()) return;
     
-    setGuardando(true);
     try {
+      setLoading(true);
+      
       const response = await axios.post('https://siac-extension-server.vercel.app/riesgos', {
         nombre_riesgo: nuevoRiesgo.nombre,
         aplica: nuevoRiesgo.aplica ? 'Sí' : 'No',
-        mitigacion: nuevoRiesgo.mitigacion,
+        mitigacion: nuevoRiesgo.mitigacion || '',
         id_solicitud: idSolicitud,
         categoria: categoria
       });
       
-      if (response.data && response.data.success) {
+      if (response.data.success) {
+        // Agregar el nuevo riesgo a la lista
         setRiesgos([...riesgos, response.data.data]);
         setNuevoRiesgo({ nombre: '', aplica: false, mitigacion: '' });
         setAgregarNuevo(false);
+        
+        setNotification({
+          open: true,
+          message: "Riesgo guardado correctamente",
+          severity: "success"
+        });
+      } else {
+        throw new Error(response.data.error || 'Error al crear el riesgo');
       }
     } catch (error) {
-      console.error("Error guardando riesgo:", error);
+      console.error('Error al guardar riesgo:', error);
+      setNotification({
+        open: true,
+        message: error.message || 'Error al guardar el riesgo',
+        severity: 'error'
+      });
     } finally {
-      setGuardando(false);
+      setLoading(false);
     }
   };
 
-  const handleActualizarRiesgo = async (id, datos) => {
-    setGuardando(true);
+  // Función para actualizar un riesgo (persistente)
+  const actualizarRiesgo = async (id, datos) => {
     try {
+      setLoading(true);
+      
+      const riesgoExistente = riesgos.find(r => r.id_riesgo === id);
+      if (!riesgoExistente) {
+        throw new Error('Riesgo no encontrado');
+      }
+      
+      const riesgoActualizado = {
+        ...riesgoExistente,
+        ...datos
+      };
+      
       const response = await axios.put('https://siac-extension-server.vercel.app/riesgos', {
         id_riesgo: id,
-        ...datos
+        nombre_riesgo: riesgoActualizado.nombre_riesgo,
+        aplica: riesgoActualizado.aplica,
+        mitigacion: riesgoActualizado.mitigacion,
+        categoria: categoria
       });
       
-      if (response.data && response.data.success) {
-        setRiesgos(prevRiesgos => 
-          prevRiesgos.map(r => r.id_riesgo === id ? response.data.data : r)
-        );
+      if (response.data.success) {
+        // Actualizar el riesgo en la lista local
+        setRiesgos(riesgos.map(r => r.id_riesgo === id ? response.data.data : r));
         setEditando(null);
+        
+        setNotification({
+          open: true,
+          message: "Riesgo actualizado correctamente",
+          severity: "success"
+        });
+      } else {
+        throw new Error(response.data.error || 'Error al actualizar el riesgo');
       }
     } catch (error) {
-      console.error("Error actualizando riesgo:", error);
+      console.error('Error al actualizar riesgo:', error);
+      setNotification({
+        open: true,
+        message: error.message || 'Error al actualizar el riesgo',
+        severity: 'error'
+      });
     } finally {
-      setGuardando(false);
+      setLoading(false);
     }
   };
 
-  const handleEliminarRiesgo = async (id) => {
+  // Función para eliminar un riesgo (persistente)
+  const eliminarRiesgo = async (id) => {
     if (!window.confirm("¿Está seguro de eliminar este riesgo?")) return;
     
     try {
+      setLoading(true);
+      
       const response = await axios.delete(`https://siac-extension-server.vercel.app/riesgos/${id}`);
-      if (response.data && response.data.success) {
-        setRiesgos(prevRiesgos => prevRiesgos.filter(r => r.id_riesgo !== id));
+      
+      if (response.data.success) {
+        // Eliminar el riesgo de la lista local
+        setRiesgos(riesgos.filter(r => r.id_riesgo !== id));
+        
+        setNotification({
+          open: true,
+          message: "Riesgo eliminado correctamente",
+          severity: "success"
+        });
+      } else {
+        throw new Error(response.data.error || 'Error al eliminar el riesgo');
       }
     } catch (error) {
-      console.error("Error eliminando riesgo:", error);
+      console.error('Error al eliminar riesgo:', error);
+      setNotification({
+        open: true,
+        message: error.message || 'Error al eliminar el riesgo',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
-        <CircularProgress size={30} />
-      </Box>
-    );
-  }
-
   return (
-    <Box sx={{ mt: 3 }}>
-      <Divider sx={{ mb: 2 }} />
+    <Box sx={{ mt: 3, border: '1px solid #e0e0e0', borderRadius: '8px', p: 2, bgcolor: '#f9f9f9' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h6">OTROS RIESGOS - {categoria.toUpperCase()}</Typography>
         <Button 
           variant="outlined" 
           startIcon={<AddIcon />} 
           onClick={() => setAgregarNuevo(true)}
-          disabled={agregarNuevo}
+          disabled={agregarNuevo || loading}
+          size="small"
         >
           Agregar riesgo
         </Button>
       </Box>
 
+      {/* Indicador de carga */}
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
+          <CircularProgress size={30} />
+        </Box>
+      )}
+
       {/* Lista de riesgos existentes */}
-      {riesgos.length === 0 && !agregarNuevo ? (
+      {!loading && riesgos.length === 0 && !agregarNuevo ? (
         <Typography variant="body2" color="textSecondary" sx={{ my: 2 }}>
           No hay riesgos adicionales en esta categoría.
         </Typography>
       ) : (
         <Box>
           {riesgos.map((riesgo) => (
-            <Card key={riesgo.id_riesgo} sx={{ mb: 2, border: '1px solid #e0e0e0', boxShadow: 'none' }}>
+            <Card key={riesgo.id_riesgo} sx={{ 
+              mb: 2, 
+              border: '1px solid #e0e0e0', 
+              boxShadow: 'none',
+              backgroundColor: '#ffffff'
+            }}>
               <CardContent>
                 <Grid container spacing={2}>
                   <Grid item xs={12} md={4}>
@@ -168,12 +243,12 @@ function OtrosRiesgos({ idSolicitud, userData, categoria }) {
                           });
                           setRiesgos(updatedRiesgos);
                         } else {
-                          handleActualizarRiesgo(riesgo.id_riesgo, {
+                          actualizarRiesgo(riesgo.id_riesgo, {
                             aplica: e.target.checked ? 'Sí' : 'No'
                           });
                         }
                       }}
-                      disabled={guardando}
+                      disabled={loading}
                     />
                     <Typography variant="body2" color="textSecondary">
                       {editando === riesgo.id_riesgo 
@@ -212,21 +287,19 @@ function OtrosRiesgos({ idSolicitud, userData, categoria }) {
                         <Button 
                           size="small" 
                           onClick={() => {
-                            handleActualizarRiesgo(riesgo.id_riesgo, {
+                            actualizarRiesgo(riesgo.id_riesgo, {
                               nombre_riesgo: riesgo.nombre_riesgo_temp || riesgo.nombre_riesgo,
                               aplica: riesgo.aplica_temp || riesgo.aplica,
                               mitigacion: riesgo.mitigacion_temp || riesgo.mitigacion
                             });
                           }}
-                          disabled={guardando}
                           variant="contained"
                         >
-                          {guardando ? <CircularProgress size={20} /> : "Guardar"}
+                          Guardar
                         </Button>
                         <Button 
                           size="small" 
                           onClick={() => setEditando(null)}
-                          disabled={guardando}
                           sx={{ ml: 1 }}
                         >
                           Cancelar
@@ -243,7 +316,7 @@ function OtrosRiesgos({ idSolicitud, userData, categoria }) {
                           <IconButton 
                             size="small" 
                             color="error" 
-                            onClick={() => handleEliminarRiesgo(riesgo.id_riesgo)}
+                            onClick={() => eliminarRiesgo(riesgo.id_riesgo)}
                           >
                             <DeleteIcon fontSize="small" />
                           </IconButton>
@@ -287,7 +360,7 @@ function OtrosRiesgos({ idSolicitud, userData, categoria }) {
                   fullWidth
                   multiline
                   rows={2}
-                  label="Mitigación"
+                  label="Mitigación propuesta"
                   value={nuevoRiesgo.mitigacion}
                   onChange={(e) => setNuevoRiesgo({...nuevoRiesgo, mitigacion: e.target.value})}
                   size="small"
@@ -300,23 +373,36 @@ function OtrosRiesgos({ idSolicitud, userData, categoria }) {
                     setAgregarNuevo(false);
                     setNuevoRiesgo({ nombre: '', aplica: false, mitigacion: '' });
                   }}
-                  disabled={guardando}
                 >
                   Cancelar
                 </Button>
                 <Button 
                   variant="contained" 
-                  onClick={handleGuardarNuevo}
-                  disabled={guardando || !nuevoRiesgo.nombre.trim()}
-                  startIcon={guardando ? <CircularProgress size={20} /> : null}
+                  onClick={agregarRiesgo}
+                  disabled={!nuevoRiesgo.nombre.trim()}
                 >
-                  {guardando ? "Guardando..." : "Guardar"}
+                  Guardar
                 </Button>
               </Grid>
             </Grid>
           </CardContent>
         </Card>
       )}
+
+      {/* Notificación */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={6000}
+        onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+          severity={notification.severity}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
