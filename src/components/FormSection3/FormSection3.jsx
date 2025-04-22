@@ -17,6 +17,7 @@ import Step2FormSection3 from './Step2FormSection3';
 import Step3FormSection3 from './Step3FormSection3';
 import Step4FormSection3 from './Step4FormSection3';
 import Step5FormSection3 from './Step5FormSection3';
+import Step6FormSection3 from './Step6FormSection3'; 
 
 import CheckIcon from '@mui/icons-material/Check'; // Importa el ícono del check
 import { styled } from '@mui/system';
@@ -63,8 +64,8 @@ const CustomStepIcon = ({ active, completed, icon, accessible }) => (
 );
 
 function FormSection3({ formData, handleInputChange, userData, currentStep, setCurrentSection, formId}) {
-  // Step labels
-  const steps = ['Propósito y Comentario', 'Matriz de Riesgos - Diseño', 'Matriz de Riesgos - Locaciones', 'Matriz de Riesgos - Desarrollo', 'Matriz de Riesgos - Cierre y Otros'];
+  // Step labels - Actualizado para incluir el nuevo paso
+  const steps = ['Propósito y Comentario', 'Matriz de Riesgos - Diseño', 'Matriz de Riesgos - Locaciones', 'Matriz de Riesgos - Desarrollo', 'Matriz de Riesgos - Cierre', 'Matriz de Riesgos - Otros'];
   const [activeStep, setActiveStep] = useState(currentStep);  // Usar currentStep como el paso inicial
   const [openModal, setOpenModal] = useState(false); // Estado para controlar el modal
   const id_usuario = userData?.id_usuario;
@@ -272,7 +273,7 @@ const validateStep = () => {
     }
 };
 
-// En la función handleSubmit, añadir la apertura del modal tras guardar exitosamente
+// Modificado para manejar tanto el paso 4 (Cierre) como el paso 5 (Otros)
 const handleSubmit = async () => {
   // Validar campos si es necesario
   if (!validateStep()) {
@@ -282,45 +283,67 @@ const handleSubmit = async () => {
 
   setIsLoading(true); // Iniciar el loading
 
-  const hoja = 3; // Cambia este valor según la hoja a la que corresponda el formulario
-  
-  const completarValoresConNo = (data) => {
-    const completado = {};
-    for (let key in data) {
-      completado[key] = data[key] === '' || data[key] === null || data[key] === undefined ? 'No' : data[key];
-    }
-    return completado;
-  };
-
-  const pasoData = {
-    aplicaCierre1: formData.aplicaCierre1 || 'No',
-    aplicaCierre2: formData.aplicaCierre2 || 'No',
-    aplicaCierre3: formData.aplicaCierre3 || 'No',
-  };
-
-  const pasoDataCompleto = completarValoresConNo(pasoData);
-
-  try {
-    // Guardar los datos del último paso en Google Sheets
-    await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-      id_solicitud: idSolicitud,
-      ...pasoDataCompleto,
-      paso: 5,
-      etapa_actual: 3,
-      hoja,
-      id_usuario,
-      name: userData.name,
-    });
-
-    // Mostrar el modal de éxito después de guardar los datos
-    setShowModal(true);
-    setIsLoading(false);
+  // Si estamos en el paso 4 (Cierre)
+  if (activeStep === 4) {
+    const hoja = 3;
     
-    // No navegamos inmediatamente, esperamos a que el usuario elija una opción en el modal
-  } catch (error) {
-    console.error('Error al guardar los datos del último paso:', error);
-    setIsLoading(false);
-    // Podrías mostrar una alerta de error aquí
+    const completarValoresConNo = (data) => {
+      const completado = {};
+      for (let key in data) {
+        completado[key] = data[key] === '' || data[key] === null || data[key] === undefined ? 'No' : data[key];
+      }
+      return completado;
+    };
+
+    const pasoData = {
+      aplicaCierre1: formData.aplicaCierre1 || 'No',
+      aplicaCierre2: formData.aplicaCierre2 || 'No',
+      aplicaCierre3: formData.aplicaCierre3 || 'No',
+    };
+
+    const pasoDataCompleto = completarValoresConNo(pasoData);
+
+    try {
+      await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+        id_solicitud: idSolicitud,
+        ...pasoDataCompleto,
+        paso: 5,
+        hoja,
+        id_usuario,
+        name: userData.name,
+      });
+
+      // Avanzar al paso 6 después de guardar
+      setActiveStep(5);
+      setIsLoading(false);
+      setHighestStepReached((prev) => Math.max(prev, 5, maxAllowedStep));
+      
+    } catch (error) {
+      console.error('Error al guardar los datos:', error);
+      setIsLoading(false);
+    }
+  } 
+  // Si estamos en el paso 5 (Otros)
+  else if (activeStep === 5) {
+    try {
+      // Marcar la etapa como completada
+      await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+        id_solicitud: idSolicitud,
+        paso: 6,
+        etapa_actual: 3,
+        hoja: 3,
+        id_usuario,
+        name: userData.name,
+      });
+
+      // Mostrar el modal de éxito
+      setShowModal(true);
+      setIsLoading(false);
+      
+    } catch (error) {
+      console.error('Error al guardar los datos del último paso:', error);
+      setIsLoading(false);
+    }
   }
 };
   
@@ -339,23 +362,50 @@ const handleSubmit = async () => {
   const renderStepContent = (step) => {
     switch (step) {
       case 0:
-        return <Step1FormSection3 formData={formData} handleInputChange={handleInputChange} errors={errors}/>;
+        return <Step1FormSection3 
+          formData={formData} 
+          handleInputChange={handleInputChange} 
+          errors={errors}
+          idSolicitud={idSolicitud}
+          userData={userData}
+        />;
       case 1:
-        return <Step2FormSection3 formData={formData} handleInputChange={handleInputChange} errors={errors} />;
+        return <Step2FormSection3 
+          formData={formData} 
+          handleInputChange={handleInputChange} 
+          errors={errors} 
+          idSolicitud={idSolicitud}
+          userData={userData}
+        />;
       case 2:
-        return <Step3FormSection3 formData={formData} handleInputChange={handleInputChange} />;
+        return <Step3FormSection3 
+          formData={formData} 
+          handleInputChange={handleInputChange}
+          idSolicitud={idSolicitud}
+          userData={userData} 
+        />;
       case 3:
-        return <Step4FormSection3 formData={formData} handleInputChange={handleInputChange} />;
+        return <Step4FormSection3 
+          formData={formData} 
+          handleInputChange={handleInputChange}
+          idSolicitud={idSolicitud}
+          userData={userData}
+        />;
       case 4:
         return <Step5FormSection3 
-        formData={formData} 
-        handleInputChange={handleInputChange} 
-        idSolicitud={idSolicitud}
-        userData={userData}
-        setIsLoading={setIsLoading}
-        navigate={navigate}
-        setCurrentSection={setCurrentSection}
-       />;
+          formData={formData} 
+          handleInputChange={handleInputChange} 
+          idSolicitud={idSolicitud}
+          userData={userData}
+          setIsLoading={setIsLoading}
+          navigate={navigate}
+          setCurrentSection={setCurrentSection}
+        />;
+      case 5:
+        return <Step6FormSection3 
+          idSolicitud={idSolicitud}
+          userData={userData}
+        />;
       default:
         return null;
     }

@@ -1,7 +1,8 @@
 import { Typography, Box, Grid, Checkbox } from '@mui/material';
 import PropTypes from "prop-types";
+import OtrosRiesgos from './OtrosRiesgos'; // Importar el nuevo componente
 
-function Step3FormSection3({ formData, handleInputChange }) {
+function Step3FormSection3({ formData, handleInputChange, idSolicitud, userData }) {
   const handleCheckboxChange = (event) => {
     const { name, checked } = event.target;
     handleInputChange({
@@ -184,10 +185,20 @@ function Step3FormSection3({ formData, handleInputChange }) {
           </Grid>
         </Grid>
       </Grid>
+
+      {/* Agregar la sección de otros riesgos de locaciones */}
+      {idSolicitud && userData && (
+        <OtrosRiesgos 
+          idSolicitud={idSolicitud} 
+          userData={userData} 
+          categoria="locaciones" 
+        />
+      )}
     </Box>
   );
 }
 
+// Actualizar PropTypes
 Step3FormSection3.propTypes = {
   formData: PropTypes.shape({
     aplicaLocacion1: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
@@ -197,6 +208,11 @@ Step3FormSection3.propTypes = {
     aplicaLocacion5: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
   }).isRequired,
   handleInputChange: PropTypes.func.isRequired,
+  idSolicitud: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  userData: PropTypes.shape({
+    id_usuario: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    name: PropTypes.string,
+  }),
 };
 
 export default Step3FormSection3;
