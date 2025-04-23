@@ -1,71 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Typography, Box, Grid, Checkbox, TextField, Button, CircularProgress, Tabs, Tab } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
+import { Typography, Box, Grid, Checkbox } from '@mui/material';
 import PropTypes from "prop-types";
-import axios from 'axios';
-import RiesgosDinamicos from './RiesgosDinamicos';
-
-
-const solicitud3Step5Fields = [
-  'aplicaCierre1', 'aplicaCierre2', 'aplicaCierre3',
-  'riesgoExtra1', 'riesgoExtra2', 'riesgoExtra3',
-  'aplicaExtra1', 'aplicaExtra2', 'aplicaExtra3',
-  'mitigaExtra1', 'mitigaExtra2', 'mitigaExtra3'
-];
-
-// Función para determinar estilo de fila basado en estado 'aplicado'
-const getRiskRowStyle = (isApplied) => ({
-  padding: '16px 0', // Aumentado para mejor espaciado
-  opacity: isApplied ? 1 : 0.7, // Contraste más sutil
-  backgroundColor: isApplied ? '#FFFFFF' : 'rgba(0, 0, 0, 0.02)', // Fondo blanco para seleccionados
-  transition: 'all 0.25s ease',
-  borderRadius: '4px',
-  boxShadow: isApplied ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', // Sombra sutil en lugar de borde
-  border: 'none', // Eliminamos bordes visibles
-  marginBottom: '12px', // Más espacio entre filas
-});
-
-const handleSubmit = async (formData, idSolicitud, userData, setIsLoading, navigate, setCurrentSection) => {
-  setIsLoading(true);
-
-  // Construir los datos a enviar para el step 5:
-  // Se usan valores por defecto: en checkboxes "No" y en campos de texto vacío.
-  const step5Data = {};
-  solicitud3Step5Fields.forEach(field => {
-    if (field.startsWith('aplica')) {
-      step5Data[field] = formData[field] || 'No';
-    } else {
-      step5Data[field] = formData[field] || '';
-    }
-  });
-  
-  try {
-    await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-      ...step5Data,
-      id_solicitud: idSolicitud,
-      paso: 5,
-      hoja: 3,
-      id_usuario: userData.id_usuario,
-      name: userData.name
-    });
-    // Una vez enviado con éxito, puedes cambiar de sección o notificar al usuario:
-    setCurrentSection(4); // Por ejemplo, pasar a la siguiente sección
-    navigate(`/formulario/4?solicitud=${idSolicitud}&paso=0`);
-  } catch (error) {
-    console.error('Error al guardar los datos del último paso:', error.response?.data || error.message);
-  } finally {
-    setIsLoading(false);
-  }
-};
+import OtrosRiesgos from './OtrosRiesgos'; // Importar el componente para riesgos dinámicos
 
 function Step5FormSection3({ formData, handleInputChange, idSolicitud, userData, setIsLoading, navigate, setCurrentSection }) {
-  const [additionalRisks, setAdditionalRisks] = useState([]);
-  const [loadingDeleteId, setLoadingDeleteId] = useState(null);
-  const [activeTab, setActiveTab] = useState(0);
-
   const handleCheckboxChange = (event) => {
     const { name, checked } = event.target;
     handleInputChange({
@@ -75,88 +12,20 @@ function Step5FormSection3({ formData, handleInputChange, idSolicitud, userData,
       },
     });
   };
-
-  const addNewRisk = () => {
-    const newIndex = additionalRisks.length + 1;
-    
-    // Inicializar todos los campos para el nuevo riesgo
-    handleInputChange({
-      target: { name: `riesgoExtra${newIndex}`, value: '' }
-    });
-    handleInputChange({
-      target: { name: `aplicaExtra${newIndex}`, value: 'No' }
-    });
-    handleInputChange({
-      target: { name: `mitigaExtra${newIndex}`, value: '' }
-    });
   
-    setAdditionalRisks([...additionalRisks, newIndex]);
-  };
+  // Función para determinar estilo de fila basado en estado 'aplicado'
+  const getRiskRowStyle = (isApplied) => ({
+    padding: '16px 0', // Aumentado para mejor espaciado
+    opacity: isApplied ? 1 : 0.7, // Contraste más sutil
+    backgroundColor: isApplied ? '#FFFFFF' : 'rgba(0, 0, 0, 0.02)', // Fondo blanco para seleccionados
+    transition: 'all 0.25s ease',
+    borderRadius: '4px',
+    boxShadow: isApplied ? '0 1px 3px rgba(0,0,0,0.08)' : 'none', // Sombra sutil en lugar de borde
+    border: 'none', // Eliminamos bordes visibles
+    marginBottom: '12px', // Más espacio entre filas
+  });
 
-  const handleCustomRiskChange = (index, field, value) => {
-    const fieldMap = {
-      riesgo: `riesgoExtra${index + 1}`,
-      aplica: `aplicaExtra${index + 1}`,
-      mitigacion: `mitigaExtra${index + 1}`
-    };
-    
-    handleInputChange({
-      target: {
-        name: fieldMap[field],
-        value: value
-      }
-    });
-  };
-
-  const removeRisk = (indexPositionToRemove) => {
-    // Obtener el índice real del riesgo desde el array additionalRisks
-    const riskIndex = additionalRisks[indexPositionToRemove];
-    
-    // Activar indicador de carga
-    setLoadingDeleteId(indexPositionToRemove)
-
-    // Limpiar los valores del formulario para este riesgo
-    handleInputChange({
-      target: { name: `riesgoExtra${riskIndex}`, value: '' }
-    });
-    handleInputChange({
-      target: { name: `aplicaExtra${riskIndex}`, value: 'No' }
-    });
-    handleInputChange({
-      target: { name: `mitigaExtra${riskIndex}`, value: '' }
-    });
-    
-    syncRiskRemovalWithBackend(riskIndex)
-      .finally(() => {
-        // Eliminar el índice del array additionalRisks
-        const updatedRisks = additionalRisks.filter((_, i) => i !== indexPositionToRemove);
-        setAdditionalRisks(updatedRisks);
-        // Desactivar indicador de carga
-        setLoadingDeleteId(null);
-      });
-  };
-
-  const syncRiskRemovalWithBackend = async (riskIndex) => {
-    try {
-      const response = await axios.post('https://siac-extension-server.vercel.app/eliminarRiesgo', {
-        id_solicitud: idSolicitud,
-        indice_riesgo: riskIndex,
-        id_usuario: userData.id_usuario,
-        name: userData.name
-      });
-      
-      // Podemos agregar una notificación de éxito si se desea
-      return response;
-    } catch (error) {
-      console.error('Error al eliminar el riesgo:', error.response?.data || error.message);
-      // Podríamos manejar un estado para mostrar un mensaje de error
-      throw error;
-    }
-  };
-
-  
-
-  const CierreRiskSystem = () => (
+  return (
     <Box>
       <Typography variant="h6" gutterBottom>MATRIZ DE RIESGOS - CIERRE</Typography>
 
@@ -257,30 +126,13 @@ function Step5FormSection3({ formData, handleInputChange, idSolicitud, userData,
           </Typography>
         </Grid>
       </Grid>
-    </Box>
-  );
 
-
-
-  return (
-    <Box>
-      <Box sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs 
-          value={activeTab} 
-          onChange={(_, newValue) => setActiveTab(newValue)}
-          aria-label="Sistema de gestión de riesgos"
-        >
-          <Tab label="MATRIZ DE RIESGOS - CIERRE" />
-          <Tab label="MATRIZ DE RIESGOS - OTROS" />
-        </Tabs>
-      </Box>
-
-      {activeTab === 0 ? (
-        <CierreRiskSystem />
-      ) : (
-        <RiesgosDinamicos 
+      {/* Agregar la sección de otros riesgos de cierre */}
+      {idSolicitud && userData && (
+        <OtrosRiesgos 
           idSolicitud={idSolicitud} 
           userData={userData} 
+          categoria="cierre" 
         />
       )}
     </Box>
@@ -293,7 +145,11 @@ Step5FormSection3.defaultProps = {
 };
 
 Step5FormSection3.propTypes = {
-  formData: PropTypes.shape({}).isRequired,
+  formData: PropTypes.shape({
+    aplicaCierre1: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaCierre2: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+    aplicaCierre3: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+  }).isRequired,
   handleInputChange: PropTypes.func.isRequired,
   idSolicitud: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
   userData: PropTypes.shape({

@@ -76,6 +76,12 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [completedSteps, setCompletedSteps] = useState([]);
   const [highestStepReached, setHighestStepReached] = useState(0); // Máximo paso alcanzado
+  const [estadoFormularios, setEstadoFormularios] = useState({
+    "1": "En progreso",
+    "2": "En progreso",
+    "3": "En progreso", 
+    "4": "En progreso"
+  });
 
   const [idSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
 
@@ -157,10 +163,68 @@ const validateStep = () => {
       console.log('isStepAllowed para siguiente paso:', isStepAllowed(activeStep + 1));
       
       // Actualiza el paso más alto alcanzado según lo que permite el servidor
-      setHighestStepReached(prev => Math.max(prev, maxAllowedStep));
+      setHighestStepReached(prev => {
+        // Si el formulario está marcado como completado, permitir todos los pasos
+        if (estadoFormularios && estadoFormularios["3"] === "Completado") {
+          return steps.length - 1;
+        }
+        return Math.max(prev, maxAllowedStep, activeStep); // Incluir activeStep actual
+      });
     }
-  }, [maxAllowedStep, navLoading, activeStep, isStepAllowed]);
+  }, [maxAllowedStep, navLoading, activeStep, isStepAllowed, estadoFormularios]);
 
+  useEffect(() => {
+    const checkFormCompletionStatus = async () => {
+      if (!idSolicitud) return;
+      
+      try {
+        const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+          id_solicitud: idSolicitud,
+          etapa_destino: 3,
+          paso_destino: 6
+        });
+        
+        if (response.data.success && response.data.estado) {
+          const { estado } = response.data;
+          
+          // Actualizar el estado de los formularios con lo que viene del backend
+          if (estado.estadoFormularios) {
+            setEstadoFormularios(estado.estadoFormularios);
+          }
+          
+          // Si el formulario 3 está completado, actualizar UI para reflejarlo
+          if (estado.estadoFormularios["3"] === "Completado") {
+            // Marcar todos los pasos como completados
+            const allSteps = Array.from({ length: steps.length }, (_, i) => i);
+            setCompletedSteps(allSteps);
+            setHighestStepReached(steps.length - 1);
+          }
+          
+          // Si estamos en el paso 6, marcar los pasos anteriores como completados
+          if (estado.etapaActual === 3 && estado.pasoActual >= 6) {
+            // Marcar pasos 0-4 como completados
+            const completedStepsArray = Array.from({ length: 5 }, (_, i) => i);
+            setCompletedSteps(prev => {
+              const newCompleted = [...prev];
+              completedStepsArray.forEach(step => {
+                if (!newCompleted.includes(step)) {
+                  newCompleted.push(step);
+                }
+              });
+              return newCompleted;
+            });
+            
+            // Permitir acceso al paso 5 (último paso en UI)
+            setHighestStepReached(prev => Math.max(prev, 5));
+          }
+        }
+      } catch (error) {
+        console.error('Error al verificar estado de completado:', error);
+      }
+    };
+    
+    checkFormCompletionStatus();
+  }, [idSolicitud, steps.length]);
 
   /*
     Lógica del botón "Siguiente"
@@ -313,6 +377,15 @@ const handleSubmit = async () => {
         name: userData.name,
       });
 
+      // Marcar el paso 4 como completado
+      setCompletedSteps(prev => {
+        const newCompleted = [...prev];
+        if (!newCompleted.includes(activeStep)) {
+          newCompleted.push(activeStep);
+        }
+        return newCompleted;
+      });
+
       // Avanzar al paso 6 después de guardar
       setActiveStep(5);
       setIsLoading(false);
@@ -323,18 +396,33 @@ const handleSubmit = async () => {
       setIsLoading(false);
     }
   } 
-  // Si estamos en el paso 5 (Otros)
+  // Si estamos en el paso 5 (Otros - también known como paso 6 en la UI)
   else if (activeStep === 5) {
     try {
       // Marcar la etapa como completada
-      await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+      const response = await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
         id_solicitud: idSolicitud,
-        paso: 6,
         etapa_actual: 3,
-        hoja: 3,
-        id_usuario,
-        name: userData.name,
+        paso_actual: 6, // Paso 6 completado
+        estado_formularios: {
+          "1": "Completado",
+          "2": "Completado", 
+          "3": "Completado", // Marcar formulario 3 como completado
+          "4": "En progreso"
+        }
       });
+
+      // IMPORTANTE: Actualizar explícitamente los pasos completados para incluir el paso 5 (último paso en UI)
+      setCompletedSteps(prev => {
+        const newCompleted = [...prev];
+        if (!newCompleted.includes(activeStep)) {
+          newCompleted.push(activeStep);
+        }
+        return newCompleted;
+      });
+
+      // IMPORTANTE: Actualizar highestStepReached para incluir el último paso
+      setHighestStepReached(steps.length - 1);
 
       // Mostrar el modal de éxito
       setShowModal(true);
@@ -430,15 +518,31 @@ const PrintReportButton = () => {
       try {
         const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
           id_solicitud: idSolicitud,
-          etapa_destino: formId || 3, // Usar el formId correspondiente (1, 2, 3 o 4)
-          paso_destino: 1
+          etapa_destino: formId || 3,
+          paso_destino: 6 // Explícitamente verificar el paso 6
         });
         
         if (response.data.success && response.data.estado?.estadoFormularios) {
           // Comprobar si este formulario está marcado como "Completado"
           const formStatus = response.data.estado.estadoFormularios[formId.toString()];
           setIsFormCompletedBackend(formStatus === 'Completado');
+          
+          // Verificar si estamos en el paso 6 y se ha completado
+          const isPaso6Completed = response.data.estado.etapaActual === 3 && 
+                                 response.data.estado.pasoActual >= 6;
+          
+          if (isPaso6Completed) {
+            // Actualizar completedSteps para incluir el paso 5 (último en UI)
+            setCompletedSteps(prev => {
+              if (!prev.includes(5)) { // El paso 6 es índice 5 en la UI
+                return [...prev, 5];
+              }
+              return prev;
+            });
+          }
+          
           console.log(`Estado del formulario ${formId} según backend: ${formStatus}`);
+          console.log(`Paso 6 completado: ${isPaso6Completed}`);
         }
       } catch (error) {
         console.error('Error al verificar estado del formulario:', error);
@@ -448,24 +552,24 @@ const PrintReportButton = () => {
     checkFormCompletion();
   }, [idSolicitud]);
   
-  // NUEVA LÓGICA: Si el formulario no está completado según el backend,
-  // el botón solo se habilita en el último paso Y después de enviar los datos
+  // MODIFICACIÓN: Ahora verificamos específicamente si el paso 6 está completado
   const isLastStepCompleted = (
     // Estamos exactamente en el último paso
     activeStep === steps.length - 1 && 
+    // El paso está marcado como completado
+    completedSteps.includes(steps.length - 1) &&
     // El servidor ha registrado la finalización del último paso
-    maxAllowedStep >= steps.length
+    maxAllowedStep >= steps.length - 1
   );
   
-  // El botón se activa si:
-  // 1. El formulario está completado según el backend, O
-  // 2. Se ha completado el último paso (según las condiciones de arriba)
-  const isButtonEnabled = isFormCompletedBackend || isLastStepCompleted;
+  const isButtonEnabled = isFormCompletedBackend || isLastStepCompleted || 
+                        // Incluir el caso donde estamos en el último paso y está en completedSteps
+                        (activeStep === steps.length - 1 && completedSteps.includes(activeStep));
   
   const handleGenerateReport = async () => {
     try {
       setIsGeneratingReport(true);
-      await openFormReport(idSolicitud, formId); // Usar el formId correspondiente
+      await openFormReport(idSolicitud, formId);
     } catch (error) {
       console.error('Error al generar el reporte:', error);
       alert('Hubo un problema al generar el reporte');
