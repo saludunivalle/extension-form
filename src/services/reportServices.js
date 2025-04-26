@@ -190,7 +190,7 @@ export const previewFormReport = async (solicitudId, formNumber) => {
  * @returns {Promise<boolean>} - Éxito de la operación
  */
 export const openFormReport = async (solicitudId, formNumber) => {
-  const maxRetries = 5;
+  const maxRetries = 15;
   let retryCount = 0;
   
   // Función para mostrar notificación de espera
@@ -211,7 +211,7 @@ export const openFormReport = async (solicitudId, formNumber) => {
   showWaitingNotification(0);
   
   // Esperar 10 segundos antes del primer intento para evitar saturar la API
-  await new Promise(resolve => setTimeout(resolve, 10000));
+  await new Promise(resolve => setTimeout(resolve, 90000));
   
   while (retryCount < maxRetries) {
     try {

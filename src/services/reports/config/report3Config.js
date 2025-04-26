@@ -89,32 +89,12 @@ export const report3Config = {
       
     camposRiesgo.forEach(campo => {
       const valor = transformedData[campo];
-      // Valores considerados afirmativos
-      if (
+      // Simplificar la lógica de conversión
+      const esAfirmativo = 
         valor === true || 
-        valor === 'true' || 
-        valor === 'TRUE' || 
-        valor === 'Sí' || 
-        valor === 'Si' || 
-        valor === 'SI' || 
-        valor === 'si' || 
-        valor === 'sí' || 
-        valor === 'SÍ' ||
-        valor === 'S' ||
-        valor === 's' ||
-        valor === 'Y' || 
-        valor === 'y' ||
-        valor === 'Yes' ||
-        valor === 'yes'
-      ) {
-        transformedData[campo] = 'Sí aplica';
-      } else {
-        // Si no es afirmativo o está vacío, considerarlo como "No aplica"
-        transformedData[campo] = 'No aplica';
-      }
-      
-      // Log para depuración
-      console.log(`Campo ${campo}: original = "${valor}", transformado = "${transformedData[campo]}"`);
+        (typeof valor === 'string' && ['sí', 'si', 's', 'yes', 'y', 'true'].includes(valor.toString().toLowerCase()));
+    
+      transformedData[campo] = esAfirmativo ? 'Sí aplica' : 'No aplica';
     });
       
     // 5. VALORES POR DEFECTO PARA CAMPOS CRÍTICOS
