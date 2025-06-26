@@ -1,31 +1,39 @@
 import { FormControl, FormControlLabel, FormLabel, Grid, Radio, RadioGroup, TextField, Typography, Box, FormHelperText  } from '@mui/material';
 import PropTypes from 'prop-types';
+import { useEffect } from 'react';
 
 function Step3({ formData, setFormData, errors  }) {
+
+  // useEffect para recalcular el total de horas automáticamente
+  useEffect(() => {
+    let total = 0;
+
+    if (formData.modalidad === "Presencial") {
+      total = parseInt(formData.horas_trabajo_presencial) || 0;
+    } else if (formData.modalidad === "Presencial asistida por tecnología") {
+      total = parseInt(formData.horas_trabajo_pat) || 0;
+    } else if (formData.modalidad === "Virtual") {
+      total = parseInt(formData.horas_sincronicas) || 0;
+    } else if (["Semipresencial", "Mixta", "Todas"].includes(formData.modalidad)) {
+      total =
+        (parseInt(formData.horas_trabajo_presencial) || 0) +
+        (parseInt(formData.horas_sincronicas) || 0);
+    }
+
+    // Solo actualizar si el total es diferente al actual
+    if (total !== formData.total_horas) {
+      setFormData(prev => ({
+        ...prev,
+        total_horas: total > 0 ? total : 1
+      }));
+    }
+  }, [formData.modalidad, formData.horas_trabajo_presencial, formData.horas_trabajo_pat, formData.horas_sincronicas, setFormData]);
 
   const handleCustomInputChange = (event) => {
     const { name, value } = event.target;
   
     setFormData((prevData) => {
       const updatedData = { ...prevData, [name]: value };
-  
-      // Recalcular total_horas solo si es necesario
-      if (name === "horas_trabajo_presencial" || name === "horas_sincronicas" || name === "modalidad") {
-        let total = 0;
-  
-        if (updatedData.modalidad === "Presencial") {
-          total = parseInt(updatedData.horas_trabajo_presencial) || 0;
-        } else if (updatedData.modalidad === "Virtual") {
-          total = parseInt(updatedData.horas_sincronicas) || 0;
-        } else if (["Semipresencial", "Mixta", "Todas"].includes(updatedData.modalidad)) {
-          total =
-            (parseInt(updatedData.horas_trabajo_presencial) || 0) +
-            (parseInt(updatedData.horas_sincronicas) || 0);
-        }
-  
-        updatedData.total_horas = total > 0 ? total : 1;  
-      }
-  
       return updatedData;
     });
   };
@@ -34,7 +42,7 @@ function Step3({ formData, setFormData, errors  }) {
     <Grid container spacing={2}>
             <Grid item xs={12}>
           <FormControl component="fieldset" error={!!errors.tipo} required>
-          <FormLabel component="legend">Tipo</FormLabel>
+          <FormLabel component="legend">Tipo de Actividad</FormLabel>
           <RadioGroup
             row
             name="tipo"
@@ -42,9 +50,9 @@ function Step3({ formData, setFormData, errors  }) {
             onChange={handleCustomInputChange}
           >
             <FormControlLabel value="Curso" control={<Radio />} label="Curso" />
-            <FormControlLabel value="Congreso" control={<Radio />} label="Congreso" />
-            <FormControlLabel value="Conferencia" control={<Radio />} label="Conferencia" />
-            <FormControlLabel value="Simposio" control={<Radio />} label="Simposio" />
+            <FormControlLabel value="Taller" control={<Radio />} label="Taller" />
+            <FormControlLabel value="Seminario" control={<Radio />} label="Seminario" />
+            <FormControlLabel value="Programa" control={<Radio />} label="Programa" />
             <FormControlLabel value="Diplomado" control={<Radio />} label="Diplomado" />
             <FormControlLabel value="Otro" control={<Radio />} label="Otro" />
           </RadioGroup>
@@ -73,10 +81,11 @@ function Step3({ formData, setFormData, errors  }) {
             onChange={handleCustomInputChange}
           >
             <FormControlLabel value="Presencial" control={<Radio />} label="Presencial" />
-            <FormControlLabel value="Semipresencial" control={<Radio />} label="Semipresencial" />
+            <FormControlLabel value="Presencial asistida por tecnología" control={<Radio />} label="Presencial asistida por tecnología" />
             <FormControlLabel value="Virtual" control={<Radio />} label="Virtual" />
             <FormControlLabel value="Mixta" control={<Radio />} label="Mixta" />
-            <FormControlLabel value="Todas" control={<Radio />} label="Todas las anteriores" />
+            <FormControlLabel value="Horas de trabajo independientes" control={<Radio />} label="Horas de trabajo independientes" />
+            <FormControlLabel value="Todas las anteriores" control={<Radio />} label="Todas las anteriores" />
           </RadioGroup>
           {errors.modalidad && <FormHelperText>{errors.modalidad}</FormHelperText>}
         </FormControl>
@@ -113,19 +122,19 @@ function Step3({ formData, setFormData, errors  }) {
       <Grid item xs={12}>
         <Typography variant="h6">Intensidad Horaria</Typography>
       </Grid>
-      {(formData.modalidad === "Presencial" || formData.modalidad === "Virtual" || formData.modalidad === "Mixta" || formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") && (
+      {(formData.modalidad === "Presencial" || formData.modalidad === "Presencial asistida por tecnología" || formData.modalidad === "Virtual" || formData.modalidad === "Mixta" || formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") && (
         <Grid item xs={12}>
           <Grid container spacing={2}>
-            {(formData.modalidad === "Presencial" || formData.modalidad === "Mixta" || formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") && (
+            {(formData.modalidad === "Presencial" || formData.modalidad === "Presencial asistida por tecnología" || formData.modalidad === "Mixta" || formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") && (
               <Grid item xs={3.5}>
                 <TextField
-                  label="Horas de trabajo Presencial"
+                  label="Horas de trabajo PAT"
                   fullWidth
-                  name="horas_trabajo_presencial"
-                  value={formData.horas_trabajo_presencial}
+                  name="horas_trabajo_pat"
+                  value={formData.horas_trabajo_pat}
                   onChange={handleCustomInputChange}
-                  error={!!errors.horas_trabajo_presencial}
-                  helperText={errors.horas_trabajo_presencial}
+                  error={!!errors.horas_trabajo_pat}
+                  helperText={errors.horas_trabajo_pat}
                   type="number"
                   inputProps={{ 
                     min: 1, // Valor mínimo permitido

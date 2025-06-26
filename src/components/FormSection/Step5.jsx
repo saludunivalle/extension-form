@@ -1,7 +1,37 @@
 import { Grid, TextField, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, Box, FormHelperText  } from '@mui/material';
 import PropTypes from 'prop-types';
+import { useEffect } from 'react';
 
-function Step5({ formData, handleInputChange, handleFileChange, errors}) {
+function Step5({ formData, handleInputChange, handleFileChange, errors, setFormData}) {
+
+  // useEffect para calcular automáticamente el total de becas
+  useEffect(() => {
+    const totalBecas = (
+      parseInt(formData.becas_convenio || 0) +
+      parseInt(formData.becas_estudiantes || 0) +
+      parseInt(formData.becas_docentes || 0) +
+      parseInt(formData.becas_egresados || 0) +
+      parseInt(formData.becas_funcionarios || 0) +
+      parseInt(formData.becas_otros || 0)
+    );
+
+    // Solo actualizar si el total es diferente al actual
+    if (totalBecas !== parseInt(formData.becas_total || 0)) {
+      setFormData(prev => ({
+        ...prev,
+        becas_total: totalBecas.toString()
+      }));
+    }
+
+    // Debug: Log para becas_otros
+    console.log("🔍 Debug becas_otros en Step5:", {
+      valor: formData.becas_otros,
+      tipo: typeof formData.becas_otros,
+      totalCalculado: totalBecas
+    });
+
+  }, [formData.becas_convenio, formData.becas_estudiantes, formData.becas_docentes, 
+      formData.becas_egresados, formData.becas_funcionarios, formData.becas_otros, setFormData]);
 
   return (
     <Grid container spacing={2}>
@@ -25,7 +55,6 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
                   if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
                 }
               }}
-              required
               error={!!errors.becas_convenio}
               helperText={errors.becas_convenio}
             />
@@ -38,14 +67,12 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               type="number"
               value={formData.becas_estudiantes ?? "0"}
               onChange={handleInputChange}
-              //inputProps={{ min: "0" }} 
               inputProps={{ 
                 min: "0",
                 onKeyPress: (e) => {
                   if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
                 }
               }}
-              required
               error={!!errors.becas_estudiantes}
               helperText={errors.becas_estudiantes}
               placeholder="0"
@@ -59,7 +86,6 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               type="number"
               value={formData.becas_docentes ?? "0"}
               onChange={handleInputChange }
-              //inputProps={{ min: "0" }}
               placeholder="0"
               inputProps={{ 
                 min: "0",
@@ -67,7 +93,6 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
                   if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
                 }
               }}
-              required
               error={!!errors.becas_docentes}
               helperText={errors.becas_docentes}
             />
@@ -80,7 +105,6 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               type="number"
               value={formData.becas_egresados ?? "0"}
               onChange={handleInputChange}
-              //inputProps={{ min: "0" }} 
               placeholder="0"
               inputProps={{ 
                 min: "0",
@@ -88,7 +112,6 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
                   if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
                 }
               }}
-              required
               error={!!errors.becas_egresados}
               helperText={errors.becas_egresados}
             />
@@ -101,7 +124,6 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               type="number"
               value={formData.becas_funcionarios ?? "0"}
               onChange={handleInputChange}
-              //inputProps={{ min: "0" }} 
               placeholder="0"
               inputProps={{ 
                 min: "0",
@@ -109,7 +131,6 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
                   if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
                 }
               }}
-              required
               error={!!errors.becas_funcionarios}
               helperText={errors.becas_funcionarios}
             />
@@ -122,7 +143,6 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               type="number"
               value={formData.becas_otros ?? "0"}
               onChange={handleInputChange}
-              //inputProps={{ min: "0" }} 
               placeholder="0"
               inputProps={{ 
                 min: "0",
@@ -130,7 +150,6 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
                   if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
                 }
               }}
-              required
             />
           </Grid>
           <Grid item xs={2}>
@@ -138,16 +157,7 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               label="Total Becas"
               fullWidth
               name="becas_total"
-              value={
-                (
-                  parseInt(formData.becas_convenio || 0) +
-                  parseInt(formData.becas_estudiantes || 0) +
-                  parseInt(formData.becas_docentes || 0) +
-                  parseInt(formData.becas_egresados || 0) +
-                  parseInt(formData.becas_funcionarios || 0) +
-                  parseInt(formData.becas_otros || 0)
-                ).toString()
-              }
+              value={formData.becas_total || "0"}
               InputProps={{
                 readOnly: true,
               }}
@@ -237,15 +247,20 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
       {formData.extension_solidaria === 'si' && (
         <Grid item xs={12}>
           <TextField
-            label="Si se cobrase el curso, ¿cuánto costaría? ($$$)"
+            label="Si la actividad fuese cobrada, ¿Cuánto costaría? ($$$)"
             fullWidth
             name="costo_extension_solidaria"
-            type="number"
-            value={formData.costo_extension_solidaria || ''}
+            type="text"
+            value={
+              formData.costo_extension_solidaria
+                ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(formData.costo_extension_solidaria)
+                : ''
+            }
             onChange={(e) => {
-              // Eliminar todos los caracteres no numéricos excepto números
+              // Eliminar todos los caracteres no numéricos
               const rawValue = e.target.value.replace(/[^0-9]/g, '');
-              const numericValue = rawValue === '' ? 0 : parseInt(rawValue, 10);
+              let numericValue = rawValue === '' ? '' : parseInt(rawValue, 10);
+              if (numericValue !== '' && numericValue < 1) numericValue = 1;
               handleInputChange({
                 target: {
                   name: e.target.name,
@@ -258,9 +273,10 @@ function Step5({ formData, handleInputChange, handleFileChange, errors}) {
               pattern: "[0-9]*"
             }}
             error={!!errors.costo_extension_solidaria}
-            helperText={formData.costo_extension_solidaria === 0 ? "El programa es sin costo" : 
-            `Valor unitario: $${new Intl.NumberFormat('es-CO').format(formData.costo_extension_solidaria)} COP`
-
+            helperText={
+              formData.costo_extension_solidaria === 0 || formData.costo_extension_solidaria === ''
+                ? "El programa es sin costo"
+                : `Valor unitario: $${new Intl.NumberFormat('es-CO').format(formData.costo_extension_solidaria)} COP`
             }
           />
         </Grid>
@@ -298,6 +314,7 @@ Step5.propTypes = {
   handleInputChange: PropTypes.func.isRequired,
   handleFileChange: PropTypes.func.isRequired,
   errors: PropTypes.object.isRequired,
+  setFormData: PropTypes.func.isRequired,
 };
 
 export default Step5;

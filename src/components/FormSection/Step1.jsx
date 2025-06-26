@@ -111,7 +111,7 @@ function Step1({ formData, handleInputChange, setFormData, escuelas, departament
               label="Escuela"
             >
               <MenuItem value="">-</MenuItem>
-              {Array.isArray(escuelas) ? escuelas.map((escuela, index) => (
+              {Array.isArray(escuelas) ? escuelas.filter(e => e !== "Dirección de Posgrados").map((escuela, index) => (
                 <MenuItem key={index} value={escuela || ''}>
                   {escuela || ''}
                 </MenuItem>
@@ -208,6 +208,7 @@ function Step1({ formData, handleInputChange, setFormData, escuelas, departament
               label="Oficinas"
             >
               <MenuItem value="">-</MenuItem>
+              <MenuItem value="Dirección de Posgrados">Dirección de Posgrados</MenuItem>
               {(oficinas || []).map((oficina, index) => (
                 <MenuItem key={index} value={oficina}>
                   {oficina}

@@ -230,25 +230,6 @@ import api from '../../services/api';
             stepErrors.valor_inscripcion = "Debe ser un valor numérico válido";
         }
       } else if (activeStep === 4) {
-        const camposBecas = [
-          'becas_convenio',
-          'becas_estudiantes',
-          'becas_docentes',
-          'becas_egresados',
-          'becas_funcionarios',
-          'becas_otros'
-        ];
-        camposBecas.forEach(campo => {
-          const valor = formData[campo];
-          if (valor === "" || valor === undefined || valor === null) { // Permitir 0 como valor válido
-              stepErrors[campo] = "Este campo es obligatorio";
-          }else {
-            const numericValue = parseFloat(valor);
-            if (isNaN(numericValue) || numericValue < 0) {
-              stepErrors[campo] = "Debe ser un número mayor o igual a 0";
-            }
-          }
-        });  
         if (!formData.periodicidad_oferta) stepErrors.periodicidad_oferta = "Debe seleccionar una periodicidad";
         if (!formData.organizacion_actividad) stepErrors.organizacion_actividad = "Debe seleccionar una opción";
         if (!formData.extension_solidaria) stepErrors.extension_solidaria = "Debe seleccionar una opción";
@@ -386,6 +367,21 @@ import api from '../../services/api';
                   parseInt(formData.becas_funcionarios || 0) +
                   parseInt(formData.becas_otros || 0)
               );
+                  
+                  // Debug: Log específico para becas_otros
+                  console.log("🔍 Debug becas_otros:", {
+                    valorOriginal: formData.becas_otros,
+                    valorEnviado: formData.becas_otros || '0',
+                    tipo: typeof formData.becas_otros
+                  });
+                  
+                  // Debug: Log para becas_total
+                  console.log("🔍 Debug becas_total:", {
+                    valorOriginal: formData.becas_total,
+                    valorEnviado: totalBecas.toString(),
+                    tipo: typeof formData.becas_total
+                  });
+                  
                   pasoData = {
                       becas_convenio: formData.becas_convenio || '0',
                       becas_estudiantes: formData.becas_estudiantes || '0',
@@ -395,12 +391,29 @@ import api from '../../services/api';
                       becas_otros: formData.becas_otros || '0',
                       becas_total: totalBecas.toString(),
                       periodicidad_oferta: formData.periodicidad_oferta || '',
+                      
+                      // Corregir organizacion_actividad y otro_tipo_act
                       organizacion_actividad: formData.organizacion_actividad || '',
-                      otro_tipo_act: formData.otro_tipo_act || '',
-                      extension_solidaria: formData.extension_solidaria || '',
-                      costo_extension_solidaria: formData.costo_extension_solidaria || '0',
+                      otro_tipo_act: formData.organizacion_actividad === 'otro_act' ? (formData.otro_tipo_act || '') : '',
+                      
+                      // Corregir extension_solidaria y costo_extension_solidaria
+                      extension_solidaria: formData.extension_solidaria === 'si' ? 'Sí' : formData.extension_solidaria === 'no' ? 'No' : '',
+                      costo_extension_solidaria: formData.extension_solidaria === 'si' ? (formData.costo_extension_solidaria || '0') : '',
+                      
                       personal_externo: formData.personal_externo || '',
                   };
+                  
+                  // Debug: Log del objeto pasoData completo
+                  console.log("🔍 pasoData completo:", pasoData);
+                  
+                  // Debug: Log específico para los campos corregidos
+                  console.log("🔍 Campos corregidos en handleNext:", {
+                    organizacion_actividad: formData.organizacion_actividad,
+                    otro_tipo_act: formData.organizacion_actividad === 'otro_act' ? formData.otro_tipo_act : '',
+                    extension_solidaria: formData.extension_solidaria === 'si' ? 'Sí' : formData.extension_solidaria === 'no' ? 'No' : '',
+                    costo_extension_solidaria: formData.extension_solidaria === 'si' ? formData.costo_extension_solidaria : '',
+                    personal_externo: formData.personal_externo
+                  });
                 }
                   break;
               default:
@@ -437,14 +450,21 @@ import api from '../../services/api';
             if (formData.pieza_grafica && activeStep === 4) {
               await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend, {
                 headers: { 'Content-Type': 'multipart/form-data' },
+                timeout: 30000, // 30 segundos de timeout
               });
             } else {
               try {
-                await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend);
+                await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend, {
+                  timeout: 30000, // 30 segundos de timeout
+                });
                 setCompletedSteps((prev) => [...prev, activeStep]);
               } catch (error) {
                 console.error('Error al guardar el progreso:', error);
-                alert('Hubo un problema al guardar los datos. Por favor, inténtalo de nuevo.');
+                if (error.code === 'ECONNABORTED' || error.response?.status === 504) {
+                  alert('El servidor está tardando en responder. Por favor, intenta nuevamente en unos momentos.');
+                } else {
+                  alert('Hubo un problema al guardar los datos. Por favor, inténtalo de nuevo.');
+                }
               } finally {
                 setIsLoading(false);
               }
@@ -494,6 +514,28 @@ import api from '../../services/api';
         setIsLoading(true); 
         const hoja = 1;
 
+        // Debug: Log específico para becas_otros en handleSubmit
+        console.log("🔍 Debug becas_otros en handleSubmit:", {
+            valorOriginal: formData.becas_otros,
+            valorEnviado: formData.becas_otros || '0',
+            tipo: typeof formData.becas_otros
+        });
+
+        // Debug: Log para becas_total en handleSubmit
+        const totalBecasSubmit = (
+            parseInt(formData.becas_convenio || 0) +
+            parseInt(formData.becas_estudiantes || 0) +
+            parseInt(formData.becas_docentes || 0) +
+            parseInt(formData.becas_egresados || 0) +
+            parseInt(formData.becas_funcionarios || 0) +
+            parseInt(formData.becas_otros || 0)
+        );
+        console.log("🔍 Debug becas_total en handleSubmit:", {
+            valorOriginal: formData.becas_total,
+            valorCalculado: totalBecasSubmit,
+            tipo: typeof formData.becas_total
+        });
+
         let pasoData = {
             becas_convenio: formData.becas_convenio || '0',
             becas_estudiantes: formData.becas_estudiantes || '0',
@@ -501,18 +543,27 @@ import api from '../../services/api';
             becas_egresados: formData.becas_egresados || '0',
             becas_funcionarios: formData.becas_funcionarios || '0',
             becas_otros: formData.becas_otros || '0',
+            becas_total: totalBecasSubmit.toString(),
             periodicidad_oferta: formData.periodicidad_oferta || '',
+            
+            // Corregir organizacion_actividad y otro_tipo_act
             organizacion_actividad: formData.organizacion_actividad || '',
-            otro_tipo_act: formData.otro_tipo_act || '',
-            extension_solidaria: formData.extension_solidaria || '',
-            costo_extension_solidaria: formData.costo_extension_solidaria || '0',
+            otro_tipo_act: formData.organizacion_actividad === 'otro_act' ? (formData.otro_tipo_act || '') : '',
+            
+            // Corregir extension_solidaria y costo_extension_solidaria
+            extension_solidaria: formData.extension_solidaria === 'si' ? 'Sí' : formData.extension_solidaria === 'no' ? 'No' : '',
+            costo_extension_solidaria: formData.extension_solidaria === 'si' ? (formData.costo_extension_solidaria || '0') : '',
+            
             personal_externo: formData.personal_externo || '',
         };
 
         console.log("🔍 Valores críticos antes de enviar:", {
           organizacion_actividad: formData.organizacion_actividad,
-          otro_tipo_act: formData.otro_tipo_act,
-          periodicidad_oferta: formData.periodicidad_oferta
+          otro_tipo_act: formData.organizacion_actividad === 'otro_act' ? formData.otro_tipo_act : '',
+          extension_solidaria: formData.extension_solidaria === 'si' ? 'Sí' : formData.extension_solidaria === 'no' ? 'No' : '',
+          costo_extension_solidaria: formData.extension_solidaria === 'si' ? formData.costo_extension_solidaria : '',
+          personal_externo: formData.personal_externo,
+          pieza_grafica: formData.pieza_grafica ? 'Archivo adjunto' : 'Sin archivo'
         });
 
         let dataToSend = new FormData();
@@ -537,6 +588,7 @@ import api from '../../services/api';
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
+                timeout: 30000, // 30 segundos de timeout
             });
 
             updateMaxAllowedStep(activeStep + 1);
@@ -548,6 +600,14 @@ import api from '../../services/api';
             if (error.response) {
                 console.error('Detalles del error:', error.response.data);
             }
+            
+            // Mostrar mensaje específico para timeout
+            if (error.code === 'ECONNABORTED' || error.response?.status === 504) {
+                alert('El servidor está tardando en responder. Por favor, intenta nuevamente en unos momentos.');
+            } else {
+                alert('Hubo un problema al guardar los datos. Por favor, inténtalo de nuevo.');
+            }
+            setIsLoading(false);
         }
     };
 
