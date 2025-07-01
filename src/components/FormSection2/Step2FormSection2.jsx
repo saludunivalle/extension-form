@@ -18,7 +18,7 @@ function Step2FormSection2({
   const [loadingDeleteId, setLoadingDeleteId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Estructura jerárquica de gastos
+  // Estructura jerárquica de gastos (actualizada)
   const gastosStructure = [
     {
       label: '1. Costos de Personal',
@@ -30,88 +30,61 @@ function Step2FormSection2({
       ],
     },
     {
-      label: '2. Materiales y Suministros',
+      label: '2. Gastos de alimentación, alojamiento y transporte',
       key: '2',
-      children: [],
+      children: [
+        { label: '2,1. Gastos de Transporte', key: '2,1' },
+        { label: '2,2. Gastos de Alimentación', key: '2,2' },
+        { label: '2,3. Gastos de Alojamiento', key: '2,3' },
+      ],
     },
     {
-      label: '3. Gastos de Alojamiento',
+      label: '3. Equipos Alquiler o Compra',
       key: '3',
-      children: [],
+      children: [
+        { label: '3,1. Alquiler de equipos', key: '3,1' },
+        { label: '3,2. Compra de equipos', key: '3,2' },
+      ],
     },
     {
-      label: '4. Gastos de Alimentación',
+      label: '4. Materiales y Suministros',
       key: '4',
-      children: [],
+      children: [
+        { label: '4,1. Libretas', key: '4,1' },
+        { label: '4,2. Lapiceros', key: '4,2' },
+        { label: '4,3. Marcadores, papel, etc.', key: '4,3' },
+        { label: '4,4. Otros materiales', key: '4,4' },
+      ],
     },
     {
-      label: '5. Gastos de Transporte',
+      label: '5. Impresos',
       key: '5',
-      children: [],
+      children: [
+        { label: '5,1. Certificados', key: '5,1' },
+        { label: '5,2. Escarapelas', key: '5,2' },
+        { label: '5,3. Fotocopias', key: '5,3' },
+      ],
     },
     {
-      label: '6. Equipos Alquiler o Compra',
+      label: '6. Alimentos participantes',
       key: '6',
-      children: [],
+      children: [
+        { label: '6,1. Estación de café', key: '6,1' },
+        { label: '6,2. Refrigerios', key: '6,2' },
+      ],
     },
     {
-      label: '7. Dotación Participantes',
+      label: '7. Actividades de promoción y publicidad',
       key: '7',
       children: [
-        { label: '7,1. Carpetas', key: '7,1' },
-        { label: '7,2. Libretas', key: '7,2' },
-        { label: '7,3. Lapiceros', key: '7,3' },
-        { label: '7,4. Memorias', key: '7,4' },
-        { label: '7,5. Marcadores, papel, etc.', key: '7,5' },
+        { label: '7,1. Diseño de piezas gráficas', key: '7,1' },
+        { label: '7,2. Pautas comerciales', key: '7,2' },
+        { label: '7,3. Volantes publicitarios', key: '7,3' },
       ],
     },
     {
-      label: '8. Impresos',
+      label: '8. Otros gastos',
       key: '8',
-      children: [
-        { label: '8,1. Labels', key: '8,1' },
-        { label: '8,2. Certificados', key: '8,2' },
-        { label: '8,3. Escarapelas', key: '8,3' },
-        { label: '8,4. Fotocopias', key: '8,4' },
-      ],
-    },
-    {
-      label: '9. Impresos',
-      key: '9',
-      children: [
-        { label: '9,1. Estación de café', key: '9,1' },
-        { label: '9,2. Transporte de mensaje', key: '9,2' },
-        { label: '9,3. Refrigerios', key: '9,3' },
-      ],
-    },
-    {
-      label: '10. Inversión en Infraestructura Física',
-      key: '10',
-      children: [],
-    },
-    {
-      label: '11. Gastos Generales',
-      key: '11',
-      children: [],
-    },
-    {
-      label: '12. Valor Infraestructura Universitaria',
-      key: '12',
-      children: [],
-    },
-    {
-      label: '13. Imprevistos (Max 5% del 1 al 8)',
-      key: '13',
-      children: [],
-    },
-    {
-      label: '14. Costos Administrativos del proyecto',
-      key: '14',
-      children: [],
-    },
-    {
-      label: '15. Gastos Extras',
-      key: '15',
       children: [],
       isCustomExpenses: true
     },
@@ -167,20 +140,18 @@ function Step2FormSection2({
   const calculateSubtotalGastos = () => {
     let subtotal = gastosStructure.reduce((total, item) => {
       if (item.children.length === 0) {
+        // Para items sin hijos, sumar directamente
         const cantidad = parseFloat(formData[`${item.key}_cantidad`]) || 0;
         const valorUnitario = parseFloat(formData[`${item.key}_vr_unit`]) || 0;
         return total + cantidad * valorUnitario;
       } else {
-        // Sumar tanto el item padre como sus hijos
-        const parentCantidad = parseFloat(formData[`${item.key}_cantidad`]) || 0;
-        const parentValorUnitario = parseFloat(formData[`${item.key}_vr_unit`]) || 0;
-        const parentTotal = parentCantidad * parentValorUnitario;
+        // Para items con hijos, sumar solo los hijos (los padres son categorías)
         const childrenTotal = item.children.reduce((childTotal, child) => {
           const cantidad = parseFloat(formData[`${child.key}_cantidad`]) || 0;
           const valorUnitario = parseFloat(formData[`${child.key}_vr_unit`]) || 0;
           return childTotal + cantidad * valorUnitario;
         }, 0);
-        return total + parentTotal + childrenTotal;
+        return total + childrenTotal;
       }
     }, 0);
     
@@ -198,6 +169,10 @@ function Step2FormSection2({
   // Calcular imprevistos como exactamente 3% del subtotal de gastos
   const imprevistos = subtotalGastos * 0.03; // 3% fijo para los gastos
   const totalGastosImprevistos = subtotalGastos + imprevistos;
+  
+  // Calcular la diferencia entre ingresos y gastos
+  const diferencia = totalIngresos - totalGastosImprevistos;
+  const isPositiveBalance = totalIngresos >= totalGastosImprevistos;
 
   // Llama a la función callback cada vez que se calcule el total
   useEffect(() => {
@@ -236,7 +211,7 @@ function Step2FormSection2({
           name: '', 
           cantidad: '', 
           vr_unit: '',
-          key: `15.${extraExpenses.length + 1}`
+          key: `8.${extraExpenses.length + 1}`
         }
       ];
       onExtraExpensesChange(newExtraExpenses);
@@ -259,7 +234,7 @@ function Step2FormSection2({
         .filter(expense => expense.id !== id)
         .map((expense, idx) => ({
           ...expense,
-          key: `15.${idx + 1}`
+          key: `8.${idx + 1}`
         }));
       
       onExtraExpensesChange(updatedExpenses);
@@ -298,8 +273,6 @@ function Step2FormSection2({
     onFocus: handleFocusPlaceholder,
     onBlur: handleBlurPlaceholder,
   };
-
-  const isPositiveBalance = totalIngresos >= totalGastosImprevistos;
 
   return (
     <Table sx={{ 
@@ -512,7 +485,7 @@ function Step2FormSection2({
                         onChange={(e) => handleExtraExpenseChange(expense.id, 'name', e.target.value)}
                         sx={{ minWidth: 200 }}
                         InputProps={{
-                          startAdornment: <Typography variant="caption" sx={{ mr: 1, color: '#666' }}>15.{index+1}.</Typography>
+                          startAdornment: <Typography variant="caption" sx={{ mr: 1, color: '#666' }}>8.{index+1}.</Typography>
                         }}
                       />
                     </TableCell>
@@ -643,9 +616,25 @@ function Step2FormSection2({
           >
             {formatCurrency(totalGastosImprevistos)}
           </TableCell>
-          <TableCell>
+          <TableCell></TableCell>
+        </TableRow>
 
+        {/* DIFERENCIA (Ingresos - Gastos) */}
+        <TableRow>
+          <TableCell colSpan={3} sx={{ fontWeight: 600, backgroundColor: '#f8f9fa' }}>
+            DIFERENCIA (Ingresos - Gastos)
           </TableCell>
+          <TableCell 
+            align="right"
+            sx={{ 
+              fontWeight: 600, 
+              backgroundColor: diferencia >= 0 ? '#e8f5e9' : '#ffebee',
+              color: diferencia >= 0 ? '#2e7d32' : '#c62828'
+            }}
+          >
+            {formatCurrency(diferencia)}
+          </TableCell>
+          <TableCell></TableCell>
         </TableRow>
       </TableBody>
     </Table>

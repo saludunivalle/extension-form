@@ -1,7 +1,10 @@
-import React from 'react';
-import { Grid, Table, TableBody, TableCell, TableHead, TableRow, TextField } from '@mui/material';
+import React, { useState } from 'react';
+import { Grid, Table, TableBody, TableCell, TableHead, TableRow, TextField, Box, IconButton, Typography, Collapse } from '@mui/material';
+import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 
 function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
+  const [observacionesExpanded, setObservacionesExpanded] = useState(false);
+  
   // Calcular dinámicamente los totales según los datos en formData
   const totalIngresos = (formData.ingresos_cantidad || 0) * (formData.ingresos_vr_unit || 0);
 
@@ -10,7 +13,8 @@ function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
 
   // Cálculo del fondo común, facultad y escuela/departamento
   const fondoComun = (fondoComunPorcentaje / 100) * totalIngresos;
-  const facultadInstituto = totalIngresos * 0.05; // 5% del total de ingresos
+  const facultadInstitutoPorcentaje = formData.facultad_instituto_porcentaje || 5; // Ahora editable
+  const facultadInstituto = totalIngresos * (facultadInstitutoPorcentaje / 100);
   const escuelaDepartamento = ((formData.escuela_departamento_porcentaje || 0) / 100) * totalIngresos;
 
   // Suma total de los aportes
@@ -80,7 +84,28 @@ function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
 
             {/* Facultad o Instituto */}
             <TableRow>
-              <TableCell>Facultad o Instituto (5%)</TableCell>
+              <TableCell sx={{display:'flex', flexDirection:'row',alignItems:'center'}}>
+                Facultad o Instituto (
+                <TextField
+                  type="number"
+                  name="facultad_instituto_porcentaje"
+                  value={facultadInstitutoPorcentaje}
+                  onChange={(e) => {
+                    let value = parseFloat(e.target.value) || 0;
+                    if (value < 0) value = 0; // Limitar mínimo a 0%
+                    if (value > 100) value = 100; // Limitar máximo a 100%
+                    handleInputChange({ target: { name: 'facultad_instituto_porcentaje', value } });
+                  }}
+                  inputProps={{
+                    inputMode: 'numeric',
+                    pattern: '[0-9]*',
+                    min: 0,
+                    max: 100,
+                    style: { width: '50px', height: '30px', fontSize: '14px', padding: '5px'},
+                  }}
+                />
+                %)
+              </TableCell>
               <TableCell align="right">{formatCurrency(facultadInstituto)}</TableCell>
             </TableRow>
 
@@ -120,6 +145,47 @@ function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
             </TableRow>
           </TableBody>
         </Table>
+      </Grid>
+      
+      {/* SECCIÓN DE OBSERVACIONES */}
+      <Grid item xs={12}>
+        <Box sx={{ mt: 3, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+          <Box 
+            sx={{ 
+              p: 2, 
+              backgroundColor: '#f5f5f5', 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              '&:hover': { backgroundColor: '#eeeeee' }
+            }}
+            onClick={() => setObservacionesExpanded(!observacionesExpanded)}
+          >
+            <Typography variant="subtitle1" fontWeight={600}>
+              Observaciones
+            </Typography>
+            <IconButton size="small">
+              {observacionesExpanded ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
+            </IconButton>
+          </Box>
+          
+          <Collapse in={observacionesExpanded}>
+            <Box sx={{ p: 2 }}>
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                placeholder="Ingrese aquí sus observaciones..."
+                name="observaciones"
+                value={formData.observaciones || ''}
+                onChange={handleInputChange}
+                variant="outlined"
+                size="small"
+              />
+            </Box>
+          </Collapse>
+        </Box>
       </Grid>
     </Grid>
   );

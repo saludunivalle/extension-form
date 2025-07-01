@@ -238,7 +238,7 @@ useEffect(() => {
             
             gastos.forEach(gasto => {
               // Procesar gastos
-              if (gasto.id_conceptos.startsWith('15.')) {
+              if (gasto.id_conceptos.startsWith('8.')) {
                 // Es un gasto extra dinámico
                 serverExtraGastosList.push({
                   id: Date.now() + parseInt(gasto.id_conceptos.split('.')[1]),
@@ -410,37 +410,36 @@ useEffect(() => {
       return cantidad > 0 && vr_unit > 0;
     };
 
+    // Usar la misma estructura jerárquica que en Step2FormSection2
     const gastosStructure2 = [
-      { id_conceptos: '1', label: 'Costos de Personal' },
-      { id_conceptos: '1,1', label: 'Personal Nombrado de la Universidad (Max 70%)' },
-      { id_conceptos: '1,2', label: 'Honorarios Docentes Externos (Horas)' },
-      { id_conceptos: '1,3', label: 'Otro Personal - Subcontratos' },
-      { id_conceptos: '2', label: 'Materiales y Suministros' },
-      { id_conceptos: '3', label: 'Gastos de Alojamiento' },
-      { id_conceptos: '4', label: 'Gastos de Alimentación' },
-      { id_conceptos: '5', label: 'Gastos de Transporte' },
-      { id_conceptos: '6', label: 'Equipos Alquiler o Compra' },
-      { id_conceptos: '7', label: 'Dotación Participantes' },
-      { id_conceptos: '7,1', label: 'Carpetas' },
-      { id_conceptos: '7,2', label: 'Libretas' },
-      { id_conceptos: '7,3', label: 'Lapiceros' },
-      { id_conceptos: '7,4', label: 'Memorias' },
-      { id_conceptos: '7,5', label: 'Marcadores, papel, etc,' },
-      { id_conceptos: '8', label: 'Impresos' },
-      { id_conceptos: '8,1', label: 'Labels' },
-      { id_conceptos: '8,2', label: 'Certificados' },
-      { id_conceptos: '8,3', label: 'Escarapelas' },
-      { id_conceptos: '8,4', label: 'Fotocopias' },
-      { id_conceptos: '9', label: 'Impresos' },
-      { id_conceptos: '9,1', label: 'Estación de café' },
-      { id_conceptos: '9,2', label: 'Transporte de mensaje' },
-      { id_conceptos: '9,3', label: 'Refrigerios' },
-      { id_conceptos: '10', label: 'Inversión en Infraestructura Física' },
-      { id_conceptos: '11', label: 'Gastos Generales' },
-      { id_conceptos: '12', label: 'Valor Infraestructura Universitaria' },
-      { id_conceptos: '13', label: 'Imprevistos (Max 5% del 1 al 8)' },
-      { id_conceptos: '14', label: 'Costos Administrativos del proyecto' },
-      { id_conceptos: '15', label: 'Gastos Extras' },
+      { id_conceptos: '1', label: '1. Costos de Personal' },
+      { id_conceptos: '1,1', label: '1,1. Personal Nombrado de la Universidad (Max 70%)' },
+      { id_conceptos: '1,2', label: '1,2. Honorarios Docentes Externos (Horas)' },
+      { id_conceptos: '1,3', label: '1,3. Otro Personal - Subcontratos' },
+      { id_conceptos: '2', label: '2. Gastos de alimentación, alojamiento y transporte' },
+      { id_conceptos: '2,1', label: '2,1. Gastos de Transporte' },
+      { id_conceptos: '2,2', label: '2,2. Gastos de Alimentación' },
+      { id_conceptos: '2,3', label: '2,3. Gastos de Alojamiento' },
+      { id_conceptos: '3', label: '3. Equipos Alquiler o Compra' },
+      { id_conceptos: '3,1', label: '3,1. Alquiler de equipos' },
+      { id_conceptos: '3,2', label: '3,2. Compra de equipos' },
+      { id_conceptos: '4', label: '4. Materiales y Suministros' },
+      { id_conceptos: '4,1', label: '4,1. Libretas' },
+      { id_conceptos: '4,2', label: '4,2. Lapiceros' },
+      { id_conceptos: '4,3', label: '4,3. Marcadores, papel, etc.' },
+      { id_conceptos: '4,4', label: '4,4. Otros materiales' },
+      { id_conceptos: '5', label: '5. Impresos' },
+      { id_conceptos: '5,1', label: '5,1. Certificados' },
+      { id_conceptos: '5,2', label: '5,2. Escarapelas' },
+      { id_conceptos: '5,3', label: '5,3. Fotocopias' },
+      { id_conceptos: '6', label: '6. Alimentos participantes' },
+      { id_conceptos: '6,1', label: '6,1. Estación de café' },
+      { id_conceptos: '6,2', label: '6,2. Refrigerios' },
+      { id_conceptos: '7', label: '7. Actividades de promoción y publicidad' },
+      { id_conceptos: '7,1', label: '7,1. Diseño de piezas gráficas' },
+      { id_conceptos: '7,2', label: '7,2. Pautas comerciales' },
+      { id_conceptos: '7,3', label: '7,3. Volantes publicitarios' },
+      { id_conceptos: '8', label: '8. Otros gastos' }
     ];
 
     // En handleSaveGastos
@@ -469,21 +468,21 @@ const handleSaveGastos = async () => {
   const gastosExtras = extraExpenses
   .filter(isValidExpense)
   .map((expense, index) => {
-    const id_conceptos   = `15.${index + 1}`;
+    const id_conceptos   = `8.${index + 1}`;
     const cantidad       = parseFloat(expense.cantidad  || 0);
     const valor_unit     = parseFloat(expense.vr_unit    || 0);
     const descripcion    = expense.name || `Gasto Extra ${index + 1}`;
     return {
-      id_conceptos,                    // 👉 clave para CONCEPTO$
-      descripcion,                     // 👉 descripción
-      nombre_conceptos: descripcion,   // 👉 nombre_conceptos
-      es_padre: false,                 // 👉 siempre sub-conceptos
-      tipo: 'particular',              // 👉 particular para extras
-      id_solicitud: idSolicitudCopy,   // 👉 pasa id_solicitud
+      id_conceptos,                    
+      descripcion,                     
+      nombre_conceptos: descripcion,   
+      es_padre: false,                 
+      tipo: 'particular',              
+      id_solicitud: idSolicitudCopy,   
       cantidad,
       valor_unit,
       valor_total: cantidad * valor_unit,
-      concepto_padre: '15'
+      concepto_padre: '8'
     };
   });
   
@@ -502,12 +501,12 @@ const handleSaveGastos = async () => {
     const esPadre      = !id_conceptos.includes(',');
     const conceptoPadre= esPadre ? id_conceptos : id_conceptos.split(',')[0];
     return {
-      id_conceptos,                   // 👉 clave para CONCEPTO$
-      descripcion,                    // 👉 descripción
-      nombre_conceptos: descripcion,  // 👉 nombre_conceptos
-      es_padre: esPadre,              // 👉 true/false según corresponda
-      tipo: 'estándar',               // 👉 estándar para regulares
-      id_solicitud: idSolicitudCopy,  // 👉 pasa id_solicitud
+      id_conceptos,                   
+      descripcion,                    
+      nombre_conceptos: descripcion,  
+      es_padre: esPadre,              
+      tipo: 'estándar',              
+      id_solicitud: idSolicitudCopy,  
       cantidad,
       valor_unit,
       valor_total: cantidad * valor_unit,
@@ -658,7 +657,8 @@ const handleNext = async () => {
       subtotal_gastos: subtotal_gastos,
       'imprevistos_3%': 3, // Porcentaje fijo
       imprevistos_3: imprevistos_3,
-      total_gastos_imprevistos: subtotal_gastos + imprevistos_3
+      total_gastos_imprevistos: subtotal_gastos + imprevistos_3,
+      diferencia: total_ingresos - (subtotal_gastos + imprevistos_3)
     };
     
     console.log("Guardando en SOLICITUDES2 con subtotal_gastos calculado del servidor:", subtotal_gastos);
@@ -680,42 +680,55 @@ const handleNext = async () => {
       subtotal_gastos: totalGastos || 0,
       'imprevistos_3%': 3, // Porcentaje fijo
       imprevistos_3: imprevistos_3,
-      total_gastos_imprevistos: totalGastos + imprevistos_3
+      total_gastos_imprevistos: totalGastos + imprevistos_3,
+      diferencia: total_ingresos - (totalGastos + imprevistos_3)
     };
   }
   break;
       case 2:
+        // Datos del paso 3 (Aportes y Resumen Financiero)
+        const ingresos_cantidad_p3 = parseInt(formData.ingresos_cantidad) || 0;
+        const ingresos_vr_unit_p3 = parseInt(formData.ingresos_vr_unit) || 0;
+        const total_ingresos_p3 = ingresos_cantidad_p3 * ingresos_vr_unit_p3;
         
-        const totalIngresos = (parseFloat(formData.ingresos_cantidad) || 0) * 
-                             (parseFloat(formData.ingresos_vr_unit) || 0);
-        const fondoComunPorcentaje = parseFloat(formData.fondo_comun_porcentaje) || 30;
-        const facultadInstitutoPorcentaje = 5; // Fijo en 5%
-        const escuelaDeptoPorcentaje = parseFloat(formData.escuela_departamento_porcentaje) || 0;
+        // Usar totalGastos calculado previamente para el subtotal
+        const subtotal_gastos_p3 = totalGastos || 0;
+        const imprevistos_3_p3 = subtotal_gastos_p3 * 0.03;
+        const total_gastos_imprevistos_p3 = subtotal_gastos_p3 + imprevistos_3_p3;
         
-        // Calcular valores monetarios basados en porcentajes
-        const fondoComun = totalIngresos * (fondoComunPorcentaje / 100);
-        const facultadInstituto = totalIngresos * (facultadInstitutoPorcentaje / 100);
-        const escuelaDepartamento = totalIngresos * (escuelaDeptoPorcentaje / 100);
-        const totalRecursos = fondoComun + facultadInstituto + escuelaDepartamento;
+        // Calcular diferencia
+        const diferencia_p3 = total_ingresos_p3 - total_gastos_imprevistos_p3;
+        
+        // Obtener porcentajes del formulario
+        const fondo_comun_porcentaje_p3 = parseFloat(formData.fondo_comun_porcentaje) || 30;
+        const facultad_instituto_porcentaje_p3 = parseFloat(formData.facultad_instituto_porcentaje) || 5;
+        const escuela_departamento_porcentaje_p3 = parseFloat(formData.escuela_departamento_porcentaje) || 0;
+        
+        // Calcular valores monetarios
+        const fondo_comun_p3 = total_ingresos_p3 * (fondo_comun_porcentaje_p3 / 100);
+        const facultad_instituto_p3 = total_ingresos_p3 * (facultad_instituto_porcentaje_p3 / 100);
+        const escuela_departamento_p3 = total_ingresos_p3 * (escuela_departamento_porcentaje_p3 / 100);
+        const total_recursos_p3 = fondo_comun_p3 + facultad_instituto_p3 + escuela_departamento_p3;
         
         pasoData = {
+          // Diferencia calculada en el paso 2 pero enviada en el paso 3
+          diferencia: diferencia_p3,
+          
           // Porcentajes
-          fondo_comun_porcentaje: fondoComunPorcentaje,
-          facultad_instituto_porcentaje: facultadInstitutoPorcentaje,
-          escuela_departamento_porcentaje: escuelaDeptoPorcentaje,
+          fondo_comun_porcentaje: fondo_comun_porcentaje_p3,
+          facultad_instituto_porcentaje: facultad_instituto_porcentaje_p3,
+          escuela_departamento_porcentaje: escuela_departamento_porcentaje_p3,
           
           // Valores monetarios
-          fondo_comun: fondoComun,
-          facultad_instituto: facultadInstituto,
-          escuela_departamento: escuelaDepartamento,
-          total_recursos: totalRecursos,
+          fondo_comun: fondo_comun_p3,
+          facultad_instituto: facultad_instituto_p3,
+          escuela_departamento: escuela_departamento_p3,
+          total_recursos: total_recursos_p3,
           
-          // Otros campos
-          observaciones: formData.observaciones || '',
-          responsable_financiero: formData.responsable_financiero || ''
+          // Observaciones
+          observaciones: formData.observaciones || ''
         };
-      
-      break;
+        break;
       default:
       break;
     }
@@ -821,7 +834,7 @@ const handleNext = async () => {
       
       // Calcular valores monetarios basados en porcentajes
       const fondo_comun_porcentaje = parseFloat(formData.fondo_comun_porcentaje) || 30;
-      const facultad_instituto_porcentaje = 5; // Fijo en 5%
+      const facultad_instituto_porcentaje = parseFloat(formData.facultad_instituto_porcentaje) || 5; // Ahora editable
       const escuela_departamento_porcentaje = parseFloat(formData.escuela_departamento_porcentaje) || 0;
       
       const fondo_comun = total_ingresos * (fondo_comun_porcentaje / 100);
@@ -834,6 +847,11 @@ const handleNext = async () => {
         const paso3Response = await axios.post('https://siac-extension-server.vercel.app/guardarForm2Paso3', {
           id_solicitud: idSolicitud,
           id_usuario: userData.id_usuario,
+          name: userData.name,
+          
+          // Diferencia calculada en el paso 2
+          diferencia: total_ingresos - (subtotal_gastos + imprevistos_3),
+          
           // Porcentajes
           fondo_comun_porcentaje: fondo_comun_porcentaje,
           facultad_instituto_porcentaje: facultad_instituto_porcentaje,
@@ -845,14 +863,15 @@ const handleNext = async () => {
           escuela_departamento: escuela_departamento,
           total_recursos: total_recursos,
           
-          // Ingresos
+          // Observaciones
+          observaciones: formData.observaciones || '',
+          
+          // Datos adicionales para contexto (opcionales para el endpoint específico)
           total_ingresos: total_ingresos,
           ingresos_cantidad,
           ingresos_vr_unit,
-          
-          // Gastos
           subtotal_gastos: subtotal_gastos,
-          'imprevistos_3%': 3, // Porcentaje fijo
+          'imprevistos_3%': 3,
           imprevistos_3: imprevistos_3,
           total_gastos_imprevistos: subtotal_gastos + imprevistos_3
         });
@@ -875,6 +894,9 @@ const handleNext = async () => {
       
       // 2. Si falla el endpoint específico, usar el método general
       const pasoData = {
+        // Diferencia calculada en el paso 2
+        diferencia: total_ingresos - (subtotal_gastos + imprevistos_3),
+        
         // Porcentajes
         fondo_comun_porcentaje: fondo_comun_porcentaje,
         facultad_instituto_porcentaje: facultad_instituto_porcentaje,
@@ -886,14 +908,15 @@ const handleNext = async () => {
         escuela_departamento: escuela_departamento,
         total_recursos: total_recursos,
         
-        // Ingresos
+        // Observaciones
+        observaciones: formData.observaciones || '',
+        
+        // Datos adicionales para contexto
         total_ingresos: total_ingresos,
         ingresos_cantidad,
         ingresos_vr_unit,
-        
-        // Gastos
         subtotal_gastos: subtotal_gastos,
-        'imprevistos_3%': 3, // Porcentaje fijo
+        'imprevistos_3%': 3,
         imprevistos_3: imprevistos_3,
         total_gastos_imprevistos: subtotal_gastos + imprevistos_3
       };

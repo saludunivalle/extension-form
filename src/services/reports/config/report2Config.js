@@ -32,9 +32,9 @@ export const report2Config = {
     // 2. PRE-INICIALIZAR CAMPOS DE GASTOS
     // Lista completa de IDs de gastos (usando formato con coma que es el de la plantilla)
     const conceptosGastos = [
-      '1', '1,1', '1,2', '1,3', '2', '3', '4', '5', '6', '7', '7,1', '7,2', 
-      '7,3', '7,4', '7,5', '8', '8,1', '8,2', '8,3', '8,4', '9', '9,1', '9,2', 
-      '9,3', '10', '11', '12', '13', '14', '15'
+      '1', '1,1', '1,2', '1,3', '2', '2,1', '2,2', '2,3', '3', '3,1', '3,2', 
+      '4', '4,1', '4,2', '4,3', '4,4', '5', '5,1', '5,2', '5,3', '6', '6,1', '6,2', 
+      '7', '7,1', '7,2', '7,3', '8'
     ];
     
     // Crear todos los campos para cada concepto
@@ -153,7 +153,7 @@ export const report2Config = {
     if (!transformedData['imprevistos_3%']) transformedData['imprevistos_3%'] = '3';
     
     // 6. PROCESAR GASTOS
-    // Separar los gastos normales de los dinámicos (los que tienen ID que empieza por 15.)
+    // Separar los gastos normales de los dinámicos (los que tienen ID que empieza por 8.)
     const gastosNormales = [];
     const gastosDinamicos = [];
     
@@ -188,8 +188,8 @@ export const report2Config = {
           valor_total_formatted: valorTotal_formatted
         };
         
-        // Determinar si es un gasto dinámico (ID que empieza por 15.)
-        if (gasto.id_conceptos.startsWith('15.')) {
+        // Determinar si es un gasto dinámico (ID que empieza por 8.)
+        if (gasto.id_conceptos.startsWith('8.')) {
           gastosDinamicos.push(gastoProcesado);
           console.log(`🔄 Gasto dinámico procesado: ID=${gasto.id_conceptos}, Total=${valorTotal_formatted}`);
         } else {
