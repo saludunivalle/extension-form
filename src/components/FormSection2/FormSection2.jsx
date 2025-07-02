@@ -711,9 +711,6 @@ const handleNext = async () => {
         const total_recursos_p3 = fondo_comun_p3 + facultad_instituto_p3 + escuela_departamento_p3;
         
         pasoData = {
-          // Diferencia calculada en el paso 2 pero enviada en el paso 3
-          diferencia: diferencia_p3,
-          
           // Porcentajes
           fondo_comun_porcentaje: fondo_comun_porcentaje_p3,
           facultad_instituto_porcentaje: facultad_instituto_porcentaje_p3,
@@ -849,9 +846,6 @@ const handleNext = async () => {
           id_usuario: userData.id_usuario,
           name: userData.name,
           
-          // Diferencia calculada en el paso 2
-          diferencia: total_ingresos - (subtotal_gastos + imprevistos_3),
-          
           // Porcentajes
           fondo_comun_porcentaje: fondo_comun_porcentaje,
           facultad_instituto_porcentaje: facultad_instituto_porcentaje,
@@ -873,7 +867,8 @@ const handleNext = async () => {
           subtotal_gastos: subtotal_gastos,
           'imprevistos_3%': 3,
           imprevistos_3: imprevistos_3,
-          total_gastos_imprevistos: subtotal_gastos + imprevistos_3
+          total_gastos_imprevistos: subtotal_gastos + imprevistos_3,
+          diferencia: total_ingresos - (subtotal_gastos + imprevistos_3) // Solo para contexto, no se guardará
         });
         
         console.log('Respuesta del endpoint específico:', paso3Response.data);
@@ -894,9 +889,6 @@ const handleNext = async () => {
       
       // 2. Si falla el endpoint específico, usar el método general
       const pasoData = {
-        // Diferencia calculada en el paso 2
-        diferencia: total_ingresos - (subtotal_gastos + imprevistos_3),
-        
         // Porcentajes
         fondo_comun_porcentaje: fondo_comun_porcentaje,
         facultad_instituto_porcentaje: facultad_instituto_porcentaje,
@@ -909,16 +901,7 @@ const handleNext = async () => {
         total_recursos: total_recursos,
         
         // Observaciones
-        observaciones: formData.observaciones || '',
-        
-        // Datos adicionales para contexto
-        total_ingresos: total_ingresos,
-        ingresos_cantidad,
-        ingresos_vr_unit,
-        subtotal_gastos: subtotal_gastos,
-        'imprevistos_3%': 3,
-        imprevistos_3: imprevistos_3,
-        total_gastos_imprevistos: subtotal_gastos + imprevistos_3
+        observaciones: formData.observaciones || ''
       };
       
       // Envío final con todos los datos
@@ -1343,7 +1326,7 @@ useEffect(() => {
         </Button>
         <Button variant="contained"
           color="primary" 
-          onClick={activeStep === steps.length - 1 ? () => setShowModal(true) : handleNext} 
+          onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext} 
           disabled={isLoading}
           startIcon={isLoading ? <CircularProgress size={20} /> : null}
           >
@@ -1397,7 +1380,28 @@ useEffect(() => {
               </Button>
               <Box sx={{ display: 'flex', gap: 2 }}> {/* Mayor espacio entre botones */}
                 <Button 
-                  onClick={() => setCurrentSection(3)} // Cambiar de 2 a 3
+                  onClick={async () => {
+                    try {
+                      // Primero asegurar que los datos del formulario 2 estén guardados
+                      await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
+                        id_solicitud: idSolicitud,
+                        etapa_actual: 3,
+                        paso_actual: 1,
+                        actualizar_formularios_previos: true,
+                        estado_formularios: {
+                          "1": "Completado", 
+                          "2": "Completado",
+                          "3": "En progreso",
+                          "4": "En progreso"
+                        }
+                      });
+                      setCurrentSection(3); // Cambiar de 2 a 3
+                    } catch (error) {
+                      console.error('Error al actualizar progreso:', error);
+                      // Continuar de todas formas
+                      setCurrentSection(3);
+                    }
+                  }}
                   color="primary" 
                   variant="outlined"
                   sx={{ 

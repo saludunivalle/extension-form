@@ -83,8 +83,50 @@ export const generateFormReport = async (solicitudId, formNumber) => {
         });
         
         if (dataResponse.data) {
+          console.log("🔍 DATOS ORIGINALES del servidor:", dataResponse.data);
+          
+          // Aplanar los datos anidados por hoja en un solo objeto
+          let flattenedData = {};
+          if (typeof dataResponse.data === 'object' && dataResponse.data !== null) {
+            // Si los datos vienen anidados por hoja (SOLICITUDES, SOLICITUDES2, etc.)
+            Object.keys(dataResponse.data).forEach(hoja => {
+              if (typeof dataResponse.data[hoja] === 'object' && dataResponse.data[hoja] !== null) {
+                flattenedData = { ...flattenedData, ...dataResponse.data[hoja] };
+              }
+            });
+            
+            // Si no hay datos anidados, usar los datos tal como vienen
+            if (Object.keys(flattenedData).length === 0) {
+              flattenedData = dataResponse.data;
+            }
+          } else {
+            flattenedData = dataResponse.data;
+          }
+          
+          console.log("🔄 DATOS APLANADOS:", flattenedData);
+          console.log("🔍 Campos específicos problemáticos:", {
+            tipo: flattenedData.tipo,
+            modalidad: flattenedData.modalidad,
+            extension_solidaria: flattenedData.extension_solidaria,
+            pieza_grafica: flattenedData.pieza_grafica,
+            personal_externo: flattenedData.personal_externo
+          });
+          
           // Aplicar transformaciones específicas para este formulario
-          formData = reportConfig.transformData(dataResponse.data);
+          formData = reportConfig.transformData(flattenedData);
+          
+          console.log("🔄 DATOS TRANSFORMADOS para reporte:", formData);
+          console.log("🔍 Campos transformados específicos:", {
+            tipo_taller: formData.tipo_taller,
+            tipo_seminario: formData.tipo_seminario,
+            tipo_programa: formData.tipo_programa,
+            modalidad_patl: formData.modalidad_patl,
+            extension_solidaria_si: formData.extension_solidaria_si,
+            extension_solidaria_no: formData.extension_solidaria_no,
+            pieza_grafica_si: formData.pieza_grafica_si,
+            pieza_grafica_no: formData.pieza_grafica_no,
+            personal_externo: formData.personal_externo
+          });
         }
       } catch (error) {
         console.error('Error al obtener datos para transformación:', error);
@@ -158,8 +200,50 @@ export const previewFormReport = async (solicitudId, formNumber) => {
       });
       
       if (dataResponse.data) {
+        console.log("🔍 PREVIEW - DATOS ORIGINALES del servidor:", dataResponse.data);
+        
+        // Aplanar los datos anidados por hoja en un solo objeto
+        let flattenedData = {};
+        if (typeof dataResponse.data === 'object' && dataResponse.data !== null) {
+          // Si los datos vienen anidados por hoja (SOLICITUDES, SOLICITUDES2, etc.)
+          Object.keys(dataResponse.data).forEach(hoja => {
+            if (typeof dataResponse.data[hoja] === 'object' && dataResponse.data[hoja] !== null) {
+              flattenedData = { ...flattenedData, ...dataResponse.data[hoja] };
+            }
+          });
+          
+          // Si no hay datos anidados, usar los datos tal como vienen
+          if (Object.keys(flattenedData).length === 0) {
+            flattenedData = dataResponse.data;
+          }
+        } else {
+          flattenedData = dataResponse.data;
+        }
+        
+        console.log("🔄 PREVIEW - DATOS APLANADOS:", flattenedData);
+        console.log("🔍 PREVIEW - Campos específicos problemáticos:", {
+          tipo: flattenedData.tipo,
+          modalidad: flattenedData.modalidad,
+          extension_solidaria: flattenedData.extension_solidaria,
+          pieza_grafica: flattenedData.pieza_grafica,
+          personal_externo: flattenedData.personal_externo
+        });
+        
         // Aplicar transformaciones específicas para este formulario
-        formData = reportConfig.transformData(dataResponse.data);
+        formData = reportConfig.transformData(flattenedData);
+        
+        console.log("🔄 PREVIEW - DATOS TRANSFORMADOS para reporte:", formData);
+        console.log("🔍 PREVIEW - Campos transformados específicos:", {
+          tipo_taller: formData.tipo_taller,
+          tipo_seminario: formData.tipo_seminario,
+          tipo_programa: formData.tipo_programa,
+          modalidad_patl: formData.modalidad_patl,
+          extension_solidaria_si: formData.extension_solidaria_si,
+          extension_solidaria_no: formData.extension_solidaria_no,
+          pieza_grafica_si: formData.pieza_grafica_si,
+          pieza_grafica_no: formData.pieza_grafica_no,
+          personal_externo: formData.personal_externo
+        });
       }
     } catch (error) {
       console.error('Error al obtener datos para la previsualización:', error);

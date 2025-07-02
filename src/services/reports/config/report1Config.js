@@ -19,7 +19,7 @@ export const report1Config = {
       'tipo_taller', 'tipo_seminario', 'tipo_diplomado', 'tipo_otro', 'tipo_otro_cual',
       
       // Modalidad
-      'modalidad_presencial', 'modalidad_semipresencial', 'modalidad_virtual', 
+      'modalidad_presencial', 'modalidad_patl', 'modalidad_semipresencial', 'modalidad_virtual', 
       'modalidad_mixta', 'modalidad_todas',
       
       // Periodicidad
@@ -40,6 +40,9 @@ export const report1Config = {
       'becas_funcionarios', 'becas_otros', 'becas_total',
       'becas_convenio_check', 'becas_estudiantes_check', 'becas_docentes_check',
       'becas_egresados_check', 'becas_funcionarios_check', 'becas_otros_check',
+      
+      // Campos faltantes importantes
+      'pieza_grafica_si', 'pieza_grafica_no', 'personal_externo',
       
       // Otros campos específicos del formulario 1
       'fecha_formateada', 'total_horas', 'nombre_responsable', 'email_responsable',
@@ -101,6 +104,7 @@ export const report1Config = {
     // ----- MODALIDAD -----
     // Inicializar TODOS los campos de modalidad explícitamente
     transformedData.modalidad_presencial = '';
+    transformedData.modalidad_patl = '';
     transformedData.modalidad_semipresencial = '';
     transformedData.modalidad_virtual = '';
     transformedData.modalidad_mixta = '';
@@ -108,6 +112,7 @@ export const report1Config = {
 
     // Mapear valores del frontend a los nombres esperados por el backend
     if (formData.modalidad === 'Presencial') transformedData.modalidad_presencial = 'X';
+    else if (formData.modalidad === 'Presencial asistida por tecnología') transformedData.modalidad_patl = 'X';
     else if (formData.modalidad === 'Semipresencial') transformedData.modalidad_semipresencial = 'X';
     else if (formData.modalidad === 'Virtual') transformedData.modalidad_virtual = 'X';
     else if (formData.modalidad === 'Mixta') transformedData.modalidad_mixta = 'X';
@@ -338,8 +343,17 @@ export const report1Config = {
       'organizacion_ofi_ext', 'organizacion_unidad_acad', 'organizacion_otro',
       
       // Modalidad
-      'modalidad_presencial', 'modalidad_semipresencial', 'modalidad_virtual', 
-      'modalidad_mixta', 'modalidad_todas'
+      'modalidad_presencial', 'modalidad_patl', 'modalidad_semipresencial', 'modalidad_virtual', 
+      'modalidad_mixta', 'modalidad_todas',
+      
+      // Tipo de actividad
+      'tipo_taller', 'tipo_seminario', 'tipo_programa',
+      
+      // Extensión solidaria
+      'extension_solidaria_si', 'extension_solidaria_no',
+      
+      // Campos faltantes importantes
+      'pieza_grafica_si', 'pieza_grafica_no', 'personal_externo'
     ];
 
     // Verifica si hay algún placeholder sin reemplazar en algún campo crítico
@@ -373,6 +387,7 @@ export const report1Config = {
 
     // Modalidad - verificar otra vez
     if (formData.modalidad === 'Presencial') transformedData.modalidad_presencial = 'X';
+    else if (formData.modalidad === 'Presencial asistida por tecnología') transformedData.modalidad_patl = 'X';
     else if (formData.modalidad === 'Semipresencial') transformedData.modalidad_semipresencial = 'X';
     else if (formData.modalidad === 'Virtual') transformedData.modalidad_virtual = 'X';
     else if (formData.modalidad === 'Mixta') transformedData.modalidad_mixta = 'X';
@@ -447,7 +462,8 @@ export const report1Config = {
     const grupoCampos = {
       periodicidad: ['periodicidad_anual', 'periodicidad_semestral', 'periodicidad_permanente'],
       organizacion: ['organizacion_ofi_ext', 'organizacion_unidad_acad', 'organizacion_otro'],
-      extension: ['extension_solidaria_si', 'extension_solidaria_no']
+      extension: ['extension_solidaria_si', 'extension_solidaria_no'],
+      pieza_grafica: ['pieza_grafica_si', 'pieza_grafica_no']
     };
 
     // Para cada grupo, asegurarse de que al menos un campo tenga valor 'X'
@@ -470,6 +486,26 @@ export const report1Config = {
       console.log("⚠️ CORRECCIÓN DE EMERGENCIA: Forzando valor X en periodicidad_anual");
       transformedData.periodicidad_anual = 'X';
     }
+
+    // ----- CAMPOS FALTANTES IMPORTANTES -----
+    
+    // PIEZA GRÁFICA - "¿Tiene Pieza Gráfica?"
+    transformedData.pieza_grafica_si = '';
+    transformedData.pieza_grafica_no = '';
+    
+    if (formData.pieza_grafica && formData.pieza_grafica !== '') {
+      // Si hay un archivo adjunto o valor en pieza_grafica
+      transformedData.pieza_grafica_si = 'X';
+      console.log("✅ Marcando pieza_grafica_si = X (hay archivo adjunto)");
+    } else {
+      // Si no hay archivo adjunto
+      transformedData.pieza_grafica_no = 'X';
+      console.log("✅ Marcando pieza_grafica_no = X (no hay archivo adjunto)");
+    }
+    
+    // PERSONAL EXTERNO
+    transformedData.personal_externo = formData.personal_externo || '';
+    console.log(`✅ Campo personal_externo: "${transformedData.personal_externo}"`);
 
     // Imprimir datos finales transformados para depuración
     console.log("⭐ DATOS TRANSFORMADOS FINALES:", transformedData);

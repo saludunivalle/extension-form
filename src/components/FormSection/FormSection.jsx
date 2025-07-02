@@ -149,31 +149,46 @@ import api from '../../services/api';
         if (!formData.tipo) stepErrors.tipo = "Debe seleccionar un tipo";
         if (!formData.modalidad) stepErrors.modalidad = "Debe seleccionar una modalidad";
 
-        if (
-          (formData.modalidad === "Presencial" || formData.modalidad === "Mixta" || formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") &&
-          !formData.horas_trabajo_presencial
-        ) {
-          stepErrors.horas_trabajo_presencial = "Debe ingresar las horas presenciales";
+        // Validación para modalidad Presencial asistida por tecnología (PAT)
+        if (formData.modalidad === "Presencial asistida por tecnología") {
+          if (!formData.horas_trabajo_pat) {
+            stepErrors.horas_trabajo_pat = "Debe ingresar las horas de trabajo PAT";
+          } else if (formData.horas_trabajo_pat <= 0) {
+            stepErrors.horas_trabajo_pat = "Debe ser mayor a 0";
+          }
         }
-        if (
-          (formData.modalidad === "Presencial" || formData.modalidad === "Mixta" || 
-          formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") &&
-          (formData.horas_trabajo_presencial <= 0 || !formData.horas_trabajo_presencial)
-        ) {
-          stepErrors.horas_trabajo_presencial = "Debe ser mayor a 0";
+
+        // Validación para modalidad Presencial
+        if (formData.modalidad === "Presencial") {
+          if (!formData.horas_trabajo_presencial) {
+            stepErrors.horas_trabajo_presencial = "Debe ingresar las horas presenciales";
+          } else if (formData.horas_trabajo_presencial <= 0) {
+            stepErrors.horas_trabajo_presencial = "Debe ser mayor a 0";
+          }
         }
-        if (
-          (formData.modalidad === "Virtual" || formData.modalidad === "Mixta" || 
-          formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") &&
-          (formData.horas_sincronicas <= 0 || !formData.horas_sincronicas)
-        ) {
-          stepErrors.horas_sincronicas = "Debe ser mayor a 0";
+
+        // Validación para modalidad Virtual
+        if (formData.modalidad === "Virtual") {
+          if (!formData.horas_sincronicas) {
+            stepErrors.horas_sincronicas = "Debe ingresar las horas sincrónicas";
+          } else if (formData.horas_sincronicas <= 0) {
+            stepErrors.horas_sincronicas = "Debe ser mayor a 0";
+          }
         }
-        if (
-          (formData.modalidad === "Virtual" || formData.modalidad === "Mixta" || formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") &&
-          !formData.horas_sincronicas
-        ) {
-          stepErrors.horas_sincronicas = "Debe ingresar las horas sincrónicas";
+
+        // Validación para modalidades mixtas (Semipresencial, Mixta, Todas)
+        if (["Semipresencial", "Mixta", "Todas las anteriores"].includes(formData.modalidad)) {
+          if (!formData.horas_trabajo_presencial) {
+            stepErrors.horas_trabajo_presencial = "Debe ingresar las horas presenciales";
+          } else if (formData.horas_trabajo_presencial <= 0) {
+            stepErrors.horas_trabajo_presencial = "Debe ser mayor a 0";
+          }
+          
+          if (!formData.horas_sincronicas) {
+            stepErrors.horas_sincronicas = "Debe ingresar las horas sincrónicas";
+          } else if (formData.horas_sincronicas <= 0) {
+            stepErrors.horas_sincronicas = "Debe ser mayor a 0";
+          }
         }
         if (!formData.total_horas) {
           stepErrors.total_horas = "Debe ingresar el total de horas";
@@ -331,19 +346,49 @@ import api from '../../services/api';
                   };
                   break;
               case 2:
+                  // Lógica especial para mapear horas según modalidad
+                  let horasPresenciales = '0';
+                  let horasSincronicas = '0';
+                  
+                  if (formData.modalidad === 'Presencial asistida por tecnología') {
+                      // Para PAT, las horas van a horas_sincronicas
+                      horasSincronicas = formData.horas_trabajo_pat || '0';
+                  } else if (formData.modalidad === 'Presencial') {
+                      horasPresenciales = formData.horas_trabajo_presencial || '0';
+                  } else if (formData.modalidad === 'Virtual') {
+                      horasSincronicas = formData.horas_sincronicas || '0';
+                  } else if (['Semipresencial', 'Mixta', 'Todas las anteriores'].includes(formData.modalidad)) {
+                      horasPresenciales = formData.horas_trabajo_presencial || '0';
+                      horasSincronicas = formData.horas_sincronicas || '0';
+                  }
+                  
                   pasoData = {
                       tipo: formData.tipo || '',
                       otro_tipo: formData.otro_tipo || '',
                       modalidad: formData.modalidad || '',
-                      horas_trabajo_presencial: formData.horas_trabajo_presencial || '0',
-                      horas_sincronicas: formData.horas_sincronicas || '0',
+                      horas_trabajo_presencial: horasPresenciales,
+                      horas_sincronicas: horasSincronicas,
                       total_horas: formData.total_horas || '0',
-                      programCont: formData.programCont || '0',
+                      programCont: formData.programCont || '',
                       dirigidoa: formData.dirigidoa || '',
                       creditos: formData.creditos || '0',
                       cupo_min: formData.cupo_min || '0',
                       cupo_max: formData.cupo_max || '0',
                   };
+                  
+                  // DEBUG: Log específico para paso 3 y cupos
+                  console.log('🔍 DEBUG FRONTEND PASO 3:');
+                  console.log('  formData original:', {
+                    cupo_min: formData.cupo_min,
+                    cupo_max: formData.cupo_max,
+                    creditos: formData.creditos
+                  });
+                  console.log('  pasoData que se envía:', {
+                    cupo_min: pasoData.cupo_min,
+                    cupo_max: pasoData.cupo_max,
+                    creditos: pasoData.creditos
+                  });
+                  console.log('  pasoData completo:', pasoData);
                   break;
               case 3:
                   pasoData = {
@@ -392,14 +437,16 @@ import api from '../../services/api';
                       becas_total: totalBecas.toString(),
                       periodicidad_oferta: formData.periodicidad_oferta || '',
                       
-                      // Corregir organizacion_actividad y otro_tipo_act
+                      // Campos de organización normales
                       organizacion_actividad: formData.organizacion_actividad || '',
                       otro_tipo_act: formData.organizacion_actividad === 'otro_act' ? (formData.otro_tipo_act || '') : '',
                       
                       // Corregir extension_solidaria y costo_extension_solidaria
-                      extension_solidaria: formData.extension_solidaria === 'si' ? 'Sí' : formData.extension_solidaria === 'no' ? 'No' : '',
+                      extension_solidaria: formData.extension_solidaria || '',
                       costo_extension_solidaria: formData.extension_solidaria === 'si' ? (formData.costo_extension_solidaria || '0') : '',
                       
+                      // Campos faltantes que van a AU y AV
+                      pieza_grafica: formData.pieza_grafica ? 'Archivo adjunto' : '',
                       personal_externo: formData.personal_externo || '',
                   };
                   
@@ -408,12 +455,21 @@ import api from '../../services/api';
                   
                   // Debug: Log específico para los campos corregidos
                   console.log("🔍 Campos corregidos en handleNext:", {
-                    organizacion_actividad: formData.organizacion_actividad,
-                    otro_tipo_act: formData.organizacion_actividad === 'otro_act' ? formData.otro_tipo_act : '',
-                    extension_solidaria: formData.extension_solidaria === 'si' ? 'Sí' : formData.extension_solidaria === 'no' ? 'No' : '',
+                    organizacion_actividad: formData.organizacion_actividad || '',
+                    otro_tipo_act: formData.organizacion_actividad === 'otro_act' ? (formData.otro_tipo_act || '') : '',
+                    extension_solidaria: formData.extension_solidaria || '',
                     costo_extension_solidaria: formData.extension_solidaria === 'si' ? formData.costo_extension_solidaria : '',
                     personal_externo: formData.personal_externo
                   });
+                  
+                  // Debug: Log específico para campos AU y AV (paso 5)
+                  console.log("🔍 DEBUG PASO 5 - Campos AU y AV:", {
+                    pieza_grafica_original: formData.pieza_grafica,
+                    pieza_grafica_enviado: formData.pieza_grafica ? 'Archivo adjunto' : '',
+                    personal_externo_original: formData.personal_externo,
+                    personal_externo_enviado: formData.personal_externo || ''
+                  });
+                  console.log("🔍 pasoData completo paso 5:", pasoData);
                 }
                   break;
               default:
@@ -546,21 +602,21 @@ import api from '../../services/api';
             becas_total: totalBecasSubmit.toString(),
             periodicidad_oferta: formData.periodicidad_oferta || '',
             
-            // Corregir organizacion_actividad y otro_tipo_act
+            // Campos de organización normales
             organizacion_actividad: formData.organizacion_actividad || '',
             otro_tipo_act: formData.organizacion_actividad === 'otro_act' ? (formData.otro_tipo_act || '') : '',
             
             // Corregir extension_solidaria y costo_extension_solidaria
-            extension_solidaria: formData.extension_solidaria === 'si' ? 'Sí' : formData.extension_solidaria === 'no' ? 'No' : '',
+            extension_solidaria: formData.extension_solidaria || '',
             costo_extension_solidaria: formData.extension_solidaria === 'si' ? (formData.costo_extension_solidaria || '0') : '',
             
             personal_externo: formData.personal_externo || '',
         };
 
         console.log("🔍 Valores críticos antes de enviar:", {
-          organizacion_actividad: formData.organizacion_actividad,
-          otro_tipo_act: formData.organizacion_actividad === 'otro_act' ? formData.otro_tipo_act : '',
-          extension_solidaria: formData.extension_solidaria === 'si' ? 'Sí' : formData.extension_solidaria === 'no' ? 'No' : '',
+          organizacion_actividad: formData.organizacion_actividad || '',
+          otro_tipo_act: formData.organizacion_actividad === 'otro_act' ? (formData.otro_tipo_act || '') : '',
+          extension_solidaria: formData.extension_solidaria || '',
           costo_extension_solidaria: formData.extension_solidaria === 'si' ? formData.costo_extension_solidaria : '',
           personal_externo: formData.personal_externo,
           pieza_grafica: formData.pieza_grafica ? 'Archivo adjunto' : 'Sin archivo'
