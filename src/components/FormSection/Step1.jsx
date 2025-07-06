@@ -208,7 +208,6 @@ function Step1({ formData, handleInputChange, setFormData, escuelas, departament
               label="Oficinas"
             >
               <MenuItem value="">-</MenuItem>
-              <MenuItem value="Dirección de Posgrados">Dirección de Posgrados</MenuItem>
               {(oficinas || []).map((oficina, index) => (
                 <MenuItem key={index} value={oficina}>
                   {oficina}

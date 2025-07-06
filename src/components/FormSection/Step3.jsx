@@ -14,7 +14,9 @@ function Step3({ formData, setFormData, errors  }) {
       total = parseInt(formData.horas_trabajo_pat) || 0;
     } else if (formData.modalidad === "Virtual") {
       total = parseInt(formData.horas_sincronicas) || 0;
-    } else if (["Semipresencial", "Mixta", "Todas"].includes(formData.modalidad)) {
+    } else if (formData.modalidad === "Horas de trabajo independientes") {
+      total = parseInt(formData.horas_trabajo_independiente) || 0;
+    } else if (["Mixta", "Todas las anteriores"].includes(formData.modalidad)) {
       total =
         (parseInt(formData.horas_trabajo_presencial) || 0) +
         (parseInt(formData.horas_sincronicas) || 0);
@@ -24,10 +26,10 @@ function Step3({ formData, setFormData, errors  }) {
     if (total !== formData.total_horas) {
       setFormData(prev => ({
         ...prev,
-        total_horas: total > 0 ? total : 1
+        total_horas: total
       }));
     }
-  }, [formData.modalidad, formData.horas_trabajo_presencial, formData.horas_trabajo_pat, formData.horas_sincronicas, setFormData]);
+  }, [formData.modalidad, formData.horas_trabajo_presencial, formData.horas_trabajo_pat, formData.horas_sincronicas, formData.horas_trabajo_independiente, setFormData]);
 
   const handleCustomInputChange = (event) => {
     const { name, value } = event.target;
@@ -122,10 +124,33 @@ function Step3({ formData, setFormData, errors  }) {
       <Grid item xs={12}>
         <Typography variant="h6">Intensidad Horaria</Typography>
       </Grid>
-      {(formData.modalidad === "Presencial" || formData.modalidad === "Presencial asistida por tecnología" || formData.modalidad === "Virtual" || formData.modalidad === "Mixta" || formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") && (
+      {(formData.modalidad === "Presencial" || formData.modalidad === "Presencial asistida por tecnología" || formData.modalidad === "Virtual" || formData.modalidad === "Mixta" || formData.modalidad === "Semipresencial" || formData.modalidad === "Todas las anteriores" || formData.modalidad === "Horas de trabajo independientes") && (
         <Grid item xs={12}>
           <Grid container spacing={2}>
-            {(formData.modalidad === "Presencial" || formData.modalidad === "Presencial asistida por tecnología" || formData.modalidad === "Mixta" || formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") && (
+            {/* Input para horas presenciales */}
+            {(formData.modalidad === "Presencial" || formData.modalidad === "Mixta" || formData.modalidad === "Todas las anteriores") && (
+              <Grid item xs={3.5}>
+                <TextField
+                  label={formData.modalidad === "Presencial" ? "Horas presenciales" : "Horas presenciales"}
+                  fullWidth
+                  name="horas_trabajo_presencial"
+                  value={formData.horas_trabajo_presencial}
+                  onChange={handleCustomInputChange}
+                  error={!!errors.horas_trabajo_presencial}
+                  helperText={errors.horas_trabajo_presencial}
+                  type="number"
+                  inputProps={{ 
+                    min: 1,
+                    onKeyPress: (e) => {
+                      if (e.key === '-') e.preventDefault();
+                    }
+                  }}
+                />
+              </Grid>
+            )}
+
+            {/* Input para horas PAT */}
+            {(formData.modalidad === "Presencial asistida por tecnología") && (
               <Grid item xs={3.5}>
                 <TextField
                   label="Horas de trabajo PAT"
@@ -137,16 +162,17 @@ function Step3({ formData, setFormData, errors  }) {
                   helperText={errors.horas_trabajo_pat}
                   type="number"
                   inputProps={{ 
-                    min: 1, // Valor mínimo permitido
+                    min: 1,
                     onKeyPress: (e) => {
-                      if (e.key === '-') e.preventDefault(); // Bloquear caracteres no deseados
+                      if (e.key === '-') e.preventDefault();
                     }
                   }}
                 />
               </Grid>
             )}
 
-            {(formData.modalidad === "Virtual" || formData.modalidad === "Mixta" || formData.modalidad === "Semipresencial" || formData.modalidad === "Todas") && (
+            {/* Input para horas sincrónicas */}
+            {(formData.modalidad === "Virtual" || formData.modalidad === "Mixta" || formData.modalidad === "Todas las anteriores") && (
               <Grid item xs={3.5}>
                 <TextField
                   label="Horas Sincrónicas"
@@ -158,9 +184,31 @@ function Step3({ formData, setFormData, errors  }) {
                   helperText={errors.horas_sincronicas}
                   type="number"
                   inputProps={{ 
-                    min: 1, // Valor mínimo permitido
+                    min: 1,
                     onKeyPress: (e) => {
-                      if (e.key === '-') e.preventDefault(); // Bloquear caracteres no deseados
+                      if (e.key === '-') e.preventDefault();
+                    }
+                  }}
+                />
+              </Grid>
+            )}
+
+            {/* Input para horas de trabajo independiente */}
+            {(formData.modalidad === "Horas de trabajo independientes") && (
+              <Grid item xs={3.5}>
+                <TextField
+                  label="Horas de trabajo independiente"
+                  fullWidth
+                  name="horas_trabajo_independiente"
+                  value={formData.horas_trabajo_independiente}
+                  onChange={handleCustomInputChange}
+                  error={!!errors.horas_trabajo_independiente}
+                  helperText={errors.horas_trabajo_independiente}
+                  type="number"
+                  inputProps={{ 
+                    min: 1,
+                    onKeyPress: (e) => {
+                      if (e.key === '-') e.preventDefault();
                     }
                   }}
                 />
@@ -206,7 +254,8 @@ function Step3({ formData, setFormData, errors  }) {
                 label="Total Horas"
                 fullWidth
                 name="total_horas"
-                value={formData.total_horas || ''}
+                value={formData.total_horas || 0}
+                placeholder="0"
                 InputProps={{
                   readOnly: true,
                 }}
@@ -263,7 +312,9 @@ Step3.propTypes = {
     otro_tipo: PropTypes.string,
     modalidad: PropTypes.string,
     horas_trabajo_presencial: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    horas_trabajo_pat: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     horas_sincronicas: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    horas_trabajo_independiente: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     total_horas: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     programCont: PropTypes.string,
     dirigidoa: PropTypes.string,

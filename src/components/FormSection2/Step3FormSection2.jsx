@@ -3,7 +3,7 @@ import { Grid, Table, TableBody, TableCell, TableHead, TableRow, TextField, Box,
 import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 
 function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
-  const [observacionesExpanded, setObservacionesExpanded] = useState(false);
+  const [observacionesExpanded, setObservacionesExpanded] = useState(true);
   
   // Calcular dinámicamente los totales según los datos en formData
   const totalIngresos = (formData.ingresos_cantidad || 0) * (formData.ingresos_vr_unit || 0);

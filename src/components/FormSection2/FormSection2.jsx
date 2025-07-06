@@ -67,7 +67,7 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
 
   const [activeStep, setActiveStep] = useState(currentStep);  
   const [extraExpenses, setExtraExpenses] = useState([]); 
-  const id_usuario = userData?.id_usuario;
+  const id_usuario = userData?.id;
   const location = useLocation();
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); 
   const [isLoading, setIsLoading] = useState(false); 
@@ -742,7 +742,7 @@ const handleNext = async () => {
         id_solicitud: idSolicitud,
         paso: activeStep + 1,
         hoja: hoja,
-        id_usuario: userData?.id_usuario || '',
+        id_usuario: userData?.id || '',
         name: userData?.name || '',
         ...pasoData
       });
@@ -752,7 +752,7 @@ const handleNext = async () => {
         id_solicitud: idSolicitud,
         paso: activeStep + 1,
         hoja: hoja,
-        id_usuario: userData?.id_usuario || '',
+        id_usuario: userData?.id || '',
         name: userData?.name || '',
         ...pasoData
       });
@@ -843,7 +843,7 @@ const handleNext = async () => {
       try {
         const paso3Response = await axios.post('https://siac-extension-server.vercel.app/guardarForm2Paso3', {
           id_solicitud: idSolicitud,
-          id_usuario: userData.id_usuario,
+          id_usuario: userData.id,
           name: userData.name,
           
           // Porcentajes
@@ -910,7 +910,7 @@ const handleNext = async () => {
       dataToSend.append('paso', 3); // Paso final del formulario 2
       dataToSend.append('hoja', 2);
       dataToSend.append('formulario_completo', 'true');
-      dataToSend.append('id_usuario', userData.id_usuario);
+      dataToSend.append('id_usuario', userData.id);
       dataToSend.append('name', userData.name);
       
       // Añadir estado de formularios

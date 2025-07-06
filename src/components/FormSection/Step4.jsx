@@ -177,7 +177,16 @@ function Step4({ formData, handleInputChange, errors }) {
           label="Valor unitario del programa EC expresado en SMMLV"
           fullWidth
           name="valor_inscripcion"
-          value={formData.valor_inscripcion}
+          value={
+            formData.valor_inscripcion && formData.valor_inscripcion > 0
+              ? new Intl.NumberFormat('es-CO', { 
+                  style: 'currency', 
+                  currency: 'COP', 
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0 
+                }).format(formData.valor_inscripcion)
+              : ''
+          }
           onChange={(e) => {
             // Eliminar todos los caracteres no numéricos excepto números
             const rawValue = e.target.value.replace(/[^0-9]/g, '');
@@ -193,11 +202,10 @@ function Step4({ formData, handleInputChange, errors }) {
             inputMode: "numeric",
             pattern: "[0-9]*"
           }}
-      
+          placeholder="0"
           error={!!errors.valor_inscripcion}
           helperText={
-            formData.valor_inscripcion === 0 ? "El programa es sin costo" : 
-            `Valor unitario: $${new Intl.NumberFormat('es-CO').format(formData.valor_inscripcion)} COP`
+            formData.valor_inscripcion === 0 ? "El programa es sin costo" : ""
           }
         />
       </Grid>

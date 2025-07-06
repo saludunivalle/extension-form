@@ -11,13 +11,6 @@ function Step2FormSection2({
   extraExpenses,
   onExtraExpensesChange
 }) {
-  const [expandedSections, setExpandedSections] = useState({});
-  const [hiddenConcepts, setHiddenConcepts] = useState([]);
-  const [setExtraExpenses] = useState([]);
-  const [isAddingExtraExpense, setIsAddingExtraExpense] = useState(false);
-  const [loadingDeleteId, setLoadingDeleteId] = useState(null);
-  const [isSaving, setIsSaving] = useState(false);
-
   // Estructura jerárquica de gastos (actualizada)
   const gastosStructure = [
     {
@@ -90,6 +83,22 @@ function Step2FormSection2({
     },
   ];
 
+  const [expandedSections, setExpandedSections] = useState(() => {
+    // Initialize with all gastos sections expanded by default
+    const initialExpanded = {};
+    gastosStructure.forEach(item => {
+      if (item.children.length > 0) {
+        initialExpanded[item.key] = true;
+      }
+    });
+    return initialExpanded;
+  });
+  const [hiddenConcepts, setHiddenConcepts] = useState([]);
+  const [setExtraExpenses] = useState([]);
+  const [isAddingExtraExpense, setIsAddingExtraExpense] = useState(false);
+  const [loadingDeleteId, setLoadingDeleteId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+
   const toggleSection = (key) => {
     setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }));
   };
@@ -139,20 +148,23 @@ function Step2FormSection2({
   // Calcular el subtotal de gastos
   const calculateSubtotalGastos = () => {
     let subtotal = gastosStructure.reduce((total, item) => {
-      if (item.children.length === 0) {
-        // Para items sin hijos, sumar directamente
-        const cantidad = parseFloat(formData[`${item.key}_cantidad`]) || 0;
-        const valorUnitario = parseFloat(formData[`${item.key}_vr_unit`]) || 0;
-        return total + cantidad * valorUnitario;
-      } else {
-        // Para items con hijos, sumar solo los hijos (los padres son categorías)
-        const childrenTotal = item.children.reduce((childTotal, child) => {
+      // Sumar el valor del item padre (cantidad * valor unitario)
+      const cantidadPadre = parseFloat(formData[`${item.key}_cantidad`]) || 0;
+      const valorUnitarioPadre = parseFloat(formData[`${item.key}_vr_unit`]) || 0;
+      const totalPadre = cantidadPadre * valorUnitarioPadre;
+      
+      // Si tiene hijos, también sumar los hijos
+      let childrenTotal = 0;
+      if (item.children.length > 0) {
+        childrenTotal = item.children.reduce((childTotal, child) => {
           const cantidad = parseFloat(formData[`${child.key}_cantidad`]) || 0;
           const valorUnitario = parseFloat(formData[`${child.key}_vr_unit`]) || 0;
           return childTotal + cantidad * valorUnitario;
         }, 0);
-        return total + childrenTotal;
       }
+      
+      // Sumar tanto el padre como los hijos
+      return total + totalPadre + childrenTotal;
     }, 0);
     
     // Sumamos los gastos extras (asegurando que si estén vacíos se tome 0)
