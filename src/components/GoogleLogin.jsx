@@ -33,7 +33,8 @@ const GoogleLogin = ({ setIsLogin, setUserInfo }) => {
       localStorage.setItem('user_id', data_decode.sub); // Guardar el ID inmediatamente
       
       // Guardar usuario en el backend
-      const backendResponse = await axios.post('https://siac-extension-server.vercel.app/saveUser', userInfo);
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://siac-extension-server.vercel.app';
+      const backendResponse = await axios.post(`${apiUrl}/saveUser`, userInfo);
       
       // Si el backend devuelve un ID específico, actualizarlo
       if (backendResponse.data?.userId) {
@@ -77,7 +78,7 @@ const GoogleLogin = ({ setIsLogin, setUserInfo }) => {
     const initializeGoogleAuth = () => {
       try {
         google.accounts.id.initialize({
-          client_id: '340874428494-ot9uprkvvq4ha529arl97e9mehfojm5b.apps.googleusercontent.com',
+          client_id: import.meta.env.GOOGLE_CLIENT_ID || '199688357069-hoo21kd8p8c1iolqm5imf14qb7306mgc.apps.googleusercontent.com',
           callback: handleCredentialResponse,
           hosted_domain: 'correounivalle.edu.co'
         });

@@ -58,26 +58,30 @@ function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
             {/* Fondo Común */}
             <TableRow>
               <TableCell sx={{display:'flex', flexDirection:'row',alignItems:'center'}}>
-                Fondo Común (
-                <TextField
-                  type="number"
-                  name="fondo_comun_porcentaje"
-                  value={fondoComunPorcentaje}
-                  onChange={(e) => {
-                    let value = parseFloat(e.target.value) || 0;
-                    if (value < 1) value = 1; // Limitar mínimo a 1%
-                    if (value > 100) value = 100; // Limitar máximo a 100%
-                    handleInputChange({ target: { name: 'fondo_comun_porcentaje', value } });
-                  }}
-                  inputProps={{
-                    inputMode: 'numeric',
-                    pattern: '[0-9]*',
-                    min: 1,
-                    max: 100,
-                    style: { width: '50px', height: '30px', fontSize: '14px', padding: '5px'},
-                  }}
-                />
-                %)
+                <span>Fondo Común</span>
+                <Box sx={{display:'flex', alignItems:'center', ml: 1}}>
+                  (
+                  <TextField
+                    type="number"
+                    name="fondo_comun_porcentaje"
+                    value={fondoComunPorcentaje}
+                    onChange={(e) => {
+                      let value = parseFloat(e.target.value) || 0;
+                      if (value < 1) value = 1; // Limitar mínimo a 1%
+                      if (value > 100) value = 100; // Limitar máximo a 100%
+                      handleInputChange({ target: { name: 'fondo_comun_porcentaje', value } });
+                    }}
+                    inputProps={{
+                      inputMode: 'numeric',
+                      pattern: '[0-9]*',
+                      min: 1,
+                      max: 100,
+                      style: { width: '35px', height: '20px', fontSize: '12px', padding: '2px', textAlign: 'center'},
+                    }}
+                    size="small"
+                  />
+                  %)
+                </Box>
               </TableCell>
               <TableCell align="right">{formatCurrency(fondoComun)}</TableCell>
             </TableRow>
@@ -85,26 +89,30 @@ function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
             {/* Facultad o Instituto */}
             <TableRow>
               <TableCell sx={{display:'flex', flexDirection:'row',alignItems:'center'}}>
-                Facultad o Instituto (
-                <TextField
-                  type="number"
-                  name="facultad_instituto_porcentaje"
-                  value={facultadInstitutoPorcentaje}
-                  onChange={(e) => {
-                    let value = parseFloat(e.target.value) || 0;
-                    if (value < 0) value = 0; // Limitar mínimo a 0%
-                    if (value > 100) value = 100; // Limitar máximo a 100%
-                    handleInputChange({ target: { name: 'facultad_instituto_porcentaje', value } });
-                  }}
-                  inputProps={{
-                    inputMode: 'numeric',
-                    pattern: '[0-9]*',
-                    min: 0,
-                    max: 100,
-                    style: { width: '50px', height: '30px', fontSize: '14px', padding: '5px'},
-                  }}
-                />
-                %)
+                <span>Facultad o Instituto</span>
+                <Box sx={{display:'flex', alignItems:'center', ml: 1}}>
+                  (
+                  <TextField
+                    type="number"
+                    name="facultad_instituto_porcentaje"
+                    value={facultadInstitutoPorcentaje}
+                    onChange={(e) => {
+                      let value = parseFloat(e.target.value) || 0;
+                      if (value < 0) value = 0; // Limitar mínimo a 0%
+                      if (value > 100) value = 100; // Limitar máximo a 100%
+                      handleInputChange({ target: { name: 'facultad_instituto_porcentaje', value } });
+                    }}
+                    inputProps={{
+                      inputMode: 'numeric',
+                      pattern: '[0-9]*',
+                      min: 0,
+                      max: 100,
+                      style: { width: '35px', height: '20px', fontSize: '12px', padding: '2px', textAlign: 'center'},
+                    }}
+                    size="small"
+                  />
+                  %)
+                </Box>
               </TableCell>
               <TableCell align="right">{formatCurrency(facultadInstituto)}</TableCell>
             </TableRow>
@@ -112,26 +120,30 @@ function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
             {/* Escuela/Departamento */}
             <TableRow>
               <TableCell sx={{display:'flex', flexDirection:'row',alignItems:'center'}}>
-                Escuela, Departamento, Área (
-                <TextField
-                  type="number"
-                  name="escuela_departamento_porcentaje"
-                  value={formData.escuela_departamento_porcentaje || ''}
-                  onChange={(e) => {
-                    let value = parseFloat(e.target.value) || 0;
-                    if (value < 0) value = 0; // Limitar mínimo a 0%
-                    if (value > 100) value = 100; // Limitar máximo a 100%
-                    handleInputChange({ target: { name: 'escuela_departamento_porcentaje', value } });
-                  }}
-                  inputProps={{
-                    inputMode: 'numeric',
-                    pattern: '[0-9]*',
-                    min: 0,
-                    max: 100,
-                    style: { width: '50px', height: '30px', fontSize: '14px', padding: '5px' },
-                  }}
-                />
-                %)
+                <span>Escuela, Departamento, Área</span>
+                <Box sx={{display:'flex', alignItems:'center', ml: 1}}>
+                  (
+                  <TextField
+                    type="number"
+                    name="escuela_departamento_porcentaje"
+                    value={formData.escuela_departamento_porcentaje || ''}
+                    onChange={(e) => {
+                      let value = parseFloat(e.target.value) || 0;
+                      if (value < 0) value = 0; // Limitar mínimo a 0%
+                      if (value > 100) value = 100; // Limitar máximo a 100%
+                      handleInputChange({ target: { name: 'escuela_departamento_porcentaje', value } });
+                    }}
+                    inputProps={{
+                      inputMode: 'numeric',
+                      pattern: '[0-9]*',
+                      min: 0,
+                      max: 100,
+                      style: { width: '35px', height: '20px', fontSize: '12px', padding: '2px', textAlign: 'center'},
+                    }}
+                    size="small"
+                  />
+                  %)
+                </Box>
               </TableCell>
               <TableCell align="right">{formatCurrency(escuelaDepartamento)}</TableCell>
             </TableRow>
