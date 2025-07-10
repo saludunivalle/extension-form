@@ -78,7 +78,7 @@ const GoogleLogin = ({ setIsLogin, setUserInfo }) => {
     const initializeGoogleAuth = () => {
       try {
         google.accounts.id.initialize({
-          client_id: import.meta.env.GOOGLE_CLIENT_ID || '199688357069-hoo21kd8p8c1iolqm5imf14qb7306mgc.apps.googleusercontent.com',
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '199688357069-hoo21kd8p8c1iolqm5imf14qb7306mgc.apps.googleusercontent.com',
           callback: handleCredentialResponse,
           hosted_domain: 'correounivalle.edu.co'
         });
