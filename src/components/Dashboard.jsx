@@ -4,7 +4,7 @@ import { openFormReport } from '../services/reportServices';
 import { Button, Typography, List, ListItem, ListItemText, CircularProgress, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
 
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { Close, Download, Visibility } from '@mui/icons-material';
+import { Close, Download, Visibility, Print } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from "prop-types";
 
@@ -93,13 +93,44 @@ function Dashboard({ userData }) {
       });
       
       // 2. Generar reporte primero
-      const response = await axios.post(`https://siac-extension-server.vercel.app/generateReport`, {
+      const response = await axios.post(`https://siac-extension-server.vercel.app/report/generateReport`, {
         solicitudId: request.idSolicitud,
         formNumber
       });
   
-      // 3. Si hay enlace, abrir diálogo
-      if (response.data?.link) {
+      // 3. Verificar si es una descarga local
+      if (response.data?.localDownload) {
+        // Es una descarga local debido a limitaciones de almacenamiento
+        const { fileData, fileName, contentType } = response.data;
+        
+        // Convertir base64 a blob
+        const byteCharacters = atob(fileData);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: contentType });
+        
+        // Crear URL del blob y descargar
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        // Mostrar mensaje de éxito
+        alert('Reporte descargado localmente debido a limitaciones de almacenamiento en Google Drive');
+        
+        setSelectedFormData(prev => ({
+          ...prev,
+          loading: false
+        }));
+      } else if (response.data?.link) {
+        // Es un enlace de Google Drive
         setDialogOpen(true);
         setSelectedFormData(prev => ({
           ...prev,
@@ -114,6 +145,7 @@ function Dashboard({ userData }) {
         loading: false,
         error: 'Error generando reporte'
       }));
+      console.error('Error al generar reporte:', error);
     }
   };
   
@@ -333,17 +365,38 @@ const handleNavigateToForm = async (request, formNumber) => {
     const currentForm = formNumber === currentStage;
     
     const isCurrentFormComplete = isFormCompleted(request, formNumber);
-  
     const isPast = formNumber < currentStage;
+    const isCompleted = isFormCompleted(request, formNumber);
   
     if (isCurrentFormComplete || isPast) {
-      return { enabled: true, color: '#1976d2', cursor: 'pointer', progress: 100 };
+      return { 
+        formEnabled: true, 
+        reportEnabled: isCompleted,
+        formColor: '#1976d2', 
+        reportColor: isCompleted ? '#f0611a' : '#e0e0e0',
+        cursor: 'pointer', 
+        progress: 100 
+      };
     } else if (currentForm) {
       // La etapa en progreso debe estar deshabilitada pero con color distintivo
-      return { enabled: false, color: '#90caf9', cursor: 'not-allowed', progress: 50 };
+      return { 
+        formEnabled: false, 
+        reportEnabled: false,
+        formColor: '#90caf9', 
+        reportColor: '#e0e0e0',
+        cursor: 'not-allowed', 
+        progress: 50 
+      };
     } else {
       // Etapas futuras deshabilitadas
-      return { enabled: false, color: '#e0e0e0', cursor: 'not-allowed', progress: 0 };
+      return { 
+        formEnabled: false, 
+        reportEnabled: false,
+        formColor: '#e0e0e0', 
+        reportColor: '#e0e0e0',
+        cursor: 'not-allowed', 
+        progress: 0 
+      };
     }
   };
 
@@ -356,13 +409,18 @@ const handleNavigateToForm = async (request, formNumber) => {
     // 2. Obtener el formulario actual que está trabajando el usuario
     const currentFormNumber = Number(request.etapa_actual) || 0;
     
-    // 3. Solo considerar el paso actual para el formulario que está en progreso
+    // 3. Si es un formulario pasado (ya completado), debe estar disponible para reporte
+    if (formNumber < currentFormNumber) {
+      return true;
+    }
+    
+    // 4. Si es el formulario actual, verificar si ha alcanzado el máximo de pasos
     if (formNumber === currentFormNumber) {
       const maxSteps = {1: 5, 2: 3, 3: 5, 4: 5};
       return request.paso >= maxSteps[formNumber];
     }
     
-    // 4. Los formularios futuros nunca están completos excepto si están explícitamente marcados
+    // 5. Los formularios futuros nunca están completos excepto si están explícitamente marcados
     return false;
   }
 
@@ -407,7 +465,7 @@ const handleNavigateToForm = async (request, formNumber) => {
             <div style={{ display: 'flex', gap: '10px' }}>
               {formNames.map((name, index) => (
                 <div key={`form-name-${index}`} style={{ 
-                  width: '100px', 
+                  width: '120px', 
                   textAlign: 'center',
                   fontWeight: 'bold',
                   color: '#1976d2' 
@@ -416,12 +474,12 @@ const handleNavigateToForm = async (request, formNumber) => {
                     variant="body2" 
                     align="center"
                     style={{
-                      fontSize: '0.75rem',       // Texto más pequeño
-                      whiteSpace: 'nowrap',      // Fuerza una sola línea
-                      overflow: 'hidden',        // Oculta el desbordamiento
-                      textOverflow: 'ellipsis',  // Muestra puntos suspensivos si es necesario
+                      fontSize: '0.75rem',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                     }}
-                    title={name}  // Muestra el nombre completo al pasar el mouse
+                    title={name}
                   >
                     {name}
                   </Typography>
@@ -445,27 +503,74 @@ const handleNavigateToForm = async (request, formNumber) => {
               
               <div style={{ display: 'flex', gap: '10px' }}>
                 {[1, 2, 3, 4].map((formNumber) => {
-                  const { enabled, color } = getButtonState(request, formNumber);
-                  const buttonStyles = {
-                    backgroundColor: color,
-                    cursor: enabled ? 'pointer' : 'not-allowed',
-                  };
+                  const { formEnabled, reportEnabled, formColor, reportColor } = getButtonState(request, formNumber);
                   return (
                     <div key={`container-${request.idSolicitud}-${formNumber}`} style={{ 
                       display: 'flex', 
                       flexDirection: 'column', 
                       alignItems: 'center',
-                      width: '100px' 
+                      width: '120px' 
                     }}>
-                      <Button
-                        key={`${request.idSolicitud}-${formNumber}`}
-                        variant="contained"
-                        style={buttonStyles}
-                        onClick={() => handleNavigateToForm(request, formNumber)}
-                        disabled={!enabled}
-                      >
-                        {formNumber}
-                      </Button>
+                      <div style={{ display: 'flex', width: '100%', height: '36px' }}>
+                        {/* Botón del formulario (mitad izquierda) */}
+                        <Button
+                          variant="contained"
+                          style={{
+                            backgroundColor: formColor,
+                            cursor: formEnabled ? 'pointer' : 'not-allowed',
+                            flex: 1,
+                            borderRadius: '4px 0 0 4px',
+                            minWidth: 'unset',
+                            padding: '6px 8px',
+                            height: '36px'
+                          }}
+                          onClick={() => handleNavigateToForm(request, formNumber)}
+                          disabled={!formEnabled}
+                        >
+                          {formNumber}
+                        </Button>
+                        
+                        {/* Botón del reporte (mitad derecha) */}
+                        {reportEnabled ? (
+                          <Tooltip title="Generar reporte">
+                            <Button
+                              variant="contained"
+                              style={{
+                                backgroundColor: reportColor,
+                                cursor: 'pointer',
+                                flex: 1,
+                                borderRadius: '0 4px 4px 0',
+                                minWidth: 'unset',
+                                padding: '6px 8px',
+                                height: '36px'
+                              }}
+                              onClick={() => handleOpenDialog(request, formNumber)}
+                            >
+                              <Print style={{ fontSize: '16px' }} />
+                            </Button>
+                          </Tooltip>
+                        ) : (
+                          <Tooltip title="Formulario no completado">
+                            <span>
+                              <Button
+                                variant="contained"
+                                style={{
+                                  backgroundColor: reportColor,
+                                  cursor: 'not-allowed',
+                                  flex: 1,
+                                  borderRadius: '0 4px 4px 0',
+                                  minWidth: 'unset',
+                                  padding: '6px 8px',
+                                  height: '36px'
+                                }}
+                                disabled
+                              >
+                                <Print style={{ fontSize: '16px' }} />
+                              </Button>
+                            </span>
+                          </Tooltip>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -486,29 +591,62 @@ const handleNavigateToForm = async (request, formNumber) => {
                 const index = formNumber - 1; // Ajustar índice para el array
                 
                 return (
-                  <div key={`container-${request.idSolicitud}-${formNumber}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+                  <div key={`container-${request.idSolicitud}-${formNumber}`} style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center',
+                    width: '120px' 
+                  }}>
                     <Typography 
                       variant="caption" 
                       align="center" 
                       style={{ 
                         color: '#1976d2',
                         fontWeight: 'bold',
-                        width: '100px',
+                        width: '120px',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
-                        textOverflow: 'ellipsis'
+                        textOverflow: 'ellipsis',
+                        marginBottom: '5px'
                       }}
                     >
                       {formNames[index]}
                     </Typography>
-                    <Button
-                      key={`${request.idSolicitud}-${formNumber}`}
-                      variant="contained"
-                      style={{ backgroundColor: '#1976d2' }}
-                      onClick={() => handleNavigateToForm(request, formNumber)}
-                    >
-                      {formNumber}
-                    </Button>
+                    <div style={{ display: 'flex', width: '100%', height: '36px' }}>
+                      {/* Botón del formulario (mitad izquierda) */}
+                      <Button
+                        variant="contained"
+                        style={{
+                          backgroundColor: '#1976d2',
+                          flex: 1,
+                          borderRadius: '4px 0 0 4px',
+                          minWidth: 'unset',
+                          padding: '6px 8px',
+                          height: '36px'
+                        }}
+                        onClick={() => handleNavigateToForm(request, formNumber)}
+                      >
+                        {formNumber}
+                      </Button>
+                      
+                      {/* Botón del reporte (mitad derecha) */}
+                      <Tooltip title="Generar reporte">
+                        <Button
+                          variant="contained"
+                          style={{
+                            backgroundColor: '#f0611a',
+                            flex: 1,
+                            borderRadius: '0 4px 4px 0',
+                            minWidth: 'unset',
+                            padding: '6px 8px',
+                            height: '36px'
+                          }}
+                          onClick={() => handleOpenDialog(request, formNumber)}
+                        >
+                          <Print style={{ fontSize: '16px' }} />
+                        </Button>
+                      </Tooltip>
+                    </div>
                   </div>
                 );
               })}
