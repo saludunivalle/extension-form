@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios'; // Importa Axios para realizar la solicitud de guardado
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
-import { openFormReport } from '../../services/reportServices';
+import { openFormReport, downloadFormReport } from '../../services/reportServices';
 import PrintIcon from '@mui/icons-material/Print';
 import PropTypes from 'prop-types';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
@@ -807,7 +807,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
     try {
       setIsGeneratingReport(true);
       const idSolicitud = localStorage.getItem('id_solicitud');
-      await openFormReport(idSolicitud, 4); // 4 corresponde al formulario de mercadeo
+      await downloadFormReport(idSolicitud, 4); // 4 corresponde al formulario de mercadeo
       navigate('/');
     } catch (error) {
       console.error('Error al generar el reporte:', error);
@@ -886,7 +886,7 @@ const PrintReportButton = () => {
     try {
       setIsGeneratingReport(true);
       const idSolicitud = localStorage.getItem('id_solicitud');
-      await openFormReport(idSolicitud, 4); // Use form number 4
+      await downloadFormReport(idSolicitud, 4); // Use form number 4
     } catch (error) {
       console.error('Error al generar el reporte:', error);
       alert('Hubo un problema al generar el reporte');
@@ -1110,7 +1110,7 @@ const PrintReportButton = () => {
                 try {
                   setIsGeneratingReport(true);
                   const idSolicitud = localStorage.getItem('id_solicitud');
-                  await openFormReport(idSolicitud, 4);
+                  await downloadFormReport(idSolicitud, 4);
                   navigate('/');
                 } catch (error) {
                   console.error('Error al generar el reporte:', error);

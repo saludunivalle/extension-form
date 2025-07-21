@@ -11,7 +11,7 @@ import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } 
 import { useNavigate } from 'react-router-dom';
 import CheckIcon from '@mui/icons-material/Check'; 
 import { styled } from '@mui/system';
-import { openFormReport } from '../../services/reportServices';
+import { openFormReport, downloadFormReport } from '../../services/reportServices';
 import PrintIcon from '@mui/icons-material/Print';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
@@ -751,7 +751,7 @@ const PrintReportButton = () => {
   const handleGenerateReport = async () => {
     try {
       setIsGeneratingReport(true);
-      await openFormReport(idSolicitud, formId); // Usar el formId correspondiente
+      await downloadFormReport(idSolicitud, formId); // Usar el formId correspondiente
     } catch (error) {
       console.error('Error al generar el reporte:', error);
       alert('Hubo un problema al generar el reporte');
@@ -965,7 +965,7 @@ const PrintReportButton = () => {
                   try {
                     setIsGeneratingReport(true);
                     const idSolicitud = localStorage.getItem('id_solicitud');
-                    await openFormReport(idSolicitud, 1);
+                    await downloadFormReport(idSolicitud, 1);
                     setCurrentSection(2);
                   } catch (error) {
                     console.error('Error al generar el reporte:', error);

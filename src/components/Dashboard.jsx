@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { openFormReport } from '../services/reportServices';
+import { openFormReport, downloadFormReport } from '../services/reportServices';
 import { Button, Typography, List, ListItem, ListItemText, CircularProgress, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
 
 import { createTheme, ThemeProvider } from '@mui/material/styles';
@@ -424,6 +424,20 @@ const handleNavigateToForm = async (request, formNumber) => {
     return false;
   }
 
+  const handleDownloadFormReport = async (request, formNumber) => {
+    try {
+      const { idSolicitud } = request;
+      if (!idSolicitud || !formNumber) {
+        alert("No se puede descargar el informe porque falta información.");
+        return;
+      }
+      await downloadFormReport(idSolicitud, formNumber);
+    } catch (error) {
+      alert('Hubo un problema al descargar el reporte. Inténtalo de nuevo.');
+      console.error('Error al descargar el reporte:', error);
+    }
+  };
+
   if (!userData || !userData.id) {
     return <div>Cargando...</div>;
   }
@@ -544,7 +558,7 @@ const handleNavigateToForm = async (request, formNumber) => {
                                 padding: '6px 8px',
                                 height: '36px'
                               }}
-                              onClick={() => handleOpenDialog(request, formNumber)}
+                              onClick={() => handleDownloadFormReport(request, formNumber)}
                             >
                               <Print style={{ fontSize: '16px' }} />
                             </Button>
@@ -641,7 +655,7 @@ const handleNavigateToForm = async (request, formNumber) => {
                             padding: '6px 8px',
                             height: '36px'
                           }}
-                          onClick={() => handleOpenDialog(request, formNumber)}
+                          onClick={() => handleDownloadFormReport(request, formNumber)}
                         >
                           <Print style={{ fontSize: '16px' }} />
                         </Button>

@@ -383,3 +383,37 @@ export const openReportPreview = async (solicitudId, formNumber, onPreviewReady)
     return false;
   }
 };
+
+/**
+ * Descarga el archivo Excel del reporte y fuerza la descarga local
+ * @param {string|number} solicitudId - ID de la solicitud
+ * @param {number} formNumber - Número de formulario (1-4)
+ */
+export const downloadFormReport = async (solicitudId, formNumber) => {
+  try {
+    const response = await axios.post(
+      `${API_URL}/report/downloadReport`,
+      { solicitudId, formNumber },
+      { responseType: 'blob' }
+    );
+    // Obtener nombre sugerido del header o usar uno por defecto
+    let fileName = `Reporte_Formulario_${formNumber}.xlsx`;
+    const disposition = response.headers['content-disposition'];
+    if (disposition && disposition.indexOf('filename=') !== -1) {
+      const match = disposition.match(/filename="?([^";]+)"?/);
+      if (match && match[1]) fileName = match[1];
+    }
+    // Crear enlace de descarga
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Error al descargar el archivo Excel:', error);
+    throw error;
+  }
+};

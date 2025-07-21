@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Box, Button, Stepper, Step, StepLabel, CircularProgress, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Typography } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom'; // Cambia useHistory por useNavigate
 import axios from 'axios';
-import { openFormReport } from '../../services/reportServices';
+import { openFormReport, downloadFormReport } from '../../services/reportServices';
 import useInternalNavigationGoogleSheets from '../../hooks/useInternalNavigationGoogleSheets';
 import PrintIcon from '@mui/icons-material/Print';
 import IconButton from '@mui/material/IconButton';
@@ -569,7 +569,7 @@ const PrintReportButton = () => {
   const handleGenerateReport = async () => {
     try {
       setIsGeneratingReport(true);
-      await openFormReport(idSolicitud, formId);
+      await downloadFormReport(idSolicitud, formId);
     } catch (error) {
       console.error('Error al generar el reporte:', error);
       alert('Hubo un problema al generar el reporte');
@@ -767,7 +767,7 @@ const PrintReportButton = () => {
                 try {
                   setIsGeneratingReport(true);
                   const idSolicitud = localStorage.getItem('id_solicitud');
-                  await openFormReport(idSolicitud, 3);
+                  await downloadFormReport(idSolicitud, 3);
                   setCurrentSection(4);
                 } catch (error) {
                   console.error('Error al generar el reporte:', error);

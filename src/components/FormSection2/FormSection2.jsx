@@ -15,7 +15,7 @@ import Step3FormSection2 from './Step3FormSection2';
 import api from '../../services/api';
 import useSafeFormNavigation from '../../hooks/useFormNavigation';
 import useInternalNavigationGoogleSheets from '../../hooks/useInternalNavigationGoogleSheets';
-import { openFormReport, openReportPreview } from '../../services/reportServices';
+import { openFormReport, downloadFormReport, openReportPreview } from '../../services/reportServices';
 import axios from 'axios'; 
 import PropTypes from 'prop-types';
 
@@ -1085,7 +1085,7 @@ const PrintReportButton = () => {
   const handleGenerateReport = async () => {
     try {
       setIsGeneratingReport(true);
-      await openFormReport(idSolicitud, formId); // Usar el formId correspondiente
+      await downloadFormReport(idSolicitud, formId); // Usar el formId correspondiente
     } catch (error) {
       console.error('Error al generar el reporte:', error);
       alert('Hubo un problema al generar el reporte');
@@ -1432,7 +1432,7 @@ useEffect(() => {
                         }
                       });
                       
-                      await openFormReport(idSolicitud, 2);
+                      await downloadFormReport(idSolicitud, 2);
                       setCurrentSection(3); // Cambiar de 2 a 3
                     } catch (error) {
                       console.error('Error al generar el reporte:', error);
