@@ -81,6 +81,7 @@ function Dashboard({ userData }) {
     edit: ''
   });
 
+
   const handleOpenDialog = async (request, formNumber) => {
     try {
       // 1. Iniciar estado de carga
@@ -425,16 +426,21 @@ const handleNavigateToForm = async (request, formNumber) => {
   }
 
   const handleDownloadFormReport = async (request, formNumber) => {
+    const key = `${request.idSolicitud}-${formNumber}`;
+    setLoadingReports(prev => ({ ...prev, [key]: true }));
     try {
       const { idSolicitud } = request;
       if (!idSolicitud || !formNumber) {
         alert("No se puede descargar el informe porque falta información.");
+        setLoadingReports(prev => ({ ...prev, [key]: false }));
         return;
       }
       await downloadFormReport(idSolicitud, formNumber);
     } catch (error) {
       alert('Hubo un problema al descargar el reporte. Inténtalo de nuevo.');
       console.error('Error al descargar el reporte:', error);
+    } finally {
+      setLoadingReports(prev => ({ ...prev, [key]: false }));
     }
   };
 
@@ -547,21 +553,28 @@ const handleNavigateToForm = async (request, formNumber) => {
                         {/* Botón del reporte (mitad derecha) */}
                         {reportEnabled ? (
                           <Tooltip title="Generar reporte">
-                            <Button
-                              variant="contained"
-                              style={{
-                                backgroundColor: reportColor,
-                                cursor: 'pointer',
-                                flex: 1,
-                                borderRadius: '0 4px 4px 0',
-                                minWidth: 'unset',
-                                padding: '6px 8px',
-                                height: '36px'
-                              }}
-                              onClick={() => handleDownloadFormReport(request, formNumber)}
-                            >
-                              <Print style={{ fontSize: '16px' }} />
-                            </Button>
+                            <span>
+                              <Button
+                                variant="contained"
+                                style={{
+                                  backgroundColor: reportColor,
+                                  cursor: loadingReports[`${request.idSolicitud}-${formNumber}`] ? 'wait' : 'pointer',
+                                  flex: 1,
+                                  borderRadius: '0 4px 4px 0',
+                                  minWidth: 'unset',
+                                  padding: '6px 8px',
+                                  height: '36px'
+                                }}
+                                onClick={() => handleDownloadFormReport(request, formNumber)}
+                                disabled={loadingReports[`${request.idSolicitud}-${formNumber}`]}
+                              >
+                                {loadingReports[`${request.idSolicitud}-${formNumber}`] ? (
+                                  <CircularProgress size={20} color="inherit" />
+                                ) : (
+                                  <Print style={{ fontSize: '16px' }} />
+                                )}
+                              </Button>
+                            </span>
                           </Tooltip>
                         ) : (
                           <Tooltip title="Formulario no completado">
@@ -645,20 +658,28 @@ const handleNavigateToForm = async (request, formNumber) => {
                       
                       {/* Botón del reporte (mitad derecha) */}
                       <Tooltip title="Generar reporte">
-                        <Button
-                          variant="contained"
-                          style={{
-                            backgroundColor: '#f0611a',
-                            flex: 1,
-                            borderRadius: '0 4px 4px 0',
-                            minWidth: 'unset',
-                            padding: '6px 8px',
-                            height: '36px'
-                          }}
-                          onClick={() => handleDownloadFormReport(request, formNumber)}
-                        >
-                          <Print style={{ fontSize: '16px' }} />
-                        </Button>
+                        <span>
+                          <Button
+                            variant="contained"
+                            style={{
+                              backgroundColor: '#f0611a',
+                              flex: 1,
+                              borderRadius: '0 4px 4px 0',
+                              minWidth: 'unset',
+                              padding: '6px 8px',
+                              height: '36px',
+                              cursor: loadingReports[`${request.idSolicitud}-${formNumber}`] ? 'wait' : 'pointer'
+                            }}
+                            onClick={() => handleDownloadFormReport(request, formNumber)}
+                            disabled={loadingReports[`${request.idSolicitud}-${formNumber}`]}
+                          >
+                            {loadingReports[`${request.idSolicitud}-${formNumber}`] ? (
+                              <CircularProgress size={20} color="inherit" />
+                            ) : (
+                              <Print style={{ fontSize: '16px' }} />
+                            )}
+                          </Button>
+                        </span>
                       </Tooltip>
                     </div>
                   </div>
