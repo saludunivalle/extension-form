@@ -95,6 +95,38 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
     aplicaDiseno4: 'No',
   });
 
+  // --- PERSISTENCIA DE DATOS EN LOCALSTORAGE ---
+  // Cargar datos guardados al iniciar
+  useEffect(() => {
+    if (!idSolicitud) return;
+    const savedFormData = localStorage.getItem(`solicitud3_data_${idSolicitud}`);
+    if (savedFormData) {
+      try {
+        const parsed = JSON.parse(savedFormData);
+        // Llamar a handleInputChange para cada campo guardado
+        Object.entries(parsed).forEach(([key, value]) => {
+          if (formData[key] !== value) {
+            handleInputChange({ target: { name: key, value } });
+          }
+        });
+      } catch (e) {
+        console.error('Error al parsear datos guardados de Formulario 3:', e);
+      }
+    }
+  }, [idSolicitud]);
+
+  // Guardar datos cada vez que cambian
+  useEffect(() => {
+    if (!idSolicitud) return;
+    if (formData && Object.keys(formData).length > 0) {
+      try {
+        localStorage.setItem(`solicitud3_data_${idSolicitud}`, JSON.stringify(formData));
+      } catch (e) {
+        console.error('Error al guardar datos de Formulario 3 en localStorage:', e);
+      }
+    }
+  }, [formData, idSolicitud]);
+
   // Modificar la función validateStep para incluir validación en el primer paso
 const validateStep = () => {
   const stepErrors = {};
