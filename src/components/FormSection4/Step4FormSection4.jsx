@@ -1,7 +1,7 @@
 import { TextField, Box, Typography, FormControlLabel, Checkbox, RadioGroup, Radio, Grid } from '@mui/material';
 import PropTypes from "prop-types";
 
-function Step4FormSection4({ formData, handleInputChange, errors }) {
+function Step4FormSection4({ formData, handleInputChange, errors = {} }) {
 
   const handleCheckboxChange = (event) => {
     const { name, checked } = event.target;
@@ -23,7 +23,7 @@ function Step4FormSection4({ formData, handleInputChange, errors }) {
       <FormControlLabel 
         control={
           <Checkbox 
-            checked={formData.gremios === 'Sí'} // Corregir verificación
+            checked={formData.gremios === true || formData.gremios === 'Sí'}
             onChange={handleCheckboxChange} 
             name="gremios" 
           />
@@ -33,7 +33,7 @@ function Step4FormSection4({ formData, handleInputChange, errors }) {
       <FormControlLabel 
         control={
           <Checkbox 
-            checked={formData.sectores_empresariales === 'Sí'}
+            checked={formData.sectores_empresariales === true || formData.sectores_empresariales === 'Sí'}
             onChange={handleCheckboxChange} 
             name="sectores_empresariales" 
           />
@@ -43,7 +43,7 @@ function Step4FormSection4({ formData, handleInputChange, errors }) {
       <FormControlLabel 
         control={
           <Checkbox 
-            checked={formData.politicas_publicas === 'Sí'}
+            checked={formData.politicas_publicas === true || formData.politicas_publicas === 'Sí'}
             onChange={handleCheckboxChange} 
             name="politicas_publicas" 
           />
@@ -53,7 +53,7 @@ function Step4FormSection4({ formData, handleInputChange, errors }) {
       <FormControlLabel 
         control={
           <Checkbox 
-            checked={formData.otros_mesas_trabajoChecked === 'Sí'} // Cambiar nombre del checkbox
+            checked={formData.otros_mesas_trabajoChecked === true || formData.otros_mesas_trabajoChecked === 'Sí'}
             onChange={handleCheckboxChange} 
             name="otros_mesas_trabajoChecked" 
           />
@@ -80,12 +80,12 @@ function Step4FormSection4({ formData, handleInputChange, errors }) {
 
       {/* Grupo 2: Actividades de mercadeo */}
       <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-        ¿Qué actividades de mercadeo relacional se realizan?
+        ¿Qué actividades de mercadeo relacional se realizan como indicador para analizar la demanda del programa?
       </Typography>
       <FormControlLabel 
         control={
           <Checkbox 
-            checked={formData.focusGroup === 'Sí'}
+            checked={formData.focusGroup === true || formData.focusGroup === 'Sí'}
             onChange={handleCheckboxChange} 
             name="focusGroup" 
           />
@@ -95,7 +95,7 @@ function Step4FormSection4({ formData, handleInputChange, errors }) {
       <FormControlLabel 
         control={
           <Checkbox 
-            checked={formData.desayunosTrabajo === 'Sí'}
+            checked={formData.desayunosTrabajo === true || formData.desayunosTrabajo === 'Sí'}
             onChange={handleCheckboxChange} 
             name="desayunosTrabajo" 
           />
@@ -105,7 +105,7 @@ function Step4FormSection4({ formData, handleInputChange, errors }) {
       <FormControlLabel 
         control={
           <Checkbox 
-            checked={formData.almuerzosTrabajo === 'Sí'}
+            checked={formData.almuerzosTrabajo === true || formData.almuerzosTrabajo === 'Sí'}
             onChange={handleCheckboxChange} 
             name="almuerzosTrabajo" 
           />
@@ -115,7 +115,7 @@ function Step4FormSection4({ formData, handleInputChange, errors }) {
       <FormControlLabel 
         control={
           <Checkbox 
-            checked={formData.openHouse === 'Sí'}
+            checked={formData.openHouse === true || formData.openHouse === 'Sí'}
             onChange={handleCheckboxChange} 
             name="openHouse" 
           />
@@ -125,7 +125,7 @@ function Step4FormSection4({ formData, handleInputChange, errors }) {
       <FormControlLabel 
         control={
           <Checkbox 
-            checked={formData.ferias_colegios === 'Sí'}
+            checked={formData.ferias_colegios === true || formData.ferias_colegios === 'Sí'}
             onChange={handleCheckboxChange} 
             name="ferias_colegios" 
           />
@@ -135,17 +135,17 @@ function Step4FormSection4({ formData, handleInputChange, errors }) {
       <FormControlLabel 
         control={
           <Checkbox 
-            checked={formData.ferias_empresarial === 'Sí'}
+            checked={formData.ferias_empresarial === true || formData.ferias_empresarial === 'Sí'}
             onChange={handleCheckboxChange} 
             name="ferias_empresarial" 
           />
         } 
-        label="Ferias empresariales" 
+        label="Ferias empresariales locales, nacionales e internacionales" 
       />
       <FormControlLabel 
         control={
           <Checkbox 
-            checked={formData.otros_mercadeoChecked === 'Sí'} // Cambiar nombre del checkbox
+            checked={formData.otros_mercadeoChecked === true || formData.otros_mercadeoChecked === 'Sí'}
             onChange={handleCheckboxChange} 
             name="otros_mercadeoChecked" 
           />
@@ -172,7 +172,7 @@ function Step4FormSection4({ formData, handleInputChange, errors }) {
 
       {/* Grupo 3: Valor económico (radio) */}
       <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-        ¿El valor económico es competitivo?
+        ¿El valor económico de los programas de Educación Continua es atractivo y competitivo frente al mercado?
       </Typography>
       <RadioGroup 
         name="valorEconomico" 
@@ -190,14 +190,14 @@ function Step4FormSection4({ formData, handleInputChange, errors }) {
 
       {/* Grupo 4: Modalidades */}
       <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-        ¿Bajo qué modalidad se ofrece?
+        ¿Este programa de educación continua, bajo que modalidad se va a ofrecer?
       </Typography>
       <Grid container spacing={2}>
-        <Grid item xs={4}><FormControlLabel control={<Checkbox checked={formData.modalidadPresencial || false} onChange={handleCheckboxChange} name="modalidadPresencial" />} label="Presencial" /></Grid>
-        <Grid item xs={4}><FormControlLabel control={<Checkbox checked={formData.modalidadVirtual || false} onChange={handleCheckboxChange} name="modalidadVirtual" />} label="Virtual" /></Grid>
-        <Grid item xs={4}><FormControlLabel control={<Checkbox checked={formData.modalidadSemipresencial || false} onChange={handleCheckboxChange} name="modalidadSemipresencial" />} label="Semipresencial" /></Grid>
-        <Grid item xs={4}><FormControlLabel control={<Checkbox checked={formData.traslados_docente || false} onChange={handleCheckboxChange} name="traslados_docente" />} label="Traslados del docente a un punto de capacitación determinado" /></Grid>
-        <Grid item xs={4}><FormControlLabel control={<Checkbox checked={formData.modalidad_asistida_tecnologia || false} onChange={handleCheckboxChange} name="modalidad_asistida_tecnologia" />} label="Presencialidad asistida por tecnologías" /></Grid>
+        <Grid item xs={4}><FormControlLabel control={<Checkbox checked={formData.modalidadPresencial === true || formData.modalidadPresencial === 'Sí'} onChange={handleCheckboxChange} name="modalidadPresencial" />} label="Presencial" /></Grid>
+        <Grid item xs={4}><FormControlLabel control={<Checkbox checked={formData.modalidadVirtual === true || formData.modalidadVirtual === 'Sí'} onChange={handleCheckboxChange} name="modalidadVirtual" />} label="Virtual" /></Grid>
+        <Grid item xs={4}><FormControlLabel control={<Checkbox checked={formData.modalidadSemipresencial === true || formData.modalidadSemipresencial === 'Sí'} onChange={handleCheckboxChange} name="modalidadSemipresencial" />} label="Semipresencial" /></Grid>
+        <Grid item xs={4}><FormControlLabel control={<Checkbox checked={formData.traslados_docente === true || formData.traslados_docente === 'Sí'} onChange={handleCheckboxChange} name="traslados_docente" />} label="Traslados del docente a un punto de capacitación determinado" /></Grid>
+        <Grid item xs={4}><FormControlLabel control={<Checkbox checked={formData.modalidad_asistida_tecnologia === true || formData.modalidad_asistida_tecnologia === 'Sí'} onChange={handleCheckboxChange} name="modalidad_asistida_tecnologia" />} label="Presencialidad asistida por tecnologías" /></Grid>
         {/* Checkboxes de modalidades... */}
       </Grid>
       {errors.modalidades && (
@@ -235,10 +235,6 @@ Step4FormSection4.propTypes = {
   }).isRequired,
   handleInputChange: PropTypes.func.isRequired,
   errors: PropTypes.object, // Añadir prop para errores
-};
-
-Step4FormSection4.defaultProps = {
-  errors: {},
 };
 
 export default Step4FormSection4;

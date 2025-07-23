@@ -535,6 +535,12 @@ useEffect(() => {
 
   // Renderizar la sección correspondiente según currentSection
   const renderFormSection = () => {
+    // Asegura que userData siempre tenga id_usuario definido
+    const safeUserData = {
+      ...userData,
+      id_usuario: userData?.id_usuario ?? '',
+      name: userData?.name ?? '',
+    };
     switch (currentSection) {
       case 1:
         return (
@@ -550,7 +556,7 @@ useEffect(() => {
             secciones={secciones || []}
             programas={programasFiltrados || []} 
             oficinas={oficinas || []}
-            userData={userData || {}}
+            userData={safeUserData}
             currentStep={currentStep || 0}
             handleFileChange={handleFileChange}
             active={true}
@@ -562,7 +568,7 @@ useEffect(() => {
         return (
           <FormSection2 
             formId={2} 
-            userData={userData} 
+            userData={safeUserData} 
             formData={formData} 
             setFormData={setFormData} 
             handleInputChange={handleInputChange} 
@@ -575,7 +581,7 @@ useEffect(() => {
         return (
           <FormSection3 
             formId={3} 
-            userData={userData} 
+            userData={safeUserData} 
             formData={formData} 
             handleInputChange={handleInputChange} 
             setCurrentSection={handleSectionChange} 
@@ -587,7 +593,7 @@ useEffect(() => {
         return (
           <FormSection4 
             formId={4} 
-            userData={userData} 
+            userData={safeUserData} 
             formData={formData}  
             setFormData={setFormData} 
             handleInputChange={handleInputChange} 

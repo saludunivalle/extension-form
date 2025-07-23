@@ -5,6 +5,7 @@ import axios from 'axios'; // Importa Axios para realizar la solicitud de guarda
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import { openFormReport, downloadFormReport } from '../../services/reportServices';
+import { retryWithBackoff } from '../../utils/apiUtils'; // Import retry utility
 import PrintIcon from '@mui/icons-material/Print';
 import PropTypes from 'prop-types';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
@@ -82,7 +83,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
 
   const { maxAllowedStep, loading: navLoading, error: navError, isStepAllowed,
-    updateMaxAllowedStep } = 
+    updateMaxAllowedStep, formularioCompleto, estadoFormularios } = 
   useInternalNavigationGoogleSheets(idSolicitud, 4, steps.length);
 
   const [errors, setErrors] = useState({});
@@ -259,6 +260,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
     return Object.keys(stepErrors).length === 0;
   };
   
+  // FIXED: Removed duplicate useEffect and consolidated logic
   useEffect(() => {
     if (currentStep < 0 || currentStep >= steps.length) {
       console.warn('Paso inicial fuera de rango. Reiniciando al primer paso.');
@@ -274,15 +276,6 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
       navigate('/');
     }
   }, [idSolicitud, navigate]);
-  
-  useEffect(() => {
-    if (currentStep < 0 || currentStep >= steps.length) {
-      console.warn('Paso inicial fuera de rango. Reiniciando al primer paso.');
-      setActiveStep(0);
-    } else {
-      setActiveStep(currentStep);
-    }
-  }, [currentStep, steps.length]);
 
   useEffect(() => {
     if (!navLoading && maxAllowedStep !== undefined) {
@@ -291,9 +284,15 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
       console.log('isStepAllowed para siguiente paso:', isStepAllowed(activeStep + 1));
       
       // Actualiza el paso más alto alcanzado según lo que permite el servidor
-      setHighestStepReached(prev => Math.max(prev, maxAllowedStep));
+      setHighestStepReached(prev => {
+        // Si el formulario está completado, permitir todos los pasos
+        if (formularioCompleto || estadoFormularios?.["4"] === "Completado") {
+          return steps.length - 1;
+        }
+        return Math.max(prev, maxAllowedStep, activeStep); // Incluir activeStep actual
+      });
     }
-  }, [maxAllowedStep, navLoading, activeStep, isStepAllowed]);
+  }, [maxAllowedStep, navLoading, activeStep, isStepAllowed, formularioCompleto, estadoFormularios, steps.length]);
   
   /*
     Lógica del botón "Siguiente"
@@ -563,17 +562,20 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
             name: userData.name,
           });
           
-          await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
-            id_solicitud: idSolicitud,
-            ...pasoDataCompleto,
-            paso: activeStep + 1,
-            hoja: 4,
-            id_usuario: userData.id_usuario,
-            name: userData.name,
-          });
+          // Use retry logic for API calls to prevent rate limiting
+          await retryWithBackoff(() => 
+            axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+              id_solicitud: idSolicitud,
+              ...pasoDataCompleto,
+              paso: activeStep + 1,
+              hoja: 4,
+              id_usuario: userData.id_usuario,
+              name: userData.name,
+            })
+          );
           
           // Actualizar progreso en el servidor para controlar los pasos disponibles
-          await updateMaxAllowedStep(activeStep + 1);
+          await retryWithBackoff(() => updateMaxAllowedStep(activeStep + 1));
           
           setIsLoading(false); // Finalizar el loading
           setCompletedSteps((prevCompleted) => {
@@ -759,7 +761,9 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
             valor_procesado: pasoDataCompleto.otroMercadeo
         });
         
-        const response = await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+        // Use retry logic for API calls to prevent rate limiting
+        const response = await retryWithBackoff(() => 
+          axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
             id_solicitud: idSolicitud,
             ...pasoDataCompleto,
             paso: 5,
@@ -767,12 +771,13 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
             etapa_actual: 5,
             id_usuario: userData.id_usuario,
             name: userData.name,
-        });
+          })
+        );
         
         console.log('Respuesta del servidor:', response.data);
         
         // Actualizar progreso en el servidor para completar el formulario
-        await updateMaxAllowedStep(5);
+        await retryWithBackoff(() => updateMaxAllowedStep(5));
         
           setIsLoading(false); // Finalizar el loading
           setOpenModal(true); // Abre el modal
@@ -840,33 +845,8 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
   // Modificar la función PrintReportButton en todos los componentes de formulario
 
 const PrintReportButton = () => {
-  // Verificar el estado del formulario con el backend
-  const [isFormCompletedBackend, setIsFormCompletedBackend] = useState(false);
-  
-  useEffect(() => {
-    const checkFormCompletion = async () => {
-      if (!idSolicitud) return;
-      
-      try {
-        const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
-          id_solicitud: idSolicitud,
-          etapa_destino: formId || 4, // Usar el formId correspondiente (1, 2, 3 o 4)
-          paso_destino: 1
-        });
-        
-        if (response.data.success && response.data.estado?.estadoFormularios) {
-          // Comprobar si este formulario está marcado como "Completado"
-          const formStatus = response.data.estado.estadoFormularios[formId.toString()];
-          setIsFormCompletedBackend(formStatus === 'Completado');
-          console.log(`Estado del formulario ${formId} según backend: ${formStatus}`);
-        }
-      } catch (error) {
-        console.error('Error al verificar estado del formulario:', error);
-      }
-    };
-    
-    checkFormCompletion();
-  }, [idSolicitud]);
+  // OPTIMIZED: Use data already available from the hook instead of making additional API calls
+  const isFormCompletedBackend = formularioCompleto || estadoFormularios?.["4"] === "Completado";
   
   // NUEVA LÓGICA: Si el formulario no está completado según el backend,
   // el botón solo se habilita en el último paso Y después de enviar los datos

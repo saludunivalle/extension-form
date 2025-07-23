@@ -1,7 +1,7 @@
 import { TextField, Grid, Box, Typography, FormControlLabel, Checkbox } from '@mui/material';
 import PropTypes from "prop-types";
 
-function Step3FormSection4({ formData, handleInputChange, errors }) {
+function Step3FormSection4({ formData, handleInputChange, errors = {} }) {
   
   const handleCheckboxChange = (event) => {
     const { name, checked } = event.target;
@@ -327,10 +327,6 @@ Step3FormSection4.propTypes = {
     preregistro: PropTypes.string,
     otroInteres: PropTypes.string,
   }),
-};
-
-Step3FormSection4.defaultProps = {
-  errors: {},
 };
 
 export default Step3FormSection4;

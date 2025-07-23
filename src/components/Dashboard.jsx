@@ -176,24 +176,62 @@ function Dashboard({ userData }) {
           { params: { userId: userData.id } }
         );
 
-        
-        const requests = activeResponse.data;
-        
+        const activeRequests = activeResponse.data;
         // Asignar etapa_actual desde formulario
-        const requestsWithStages = requests.map((request) => ({
+        const requestsWithStages = activeRequests.map((request) => ({
           ...request,
           etapa_actual: Number(request.formulario) || 0,
         }));
-        
         setActiveRequests(requestsWithStages);
-        console.log("Solicitudes con etapas:", requestsWithStages);
+        console.log("Solicitudes activas con etapas:", requestsWithStages);
+
+        // Obtener solicitudes completadas
+        try {
+          const completedResponse = await axios.get(
+            'https://siac-extension-server.vercel.app/getCompletedRequests',
+            { params: { userId: userData.id } }
+          );
+
+          const fullyCompletedRequests = completedResponse.data;
+          // Asignar etapa_actual desde formulario para solicitudes completadas
+          const fullyCompletedRequestsWithStages = fullyCompletedRequests.map((request) => ({
+            ...request,
+            etapa_actual: Number(request.formulario) || 0,
+          }));
+
+          // Filtro extra: solo solicitudes donde TODOS los formularios están en 'Completado'
+          const allCompleted = requestsWithStages.filter(request => {
+            if (!request.estadoFormularios) return false;
+            return Object.values(request.estadoFormularios).every(estado => estado === "Completado");
+          });
+
+          // Combinar ambas fuentes y eliminar duplicados
+          const allCompletedRequests = [...fullyCompletedRequestsWithStages, ...allCompleted];
+          const uniqueCompletedRequests = allCompletedRequests.filter((request, index, array) =>
+            array.findIndex(r => r.idSolicitud === request.idSolicitud) === index
+          );
+
+          setCompletedRequests(uniqueCompletedRequests);
+          console.log("Solicitudes terminadas (solo finalizadas):", uniqueCompletedRequests);
+
+        } catch (completedError) {
+          if (completedError.response?.status === 404) {
+            // Si no hay solicitudes completadas del backend, buscar en activas
+            const allCompleted = requestsWithStages.filter(request => {
+              if (!request.estadoFormularios) return false;
+              return Object.values(request.estadoFormularios).every(estado => estado === "Completado");
+            });
+            setCompletedRequests(allCompleted);
+            console.log("Solo se encontraron solicitudes finalizadas en activas:", allCompleted);
+          } else {
+            console.error('Error al obtener solicitudes completadas:', completedError);
+            setCompletedRequests([]);
+          }
+        }
 
       } catch (error) {
-        if (error.response?.status === 404) {
-          setCompletedRequests([]);
-        } else {
-          console.error('Error al obtener solicitudes terminadas:', error);
-        }
+        console.error('Error al obtener solicitudes activas:', error);
+        setActiveRequests([]);
       }
       setLoading(false);
     };
@@ -361,15 +399,32 @@ const handleNavigateToForm = async (request, formNumber) => {
     "Mercadeo"
   ];
 
-  const getButtonState = (request, formNumber) => {
+  const getButtonState = (request, formNumber, isInCompletedSection = false) => {
     const currentStage = Number(request.etapa_actual) || 0;
     const currentForm = formNumber === currentStage;
     
+    // Verificar el estado específico de este formulario
+    const formStatus = request.estadoFormularios?.[formNumber.toString()] || "En progreso";
+    const isThisFormCompleted = formStatus === "Completado";
+    
     const isCurrentFormComplete = isFormCompleted(request, formNumber);
     const isPast = formNumber < currentStage;
-    const isCompleted = isFormCompleted(request, formNumber);
+    const isCompleted = isFormCompleted(request, formNumber) || isThisFormCompleted;
   
-    if (isCurrentFormComplete || isPast) {
+    // En la sección de solicitudes terminadas, asegúrate de que getButtonState se llame con true y que siempre devuelva los botones habilitados para formularios y reportes
+    if (isInCompletedSection) {
+      return { 
+        formEnabled: true, 
+        reportEnabled: true,
+        formColor: '#1976d2', 
+        reportColor: '#f0611a',
+        cursor: 'pointer', 
+        progress: 100 
+      };
+    }
+
+    // Lógica para solicitudes en creación
+    if (isCurrentFormComplete || isPast || isThisFormCompleted) {
       return { 
         formEnabled: true, 
         reportEnabled: isCompleted,
@@ -523,7 +578,7 @@ const handleNavigateToForm = async (request, formNumber) => {
               
               <div style={{ display: 'flex', gap: '10px' }}>
                 {[1, 2, 3, 4].map((formNumber) => {
-                  const { formEnabled, reportEnabled, formColor, reportColor } = getButtonState(request, formNumber);
+                  const { formEnabled, reportEnabled, formColor, reportColor } = getButtonState(request, formNumber, false);
                   return (
                     <div key={`container-${request.idSolicitud}-${formNumber}`} style={{ 
                       display: 'flex', 
@@ -609,14 +664,55 @@ const handleNavigateToForm = async (request, formNumber) => {
         <Typography variant="h6" style={{ marginTop: '20px' }}>
           Solicitudes Terminadas:
         </Typography>
+        {completedRequests.length > 0 && (
+          <div style={{ 
+            display: 'flex', 
+            marginTop: '10px',
+            marginLeft: '42%', // Alineamos con los botones de las solicitudes
+          }}>
+            <div style={{ width: '80px' }}></div> {/* Espacio para el botón "Continuar" */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {formNames.map((name, index) => (
+                <div key={`completed-form-name-${index}`} style={{ 
+                  width: '120px', 
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  color: '#1976d2' 
+                }}>
+                  <Typography 
+                    variant="body2" 
+                    align="center"
+                    style={{
+                      fontSize: '0.75rem',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                    title={name}
+                  >
+                    {name}
+                  </Typography>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <List>
         {completedRequests.map((request) => (
-          <ListItem key={request.idSolicitud} style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <ListItem key={request.idSolicitud} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <ListItemText primary={request.nombre_actividad || `Solicitud ${request.idSolicitud}`} />
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={() => handleNavigateToForm(request, 1)}
+              style={{ marginRight: '15px' }}
+            >
+              Ver Formularios
+            </Button>
+            
             <div style={{ display: 'flex', gap: '10px' }}>
               {[1, 2, 3, 4].map((formNumber) => {
-                const index = formNumber - 1; // Ajustar índice para el array
-                
+                const { formEnabled, reportEnabled, formColor, reportColor } = getButtonState(request, formNumber, true);
                 return (
                   <div key={`container-${request.idSolicitud}-${formNumber}`} style={{ 
                     display: 'flex', 
@@ -624,27 +720,13 @@ const handleNavigateToForm = async (request, formNumber) => {
                     alignItems: 'center',
                     width: '120px' 
                   }}>
-                    <Typography 
-                      variant="caption" 
-                      align="center" 
-                      style={{ 
-                        color: '#1976d2',
-                        fontWeight: 'bold',
-                        width: '120px',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        marginBottom: '5px'
-                      }}
-                    >
-                      {formNames[index]}
-                    </Typography>
                     <div style={{ display: 'flex', width: '100%', height: '36px' }}>
                       {/* Botón del formulario (mitad izquierda) */}
                       <Button
                         variant="contained"
                         style={{
-                          backgroundColor: '#1976d2',
+                          backgroundColor: formColor,
+                          cursor: formEnabled ? 'pointer' : 'not-allowed',
                           flex: 1,
                           borderRadius: '4px 0 0 4px',
                           minWidth: 'unset',
@@ -652,35 +734,58 @@ const handleNavigateToForm = async (request, formNumber) => {
                           height: '36px'
                         }}
                         onClick={() => handleNavigateToForm(request, formNumber)}
+                        disabled={!formEnabled}
                       >
                         {formNumber}
                       </Button>
                       
                       {/* Botón del reporte (mitad derecha) */}
-                      <Tooltip title="Generar reporte">
-                        <span>
-                          <Button
-                            variant="contained"
-                            style={{
-                              backgroundColor: '#f0611a',
-                              flex: 1,
-                              borderRadius: '0 4px 4px 0',
-                              minWidth: 'unset',
-                              padding: '6px 8px',
-                              height: '36px',
-                              cursor: loadingReports[`${request.idSolicitud}-${formNumber}`] ? 'wait' : 'pointer'
-                            }}
-                            onClick={() => handleDownloadFormReport(request, formNumber)}
-                            disabled={loadingReports[`${request.idSolicitud}-${formNumber}`]}
-                          >
-                            {loadingReports[`${request.idSolicitud}-${formNumber}`] ? (
-                              <CircularProgress size={20} color="inherit" />
-                            ) : (
+                      {reportEnabled ? (
+                        <Tooltip title="Generar reporte">
+                          <span>
+                            <Button
+                              variant="contained"
+                              style={{
+                                backgroundColor: reportColor,
+                                cursor: loadingReports[`${request.idSolicitud}-${formNumber}`] ? 'wait' : 'pointer',
+                                flex: 1,
+                                borderRadius: '0 4px 4px 0',
+                                minWidth: 'unset',
+                                padding: '6px 8px',
+                                height: '36px'
+                              }}
+                              onClick={() => handleDownloadFormReport(request, formNumber)}
+                              disabled={loadingReports[`${request.idSolicitud}-${formNumber}`]}
+                            >
+                              {loadingReports[`${request.idSolicitud}-${formNumber}`] ? (
+                                <CircularProgress size={20} color="inherit" />
+                              ) : (
+                                <Print style={{ fontSize: '16px' }} />
+                              )}
+                            </Button>
+                          </span>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip title="Formulario no completado">
+                          <span>
+                            <Button
+                              variant="contained"
+                              style={{
+                                backgroundColor: reportColor,
+                                cursor: 'not-allowed',
+                                flex: 1,
+                                borderRadius: '0 4px 4px 0',
+                                minWidth: 'unset',
+                                padding: '6px 8px',
+                                height: '36px'
+                              }}
+                              disabled
+                            >
                               <Print style={{ fontSize: '16px' }} />
-                            )}
-                          </Button>
-                        </span>
-                      </Tooltip>
+                            </Button>
+                          </span>
+                        </Tooltip>
+                      )}
                     </div>
                   </div>
                 );
