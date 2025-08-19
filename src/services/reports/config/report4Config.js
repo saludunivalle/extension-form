@@ -138,7 +138,11 @@ export const report4Config = {
     ];
 
     camposCondicionales.forEach(({ checkbox, campo }) => {
-      if (transformedData[checkbox] !== 'Sí') {
+      const tieneValor = typeof transformedData[campo] === 'string' && transformedData[campo].trim() !== '';
+      if (tieneValor) {
+        // Respetar el texto si existe y asegurar que el checkbox quede como 'Sí'
+        transformedData[checkbox] = 'Sí';
+      } else if (transformedData[checkbox] !== 'Sí') {
         transformedData[campo] = 'No';
       } else if (!transformedData[campo] || transformedData[campo].trim() === '') {
         transformedData[campo] = 'Valor especificado';
