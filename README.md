@@ -26,7 +26,7 @@ npm install
 Crea un archivo `.env.local` en la raíz del proyecto:
 ```env
 VITE_API_URL=http://localhost:3001
-VITE_GOOGLE_CLIENT_ID=199688357069-hoo21kd8p8c1iolqm5imf14qb7306mgc.apps.googleusercontent.com
+VITE_GOOGLE_CLIENT_ID= google-client-id
 ```
 
 ### Ejecutar en Desarrollo
