@@ -10,6 +10,8 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import PropTypes from "prop-types";
 import axios from 'axios'; // Importar axios para las peticiones HTTP
+import { config } from '../../config'; // Importar la configuración para obtener la URL del backend
+const API_URL = config.API_URL;
 
 function OtrosRiesgos({ idSolicitud, userData, categoria }) {
   const [riesgos, setRiesgos] = useState([]);
@@ -25,7 +27,7 @@ function OtrosRiesgos({ idSolicitud, userData, categoria }) {
       try {
         setLoading(true);
         // Obtener todos los riesgos de esta solicitud
-        const response = await axios.get(`https://siac-extension-server.vercel.app/riesgos?id_solicitud=${idSolicitud}`);
+        const response = await axios.get(`${API_URL}/riesgos?id_solicitud=${idSolicitud}`);
         
         if (response.data.success) {
           // Filtrar solo los riesgos de la categoría específica
@@ -56,7 +58,7 @@ function OtrosRiesgos({ idSolicitud, userData, categoria }) {
     try {
       setLoading(true);
       
-      const response = await axios.post('https://siac-extension-server.vercel.app/riesgos', {
+      const response = await axios.post(`${API_URL}/riesgos`, {
         nombre_riesgo: nuevoRiesgo.nombre,
         aplica: nuevoRiesgo.aplica ? 'Sí' : 'No',
         mitigacion: nuevoRiesgo.mitigacion || '',
@@ -105,7 +107,7 @@ function OtrosRiesgos({ idSolicitud, userData, categoria }) {
         ...datos
       };
       
-      const response = await axios.put('https://siac-extension-server.vercel.app/riesgos', {
+      const response = await axios.put(`${API_URL}/riesgos`, {
         id_riesgo: id,
         nombre_riesgo: riesgoActualizado.nombre_riesgo,
         aplica: riesgoActualizado.aplica,
@@ -145,7 +147,7 @@ function OtrosRiesgos({ idSolicitud, userData, categoria }) {
     try {
       setLoading(true);
       
-      const response = await axios.delete(`https://siac-extension-server.vercel.app/riesgos/${id}`);
+      const response = await axios.delete(`${API_URL}/riesgos/${id}`);
       
       if (response.data.success) {
         // Eliminar el riesgo de la lista local

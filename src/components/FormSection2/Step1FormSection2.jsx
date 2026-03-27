@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Grid, TextField, CircularProgress, Typography, Box } from '@mui/material';
 import axios from 'axios';
+import {config} from '../../config';
 
+const API_URL = config.API_URL;
 function Step1FormSection2({ formData, handleInputChange }) {
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
@@ -60,7 +62,7 @@ function Step1FormSection2({ formData, handleInputChange }) {
 
         while (retryCount < maxRetries) {
           try {
-            response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
+            response = await axios.get(`${API_URL}/getSolicitud`, {
               params: { id_solicitud: formData.id_solicitud }
             });
 

@@ -23,63 +23,91 @@ function Step2FormSection2({
       ],
     },
     {
-      label: '2. Gastos de alimentación, alojamiento y transporte',
+      label: '2. MATERIALES Y SUMINISTROS',
       key: '2',
-      children: [
-        { label: '2,1. Gastos de Transporte', key: '2,1' },
-        { label: '2,2. Gastos de Alimentación', key: '2,2' },
-        { label: '2,3. Gastos de Alojamiento', key: '2,3' },
-      ],
+      children: [],
     },
     {
-      label: '3. Equipos Alquiler o Compra',
+      label: '3. GASTOS DE ALOJAMIENTO',
       key: '3',
-      children: [
-        { label: '3,1. Alquiler de equipos', key: '3,1' },
-        { label: '3,2. Compra de equipos', key: '3,2' },
-      ],
+      children: [],
     },
     {
-      label: '4. Materiales y Suministros',
+      label: '4. GASTOS DE ALIMENTACIÓN',
       key: '4',
-      children: [
-        { label: '4,1. Libretas', key: '4,1' },
-        { label: '4,2. Lapiceros', key: '4,2' },
-        { label: '4,3. Marcadores, papel, etc.', key: '4,3' },
-        { label: '4,4. Otros materiales', key: '4,4' },
-      ],
+      children: [],
     },
     {
-      label: '5. Impresos',
+      label: '5. GASTOS DE TRANSPORTE',
       key: '5',
-      children: [
-        { label: '5,1. Certificados', key: '5,1' },
-        { label: '5,2. Escarapelas', key: '5,2' },
-        { label: '5,3. Fotocopias', key: '5,3' },
-      ],
+      children: [],
     },
     {
-      label: '6. Alimentos participantes',
+      label: '6. EQUIPOS ALQUILER O COMPRA',
       key: '6',
-      children: [
-        { label: '6,1. Estación de café', key: '6,1' },
-        { label: '6,2. Refrigerios', key: '6,2' },
-      ],
+      children: [],
     },
     {
-      label: '7. Actividades de promoción y publicidad',
+      label: '7. DOTACIÓN PARTICIPANTES',
       key: '7',
       children: [
-        { label: '7,1. Diseño de piezas gráficas', key: '7,1' },
-        { label: '7,2. Pautas comerciales', key: '7,2' },
-        { label: '7,3. Volantes publicitarios', key: '7,3' },
+        { label: '7,1. Carpetas', key: '7,1' },
+        { label: '7,2. Libretas', key: '7,2' },
+        { label: '7,3. Lapiceros', key: '7,3' },
+        { label: '7,4. Memorias', key: '7,4' },
+        { label: '7,5. Marcadores, papel, etc.', key: '7,5' },
       ],
     },
     {
-      label: '8. Otros gastos',
+      label: '8. IMPRESOS',
       key: '8',
+      children: [
+        { label: '8,1. Labels', key: '8,1' },
+        { label: '8,2. Certificados', key: '8,2' },
+        { label: '8,3. Escarapelas', key: '8,3' },
+        { label: '8,4. Fotocopias', key: '8,4' },
+      ],
+      //isCustomExpenses: true
+    },
+     {
+      label: '9. IMPRESOS',
+      key: '9',
+      children: [
+        { label: '9,1. Estación de café', key: '9,1' },
+        { label: '9,2. Transporte de menaje', key: '9,2' },
+        { label: '9,3. Refrigerios', key: '9,3' },
+      ],
+      //isCustomExpenses: true
+    },
+     {
+      label: '10. IMPRESOS',
+      key: '10',
       children: [],
-      isCustomExpenses: true
+      //isCustomExpenses: true
+    },
+     {
+      label: '11. GASTOS GENERALES',
+      key: '11',
+      children: [],
+      //isCustomExpenses: true
+    },
+     {
+      label: '12. VALOR INFRAESTRUCTURA UNIVERSITARIA',
+      key: '12',
+      children: [],
+      //isCustomExpenses: true
+    },
+     {
+      label: '13. IMPREVISTOS (Max 5% del 1 al 8)',
+      key: '13',
+      children: [],
+      //isCustomExpenses: true
+    },
+     {
+      label: '14. COSTOS ADMINISTRATIVOS DEL PROYECTO',
+      key: '14',
+      children: [],
+      //isCustomExpenses: true
     },
   ];
 

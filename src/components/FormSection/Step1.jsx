@@ -66,6 +66,21 @@ function Step1({ formData, handleInputChange, setFormData, escuelas, departament
         />
       </Grid>
       <Grid item xs={12}>
+        <FormControl component="fieldset" error={!!errors?.tipo_programa} required>
+          <FormLabel component="legend">Programa</FormLabel>
+          <RadioGroup
+            name="tipo_programa"
+            value={formData.tipo_programa || formData.programa || ''}
+            onChange={handleInputChange}
+          >
+            <FormControlLabel value="Programa Nuevo" control={<Radio />} label="Programa Nuevo" />
+            <FormControlLabel value="Actualización de Programa" control={<Radio />} label="Actualización de Programa" />
+            <FormControlLabel value="Modificación de Programa" control={<Radio />} label="Modificación de Programa" />
+          </RadioGroup>
+          {errors?.tipo_programa && <FormHelperText>{errors.tipo_programa}</FormHelperText>}
+        </FormControl>
+      </Grid>
+      <Grid item xs={12}>
         <TextField
           label="Nombre del Solicitante"
           fullWidth

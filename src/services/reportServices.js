@@ -3,8 +3,9 @@ import { report1Config } from './reports/config/report1Config';
 import { report2Config } from './reports/config/report2Config';
 import { report3Config } from './reports/config/report3Config';
 import { report4Config } from './reports/config/report4Config';
+import {config} from '../config';
 
-const API_URL = 'https://siac-extension-server.vercel.app';
+const API_URL = config.API_URL;
 
 // Simple notification handler that doesn't depend on react-toastify
 const notify = {
@@ -107,9 +108,8 @@ export const generateFormReport = async (solicitudId, formNumber) => {
           console.log("🔍 Campos específicos problemáticos:", {
             tipo: flattenedData.tipo,
             modalidad: flattenedData.modalidad,
-            extension_solidaria: flattenedData.extension_solidaria,
-            pieza_grafica: flattenedData.pieza_grafica,
-            personal_externo: flattenedData.personal_externo
+            
+            observaciones_cambios: flattenedData.observaciones_cambios
           });
           
           // Aplicar transformaciones específicas para este formulario
@@ -119,13 +119,10 @@ export const generateFormReport = async (solicitudId, formNumber) => {
           console.log("🔍 Campos transformados específicos:", {
             tipo_taller: formData.tipo_taller,
             tipo_seminario: formData.tipo_seminario,
-            tipo_programa: formData.tipo_programa,
+            tipo_especial: formData.tipo_especial,
             modalidad_patl: formData.modalidad_patl,
-            extension_solidaria_si: formData.extension_solidaria_si,
-            extension_solidaria_no: formData.extension_solidaria_no,
-            pieza_grafica_si: formData.pieza_grafica_si,
-            pieza_grafica_no: formData.pieza_grafica_no,
-            personal_externo: formData.personal_externo
+            
+            observaciones_cambios: formData.observaciones_cambios
           });
         }
       } catch (error) {
@@ -224,9 +221,8 @@ export const previewFormReport = async (solicitudId, formNumber) => {
         console.log("🔍 PREVIEW - Campos específicos problemáticos:", {
           tipo: flattenedData.tipo,
           modalidad: flattenedData.modalidad,
-          extension_solidaria: flattenedData.extension_solidaria,
-          pieza_grafica: flattenedData.pieza_grafica,
-          personal_externo: flattenedData.personal_externo
+    
+          observaciones_cambios: flattenedData.observaciones_cambios
         });
         
         // Aplicar transformaciones específicas para este formulario
@@ -238,11 +234,8 @@ export const previewFormReport = async (solicitudId, formNumber) => {
           tipo_seminario: formData.tipo_seminario,
           tipo_programa: formData.tipo_programa,
           modalidad_patl: formData.modalidad_patl,
-          extension_solidaria_si: formData.extension_solidaria_si,
-          extension_solidaria_no: formData.extension_solidaria_no,
-          pieza_grafica_si: formData.pieza_grafica_si,
-          pieza_grafica_no: formData.pieza_grafica_no,
-          personal_externo: formData.personal_externo
+         
+          observaciones_cambios: formData.observaciones_cambios
         });
       }
     } catch (error) {

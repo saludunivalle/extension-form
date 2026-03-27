@@ -20,7 +20,8 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import Typography from '@mui/material/Typography';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import api from '../../services/api';
-
+import {config} from '../../config';
+const API_URL = config.API_URL;
   /* 
   Este componente se encarga de cambiar el color de fondo, el color del texto y otros estilos visuales del ícono:
   - Si el paso está completado (`completed`), el fondo es azul oscuro y el texto blanco.
@@ -78,6 +79,7 @@ import api from '../../services/api';
     departamentos, 
     secciones, 
     programas, 
+    entradas_diseño,
     oficinas, 
     userData, 
     currentStep,
@@ -120,11 +122,13 @@ import api from '../../services/api';
 
     const validateStep = () => {
       const stepErrors = {};
+      const tipoProgramaSeleccionado = formData.tipo_programa || formData.programa || '';
     
       if (activeStep === 0) {
         //Validación de fecha, el nombre de la actividad y el solicitante
         if (!formData.fecha_solicitud) stepErrors.fecha_solicitud = "Este campo es obligatorio";
         if (!formData.nombre_actividad) stepErrors.nombre_actividad = "Este campo es obligatorio";
+        if (!tipoProgramaSeleccionado) stepErrors.tipo_programa = "Debe seleccionar una opción";
         if (!formData.nombre_solicitante) stepErrors.nombre_solicitante = "Este campo es obligatorio";
         if (!formData.dependencia_tipo) stepErrors.dependencia_tipo = "Debe seleccionar una dependencia";
         // Validaciones de Escuelas
@@ -139,6 +143,7 @@ import api from '../../services/api';
           if (!formData.nombre_dependencia) stepErrors.nombre_dependencia = "Debe seleccionar una oficina";
         }
       } else if (activeStep === 1) {
+        if (!formData.entradas_diseño) stepErrors.entradas_diseño = "Este campo es obligatorio";
         if (!formData.introduccion) stepErrors.introduccion = "Este campo es obligatorio";
         if (!formData.objetivo_general) stepErrors.objetivo_general = "Este campo es obligatorio";
         if (!formData.objetivos_especificos) stepErrors.objetivos_especificos = "Este campo es obligatorio";
@@ -247,16 +252,7 @@ import api from '../../services/api';
       } else if (activeStep === 4) {
         if (!formData.periodicidad_oferta) stepErrors.periodicidad_oferta = "Debe seleccionar una periodicidad";
         if (!formData.organizacion_actividad) stepErrors.organizacion_actividad = "Debe seleccionar una opción";
-        if (!formData.extension_solidaria) stepErrors.extension_solidaria = "Debe seleccionar una opción";
-      
-        if (formData.extension_solidaria === "si") {
-          const costo = formData.costo_extension_solidaria;
-          if (!costo && costo !== 0) {
-            stepErrors.costo_extension_solidaria = "Este campo es obligatorio";
-          } else if (isNaN(costo) || costo < 0) {
-            stepErrors.costo_extension_solidaria = "Debe ser un valor válido";
-          }
-        }
+
         }
     
       setErrors(stepErrors);
@@ -323,9 +319,11 @@ import api from '../../services/api';
           switch (activeStep) {
               case 0:{
                 const fecha = new Date(formData.fecha_solicitud);
+                const tipoProgramaSeleccionado = formData.tipo_programa || formData.programa || '';
                     pasoData = {
                       id_solicitud: idSolicitud,
                       nombre_actividad: formData.nombre_actividad || 'N/A',
+                      tipo_programa: tipoProgramaSeleccionado || 'N/A',
                       fecha_solicitud: fecha.toISOString().split('T')[0],
                       nombre_solicitante: formData.nombre_solicitante || 'N/A',
                       dependencia_tipo: formData.dependencia_tipo || 'N/A',
@@ -339,6 +337,7 @@ import api from '../../services/api';
               case 1:
                   pasoData = {
                       introduccion: formData.introduccion || '',
+                      entradas_diseño: formData.entradas_diseño || '',
                       objetivo_general: formData.objetivo_general || '',
                       objetivos_especificos: formData.objetivos_especificos || '',
                       justificacion: formData.justificacion || '',
@@ -441,13 +440,8 @@ import api from '../../services/api';
                       organizacion_actividad: formData.organizacion_actividad || '',
                       otro_tipo_act: formData.organizacion_actividad === 'otro_act' ? (formData.otro_tipo_act || '') : '',
                       
-                      // Corregir extension_solidaria y costo_extension_solidaria
-                      extension_solidaria: formData.extension_solidaria || '',
-                      costo_extension_solidaria: formData.extension_solidaria === 'si' ? (formData.costo_extension_solidaria || '0') : '',
                       
-                      // Campos faltantes que van a AU y AV
-                      pieza_grafica: formData.pieza_grafica ? 'Archivo adjunto' : '',
-                      personal_externo: formData.personal_externo || '',
+                      observaciones_cambios: formData.observaciones_cambios || '',
                   };
                   
                   // Debug: Log del objeto pasoData completo
@@ -457,17 +451,15 @@ import api from '../../services/api';
                   console.log("🔍 Campos corregidos en handleNext:", {
                     organizacion_actividad: formData.organizacion_actividad || '',
                     otro_tipo_act: formData.organizacion_actividad === 'otro_act' ? (formData.otro_tipo_act || '') : '',
-                    extension_solidaria: formData.extension_solidaria || '',
-                    costo_extension_solidaria: formData.extension_solidaria === 'si' ? formData.costo_extension_solidaria : '',
-                    personal_externo: formData.personal_externo
+                   
+                    observaciones_cambios: formData.observaciones_cambios
                   });
                   
                   // Debug: Log específico para campos AU y AV (paso 5)
                   console.log("🔍 DEBUG PASO 5 - Campos AU y AV:", {
-                    pieza_grafica_original: formData.pieza_grafica,
-                    pieza_grafica_enviado: formData.pieza_grafica ? 'Archivo adjunto' : '',
-                    personal_externo_original: formData.personal_externo,
-                    personal_externo_enviado: formData.personal_externo || ''
+                   
+                    observaciones_cambios_original: formData.observaciones_cambios,
+                    observaciones_cambios_enviado: formData.observaciones_cambios || ''
                   });
                   console.log("🔍 pasoData completo paso 5:", pasoData);
                 }
@@ -504,13 +496,13 @@ import api from '../../services/api';
           try {
             console.log("Enviando Datos:", dataToSend);
             if (formData.pieza_grafica && activeStep === 4) {
-              await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend, {
+              await axios.post(`${API_URL}/guardarProgreso`, dataToSend, {
                 headers: { 'Content-Type': 'multipart/form-data' },
                 timeout: 30000, // 30 segundos de timeout
               });
             } else {
               try {
-                await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend, {
+                await axios.post(`${API_URL}/guardarProgreso`, dataToSend, {
                   timeout: 30000, // 30 segundos de timeout
                 });
                 setCompletedSteps((prev) => [...prev, activeStep]);
@@ -606,20 +598,16 @@ import api from '../../services/api';
             organizacion_actividad: formData.organizacion_actividad || '',
             otro_tipo_act: formData.organizacion_actividad === 'otro_act' ? (formData.otro_tipo_act || '') : '',
             
-            // Corregir extension_solidaria y costo_extension_solidaria
-            extension_solidaria: formData.extension_solidaria || '',
-            costo_extension_solidaria: formData.extension_solidaria === 'si' ? (formData.costo_extension_solidaria || '0') : '',
             
-            personal_externo: formData.personal_externo || '',
+            observaciones_cambios: formData.observaciones_cambios || '',
         };
 
         console.log("🔍 Valores críticos antes de enviar:", {
           organizacion_actividad: formData.organizacion_actividad || '',
           otro_tipo_act: formData.organizacion_actividad === 'otro_act' ? (formData.otro_tipo_act || '') : '',
-          extension_solidaria: formData.extension_solidaria || '',
-          costo_extension_solidaria: formData.extension_solidaria === 'si' ? formData.costo_extension_solidaria : '',
-          personal_externo: formData.personal_externo,
-          pieza_grafica: formData.pieza_grafica ? 'Archivo adjunto' : 'Sin archivo'
+          
+          observaciones_cambios: formData.observaciones_cambios,
+          
         });
 
         let dataToSend = new FormData();
@@ -640,7 +628,7 @@ import api from '../../services/api';
         try {
             console.log("Enviando Datos:", dataToSend);
 
-            await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend, {
+            await axios.post(`${API_URL}/guardarProgreso`, dataToSend, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
@@ -691,7 +679,7 @@ import api from '../../services/api';
             />
           );
         case 1:
-          return <Step2 formData={formData} setFormData={setFormData} handleInputChange={handleInputChange} errors={errors} />;
+          return <Step2 formData={formData} setFormData={setFormData} handleInputChange={handleInputChange} errors={errors} entradas_diseño={formData.entradas_diseño} />;
         case 2:
           return <Step3 formData={formData} setFormData={setFormData}  errors={errors}/>;
         case 3:
@@ -714,7 +702,7 @@ const PrintReportButton = () => {
       if (!idSolicitud) return;
       
       try {
-        const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+        const response = await axios.post(`${API_URL}/progreso-actual`, {
           id_solicitud: idSolicitud,
           etapa_destino: formId || 1, // Usar el formId correspondiente (1, 2, 3 o 4)
           paso_destino: 1

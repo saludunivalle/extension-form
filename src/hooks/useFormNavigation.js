@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import {config} from '../config';
 
+const API_URL = config.API_URL;
 /**
  * Hook personalizado para manejar la navegación entre secciones de formularios
  * @param {Object} options - Opciones de configuración
@@ -114,7 +116,7 @@ const useFormNavigation = ({
     
     try {
       // Validar navegación con el nuevo endpoint
-      const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+      const response = await axios.post(`${API_URL}/progreso-actual`, {
         id_solicitud: solicitudId,
         etapa_destino: newSection,
         paso_destino: 1
