@@ -191,6 +191,7 @@ function Step5({ formData, handleInputChange, handleFileChange, errors, setFormD
             <FormControlLabel value="anual" control={<Radio />} label="Anual" />
             <FormControlLabel value="semestral" control={<Radio />} label="Semestral" />
             <FormControlLabel value="permanente" control={<Radio />} label="Permanente" />
+            <FormControlLabel value='solo una vez' control={<Radio />} label='Solo una vez' />
           </RadioGroup>
           {errors.periodicidad_oferta && (<FormHelperText>{errors.periodicidad_oferta}</FormHelperText>)}
         </FormControl>
@@ -228,80 +229,24 @@ function Step5({ formData, handleInputChange, handleFileChange, errors, setFormD
         </FormControl>
       </Grid>
       {/* "Es extensión solidaria?" campo */}
-      <Grid item xs={12}>
-        <FormControl component="fieldset" required error={!!errors.extension_solidaria}>
-          <FormLabel component="legend">¿Es Extensión Solidaria?</FormLabel>
-          <RadioGroup
-            name="extension_solidaria"
-            value={formData.extension_solidaria || ''}
-            onChange={handleInputChange}
-          >
-            <FormControlLabel value="si" control={<Radio />} label="Sí" />
-            <FormControlLabel value="no" control={<Radio />} label="No" />
-          </RadioGroup>
-          {errors.extension_solidaria && (<FormHelperText>{errors.extension_solidaria}</FormHelperText>)}
-        </FormControl>
-      </Grid>
+      
 
       {/* Si es extensión solidaria, preguntar el costo del curso */}
-      {formData.extension_solidaria === 'si' && (
-        <Grid item xs={12}>
-          <TextField
-            label="Si la actividad fuese cobrada, ¿Cuánto costaría? ($$$)"
-            fullWidth
-            name="costo_extension_solidaria"
-            type="text"
-            value={
-              formData.costo_extension_solidaria
-                ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(formData.costo_extension_solidaria)
-                : ''
-            }
-            onChange={(e) => {
-              // Eliminar todos los caracteres no numéricos
-              const rawValue = e.target.value.replace(/[^0-9]/g, '');
-              let numericValue = rawValue === '' ? '' : parseInt(rawValue, 10);
-              if (numericValue !== '' && numericValue < 1) numericValue = 1;
-              handleInputChange({
-                target: {
-                  name: e.target.name,
-                  value: numericValue
-                }
-              });
-            }}
-            inputProps={{
-              inputMode: "numeric",
-              pattern: "[0-9]*"
-            }}
-            error={!!errors.costo_extension_solidaria}
-            helperText={
-              formData.costo_extension_solidaria === 0 || formData.costo_extension_solidaria === ''
-                ? "El programa es sin costo"
-                : `Valor unitario: $${new Intl.NumberFormat('es-CO').format(formData.costo_extension_solidaria)} COP`
-            }
-          />
-        </Grid>
-      )}
+      
 
       {/* "Tiene pieza gráfica?" campo de subida de archivos */}
-      <Grid item xs={12}>
-        <FormLabel component="legend">¿Tiene Pieza Gráfica?</FormLabel>
-        <input
-          type="file"
-          name="pieza_grafica"  // Atributo name agregado para identificar el campo en el backend
-          accept=".png, .jpg, .jpeg, .pdf"
-          onChange={handleFileChange}
-        />
-      </Grid>
+     
 
       {/* "Personal Externo" campo */}
       <Grid item xs={12}>
         <TextField
-          label="Përsonal Externo Asignado"
+          label="Observaciones y/o Cambios"
           fullWidth
-          name="personal_externo"
-          value={formData.personal_externo || ''}
+          name="observaciones_cambios"
+          value={formData.observaciones_cambios || ''}
           onChange={handleInputChange}
-          placeholder="Detalles del personal externo (opcional)"
+          placeholder="Observaciones y/o Cambios"
+          helperText='En caso de modificación, se debe incluir la descripción detallada del ajuste y en caso de actualización, se deberá indicar que elementos son objeto de actualización'
         />
       </Grid>
 

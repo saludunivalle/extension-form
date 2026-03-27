@@ -18,7 +18,8 @@ import useInternalNavigationGoogleSheets from '../../hooks/useInternalNavigation
 import { openFormReport, downloadFormReport, openReportPreview } from '../../services/reportServices';
 import axios from 'axios'; 
 import PropTypes from 'prop-types';
-
+import { config } from '../../config';
+const API_URL = config.API_URL;
   /* 
   Este componente se encarga de cambiar el color de fondo, el color del texto y otros estilos visuales del ícono:
   - Si el paso está completado (`completed`), el fondo es azul oscuro y el texto blanco.
@@ -220,7 +221,7 @@ useEffect(() => {
         
         // Use Promise.race to implement a timeout
         const response = await Promise.race([
-          axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+          axios.post(`${API_URL}/progreso-actual`, {
             id_solicitud: idSolicitud,
             etapa_destino: 2,
             paso_destino: 1
@@ -416,30 +417,31 @@ useEffect(() => {
       { id_conceptos: '1,1', label: '1,1. Personal Nombrado de la Universidad (Max 70%)' },
       { id_conceptos: '1,2', label: '1,2. Honorarios Docentes Externos (Horas)' },
       { id_conceptos: '1,3', label: '1,3. Otro Personal - Subcontratos' },
-      { id_conceptos: '2', label: '2. Gastos de alimentación, alojamiento y transporte' },
-      { id_conceptos: '2,1', label: '2,1. Gastos de Transporte' },
-      { id_conceptos: '2,2', label: '2,2. Gastos de Alimentación' },
-      { id_conceptos: '2,3', label: '2,3. Gastos de Alojamiento' },
-      { id_conceptos: '3', label: '3. Equipos Alquiler o Compra' },
-      { id_conceptos: '3,1', label: '3,1. Alquiler de equipos' },
-      { id_conceptos: '3,2', label: '3,2. Compra de equipos' },
-      { id_conceptos: '4', label: '4. Materiales y Suministros' },
-      { id_conceptos: '4,1', label: '4,1. Libretas' },
-      { id_conceptos: '4,2', label: '4,2. Lapiceros' },
-      { id_conceptos: '4,3', label: '4,3. Marcadores, papel, etc.' },
-      { id_conceptos: '4,4', label: '4,4. Otros materiales' },
-      { id_conceptos: '5', label: '5. Impresos' },
-      { id_conceptos: '5,1', label: '5,1. Certificados' },
-      { id_conceptos: '5,2', label: '5,2. Escarapelas' },
-      { id_conceptos: '5,3', label: '5,3. Fotocopias' },
-      { id_conceptos: '6', label: '6. Alimentos participantes' },
-      { id_conceptos: '6,1', label: '6,1. Estación de café' },
-      { id_conceptos: '6,2', label: '6,2. Refrigerios' },
-      { id_conceptos: '7', label: '7. Actividades de promoción y publicidad' },
-      { id_conceptos: '7,1', label: '7,1. Diseño de piezas gráficas' },
-      { id_conceptos: '7,2', label: '7,2. Pautas comerciales' },
-      { id_conceptos: '7,3', label: '7,3. Volantes publicitarios' },
-      { id_conceptos: '8', label: '8. Otros gastos' }
+      { id_conceptos: '2', label: '2. MATERIALES Y SUMINISTROS' },
+      { id_conceptos: '3', label: '3. GASTOS DE ALOJAMIENTO' },
+      { id_conceptos: '4', label: '4. GASTOS DE ALIMENTACIÓN' },
+      { id_conceptos: '5', label: '5. GASTOS DE TRANSPORTE' },
+      { id_conceptos: '6', label: '6. EQUIPOS ALQUILER O COMPRA' },
+      { id_conceptos: '7', label: '7. DOTACIÓN PARTICIPANTES' },
+      { id_conceptos: '7,1', label: '7,1. Carpetas' },
+      { id_conceptos: '7,2', label: '7,2. Libretas' },
+      { id_conceptos: '7,3', label: '7,3. Lapiceros' },
+      { id_conceptos: '7,4', label: '7,4. Memorias' },
+      { id_conceptos: '7,5', label: '7,5. Marcadores, papel, etc.' },
+      { id_conceptos: '8', label: '8. IMPRESOS' },
+      { id_conceptos: '8,1', label: '8,1. Labels' },
+      { id_conceptos: '8,2', label: '8,2. Certificados' },
+      { id_conceptos: '8,3', label: '8,3. Escarapelas' },
+      { id_conceptos: '8,4', label: '8,4. Fotocopias' },
+      { id_conceptos: '9', label: '9. IMPRESOS' },
+      { id_conceptos: '9,1', label: '9,1. Estación de café' },
+      { id_conceptos: '9,2', label: '9,2. Transporte de menaje' },
+      { id_conceptos: '9,3', label: '9,3. Refrigerios' },
+      { id_conceptos: '10', label: '10. INVERSIÓN EN INFRAESTRUCTURA FÍSICA' },
+      { id_conceptos: '11', label: '11. GASTOS GENERALES' },
+      { id_conceptos: '12', label: '12. VALOR INFRAESTRUCTURA UNIVERSITARIA' },
+      { id_conceptos: '13', label: '13. IMPREVISTOS (Max 5% del 1 al 8)' },
+      { id_conceptos: '14', label: '14. COSTOS ADMINISTRATIVOS DEL PROYECTO' }
     ];
 
     // En handleSaveGastos
@@ -558,7 +560,7 @@ const todosLosGastos = [...gastosRegulares, ...gastosExtras];
   
   try {
     // Enviar al servidor
-    const response = await axios.post('https://siac-extension-server.vercel.app/guardarGastos', {
+    const response = await axios.post(`${API_URL}/guardarGastos`, {
       id_solicitud: idSolicitudCopy,
       gastos: todosLosGastos,
       actualizarConceptos: true
@@ -627,7 +629,7 @@ const handleNext = async () => {
     await handleSaveGastos();
     
     // 2. Obtener los gastos actualizados desde el servidor para calcular el total real
-    const gastosResponse = await axios.get('https://siac-extension-server.vercel.app/getGastos', {
+    const gastosResponse = await axios.get(`${API_URL}/getGastos`, {
       params: { id_solicitud: idSolicitud }
     });
     
@@ -748,7 +750,7 @@ const handleNext = async () => {
       });
       
       // Enviar datos al servidor
-      const response = await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+      const response = await axios.post(`${API_URL}/guardarProgreso`, {
         id_solicitud: idSolicitud,
         paso: activeStep + 1,
         hoja: hoja,
@@ -841,7 +843,7 @@ const handleNext = async () => {
       
       // 1. Primero intentar con el endpoint específico para el paso 3
       try {
-        const paso3Response = await axios.post('https://siac-extension-server.vercel.app/guardarForm2Paso3', {
+        const paso3Response = await axios.post(`${API_URL}/guardarForm2Paso3`, {
           id_solicitud: idSolicitud,
           id_usuario: userData.id,
           name: userData.name,
@@ -930,7 +932,7 @@ const handleNext = async () => {
       });
       
       // Guardar datos finales
-      const response = await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', dataToSend);
+      const response = await axios.post(`${API_URL}/guardarProgreso`, dataToSend);
       
       if (response.data && response.data.success) {
         // Actualizar estado local
@@ -1028,7 +1030,7 @@ const PrintReportButton = () => {
         }
         
         // Then try to get an updated status from the server
-        const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+        const response = await axios.post(`${API_URL}/progreso-actual`, {
           id_solicitud: idSolicitud,
           etapa_destino: formId || 2,
           paso_destino: 1
@@ -1383,7 +1385,7 @@ useEffect(() => {
                   onClick={async () => {
                     try {
                       // Primero asegurar que los datos del formulario 2 estén guardados
-                      await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
+                      await axios.post(`${API_URL}/actualizacion-progreso`, {
                         id_solicitud: idSolicitud,
                         etapa_actual: 3,
                         paso_actual: 1,
@@ -1419,7 +1421,7 @@ useEffect(() => {
                       const idSolicitud = localStorage.getItem('id_solicitud');
                       
                       // Marcar el formulario 2 como completado antes de generar el reporte
-                      await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
+                      await axios.post(`${API_URL}/actualizacion-progreso`, {
                         id_solicitud: idSolicitud,
                         etapa_actual: (3),
                         paso_actual: (1),

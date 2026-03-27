@@ -54,7 +54,7 @@ function Step3({ formData, setFormData, errors  }) {
             <FormControlLabel value="Curso" control={<Radio />} label="Curso" />
             <FormControlLabel value="Taller" control={<Radio />} label="Taller" />
             <FormControlLabel value="Seminario" control={<Radio />} label="Seminario" />
-            <FormControlLabel value="Programa" control={<Radio />} label="Programa" />
+            <FormControlLabel value="Programa Especial" control={<Radio />} label="Programa Especial" />
             <FormControlLabel value="Diplomado" control={<Radio />} label="Diplomado" />
             <FormControlLabel value="Otro" control={<Radio />} label="Otro" />
           </RadioGroup>
@@ -86,7 +86,6 @@ function Step3({ formData, setFormData, errors  }) {
             <FormControlLabel value="Presencial asistida por tecnología" control={<Radio />} label="Presencial asistida por tecnología" />
             <FormControlLabel value="Virtual" control={<Radio />} label="Virtual" />
             <FormControlLabel value="Mixta" control={<Radio />} label="Mixta" />
-            <FormControlLabel value="Horas de trabajo independientes" control={<Radio />} label="Horas de trabajo independientes" />
             <FormControlLabel value="Todas las anteriores" control={<Radio />} label="Todas las anteriores" />
           </RadioGroup>
           {errors.modalidad && <FormHelperText>{errors.modalidad}</FormHelperText>}
@@ -131,7 +130,7 @@ function Step3({ formData, setFormData, errors  }) {
             {(formData.modalidad === "Presencial" || formData.modalidad === "Mixta" || formData.modalidad === "Todas las anteriores") && (
               <Grid item xs={3.5}>
                 <TextField
-                  label={formData.modalidad === "Presencial" ? "Horas presenciales" : "Horas presenciales"}
+                  label={formData.modalidad === "Presencial" ? "Horas de trabajo dependiente" : "Horas de trabajo dependiente"}
                   fullWidth
                   name="horas_trabajo_presencial"
                   value={formData.horas_trabajo_presencial}
@@ -175,7 +174,7 @@ function Step3({ formData, setFormData, errors  }) {
             {(formData.modalidad === "Virtual" || formData.modalidad === "Mixta" || formData.modalidad === "Todas las anteriores") && (
               <Grid item xs={3.5}>
                 <TextField
-                  label="Horas Sincrónicas"
+                  label="Horas de trabajo independiente"
                   fullWidth
                   name="horas_sincronicas"
                   value={formData.horas_sincronicas}
@@ -194,26 +193,7 @@ function Step3({ formData, setFormData, errors  }) {
             )}
 
             {/* Input para horas de trabajo independiente */}
-            {(formData.modalidad === "Horas de trabajo independientes") && (
-              <Grid item xs={3.5}>
-                <TextField
-                  label="Horas de trabajo independiente"
-                  fullWidth
-                  name="horas_trabajo_independiente"
-                  value={formData.horas_trabajo_independiente}
-                  onChange={handleCustomInputChange}
-                  error={!!errors.horas_trabajo_independiente}
-                  helperText={errors.horas_trabajo_independiente}
-                  type="number"
-                  inputProps={{ 
-                    min: 1,
-                    onKeyPress: (e) => {
-                      if (e.key === '-') e.preventDefault();
-                    }
-                  }}
-                />
-              </Grid>
-            )}
+           
 
             <Grid item xs={3.5}>
               <TextField

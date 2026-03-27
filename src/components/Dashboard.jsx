@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { openFormReport, downloadFormReport } from '../services/reportServices';
 import { Button, Typography, List, ListItem, ListItemText, CircularProgress, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
-
+import {config} from '../config';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { Close, Download, Visibility, Print } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from "prop-types";
-
+const API_URL = config.API_URL;
 const sectionTitles = [
   'Aprobación - Formulario F-05-MP-05-01-01',
   'Presupuesto - Formulario F-06-MP-05-01-01',
@@ -94,7 +94,7 @@ function Dashboard({ userData }) {
       });
       
       // 2. Generar reporte primero
-      const response = await axios.post(`https://siac-extension-server.vercel.app/report/generateReport`, {
+      const response = await axios.post(`${API_URL}/report/generateReport`, {
         solicitudId: request.idSolicitud,
         formNumber
       });
@@ -172,7 +172,7 @@ function Dashboard({ userData }) {
       try {
         // Obtener solicitudes activas
         const activeResponse = await axios.get(
-          'https://siac-extension-server.vercel.app/getActiveRequests',
+          `${API_URL}/getActiveRequests`,
           { params: { userId: userData.id } }
         );
 
@@ -188,7 +188,7 @@ function Dashboard({ userData }) {
         // Obtener solicitudes completadas
         try {
           const completedResponse = await axios.get(
-            'https://siac-extension-server.vercel.app/getCompletedRequests',
+            `${API_URL}/getCompletedRequests`,
             { params: { userId: userData.id } }
           );
 
@@ -257,7 +257,7 @@ function Dashboard({ userData }) {
             localStorage.removeItem('id_solicitud');
       localStorage.removeItem('formData');
   
-      const response = await axios.get('https://siac-extension-server.vercel.app/getLastId', {
+      const response = await axios.get(`${API_URL}/getLastId`, {
         params: { sheetName: 'SOLICITUDES' }, // Asegurar que esté consultando la hoja correcta
       });
       console.log('Respuesta de getLastId:', response.data);
@@ -272,7 +272,7 @@ function Dashboard({ userData }) {
       localStorage.setItem('id_solicitud', nuevoId);
   
       //Insertar la nueva fila en Google Sheets para registrar la solicitud
-      await axios.post('https://siac-extension-server.vercel.app/createNewRequest', {
+      await axios.post(`${API_URL}/createNewRequest`, {
         id_solicitud: nuevoId,
         fecha_solicitud: new Date().toISOString().split('T')[0], // Fecha actual
         nombre_actividad: '',
@@ -294,7 +294,7 @@ function Dashboard({ userData }) {
 const handleContinueRequest = async (request) => {
   try {
     console.log(`🔎 Buscando datos actualizados para la solicitud con ID: ${request.idSolicitud}`);
-    const response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
+    const response = await axios.get(`${API_URL}/getSolicitud`, {
       params: { id_solicitud: request.idSolicitud }
     });
     
@@ -334,7 +334,7 @@ const handleGenerateFormReport = async (request, formNumber) => {
     console.log(`🔎 Buscando datos de la solicitud con ID: ${idSolicitud}`);
     
     // 1. Obtener datos actualizados desde Google Sheets
-    const response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
+    const response = await axios.get(`${API_URL}/getSolicitud`, {
       params: { id_solicitud: idSolicitud }
     });
 
@@ -371,7 +371,7 @@ const handleNavigateToForm = async (request, formNumber) => {
     
     // Obtener datos actualizados de la solicitud
     console.log(`🔎 Cargando datos para solicitud ${idSolicitud}, formulario ${formNumber}`);
-    const response = await axios.get('https://siac-extension-server.vercel.app/getSolicitud', {
+    const response = await axios.get(`${API_URL}/getSolicitud`, {
       params: { id_solicitud: idSolicitud }
     });
     
@@ -393,7 +393,7 @@ const handleNavigateToForm = async (request, formNumber) => {
 };
  
   const formNames = [
-    "Datos básicos", 
+    "Aprobación", 
     "Presupuesto", 
     "Matriz de riesgos", 
     "Mercadeo"

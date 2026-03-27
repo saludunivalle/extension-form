@@ -4,7 +4,8 @@ import { styled } from '@mui/system';
 import CheckIcon from '@mui/icons-material/Check';
 import PropTypes from 'prop-types';
 import axios from 'axios';
-
+import { config } from '../config';
+const API_URL = config.API_URL;
 // Componente personalizado para el ícono del paso con mejoras visuales
 const CustomStepIconRoot = styled('div')(({ ownerState }) => ({
   display: 'flex',
@@ -80,7 +81,7 @@ const FormStepper = ({
     
     try {
       // Validar navegación con el nuevo endpoint
-      const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+      const response = await axios.post(`${API_URL}/progreso-actual`, {
         id_solicitud: localStorage.getItem('id_solicitud'),
         etapa_destino: newSection,
         paso_destino: 1

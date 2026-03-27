@@ -3,7 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Typography, Grid, Link, Button, CircularProgress, Paper } from '@mui/material';
 import { styled } from '@mui/system';
-
+import { config } from '../config';
+const API_URL = config.API_URL;
 const StyledContainer = styled(Paper)({
   marginTop: '64px',
   padding: '32px',
@@ -38,7 +39,7 @@ function ResultsPage() {
       const solicitudId = queryParams.get('solicitud');
 
       try {
-        const response = await axios.get('https://siac-extension-server.vercel.app/getFormData', {
+        const response = await axios.get(`${API_URL}/getFormData`, {
           params: { id_solicitud: solicitudId }
         });
         setFormData(response.data);

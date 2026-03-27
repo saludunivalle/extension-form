@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import {config} from '../config';
 import axios from 'axios';
 
-const API_URL = 'https://siac-extension-server.vercel.app';
+const API_URL = config.API_URL;
 
 function useInternalNavigationGoogleSheets(idSolicitud, formNumber, totalSteps) {
   const [maxAllowedStep, setMaxAllowedStep] = useState(0);

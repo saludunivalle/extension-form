@@ -32,9 +32,14 @@ export const report2Config = {
     // 2. PRE-INICIALIZAR CAMPOS DE GASTOS
     // Lista completa de IDs de gastos (usando formato con coma que es el de la plantilla)
     const conceptosGastos = [
-      '1', '1,1', '1,2', '1,3', '2', '2,1', '2,2', '2,3', '3', '3,1', '3,2', 
-      '4', '4,1', '4,2', '4,3', '4,4', '5', '5,1', '5,2', '5,3', '6', '6,1', '6,2', 
-      '7', '7,1', '7,2', '7,3', '8'
+     '1', '1,1', '1,2', '1,3',
+      '2', '3', '4',
+      '5', '6', '7',
+      '7,1', '7,2', '7,3', '7,4', '7,5',
+      '8', '8,1', '8,2', '8,3',
+      '8,4', '9', '9,1',
+      '9,2', '9,3', '10', '11',
+      '12','13','14'
     ];
     
     // Crear todos los campos para cada concepto

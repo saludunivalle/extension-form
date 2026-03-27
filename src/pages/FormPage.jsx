@@ -9,7 +9,8 @@ import FormStepper from './FormStepper';
 import useFormNavigation from '../hooks/useFormNavigation';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import PropTypes from 'prop-types';
-
+import { config } from '../config';
+const API_URL = config.API_URL;
 const sectionTitles = [
   'Aprobación - Formulario F-05-MP-05-01-01',
   'Presupuesto - Formulario F-06-MP-05-01-01',
@@ -81,7 +82,7 @@ function FormPage({ userData }) {
   useEffect(() => {
     if (!solicitudId) {
       // Si no existe id en la URL, obtener un nuevo a través de getLastId
-      axios.get('https://siac-extension-server.vercel.app/getLastId', {
+      axios.get(`${API_URL}/getLastId`, {
         params: { sheetName: 'SOLICITUDES2' }
       })
       .then(response => {
@@ -112,7 +113,7 @@ useEffect(() => {
     setEstadoCargando(true);
     
     try {
-      const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+      const response = await axios.post(`${API_URL}/progreso-actual`, {
         id_solicitud: solicitudId,
         etapa_destino: formId || 1,
         paso_destino: 1,
@@ -155,7 +156,7 @@ useEffect(() => {
       // Intentar una vez más con parámetros adicionales para asegurar la creación
       try {
         console.log('Reintentando con datos de usuario adicionales...');
-        const retryResponse = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+        const retryResponse = await axios.post(`${API_URL}/progreso-actual`, {
           id_solicitud: solicitudId,
           etapa_destino: 1,
           paso_destino: 1,
@@ -203,8 +204,9 @@ useEffect(() => {
     id_solicitud: solicitudId || '',
     // Resto de campos inicializados según las hojas de la solicitud
     fecha_solicitud: '', nombre_actividad: '', nombre_solicitante: userData?.name || '',
+    tipo_programa: '',
     dependencia_tipo: '', nombre_escuela: '', nombre_departamento: '',
-    nombre_seccion: '', nombre_dependencia: '', introduccion: '',
+    nombre_seccion: '', nombre_dependencia: '', entradas_diseño: '', introduccion: '',
     objetivo_general: '', objetivos_especificos: '', justificacion: '',
     metodologia: '', tipo: '', otro_tipo: '', modalidad: '',
     horas_trabajo_presencial: '', horas_sincronicas: '', total_horas: '',
@@ -216,9 +218,9 @@ useEffect(() => {
     becas_docentes: '', becas_egresados: '', becas_funcionarios: '',
     becas_otros: '', becas_total: '', periodicidad_oferta: '', fechas_actividad: '',
     organizacion_actividad: '', otro_tipo_act: '', fecha_por_meses: '',
-    fecha_inicio: '', fecha_final: '', extension_solidaria: '',
-    costo_extension_solidaria: '', personal_externo: '', pieza_grafica: '',
-    // Hoja SOLICITUDES3
+    fecha_inicio: '', fecha_final: ''
+   , observaciones_cambios: '',
+  // Hoja SOLICITUDES3
     ingresos_cantidad: '', ingresos_vr_unit: '',
     personal_universidad_cantidad: '', personal_universidad_vr_unit: '',
     honorarios_docentes_cantidad: '', honorarios_docentes_vr_unit: '',
@@ -296,7 +298,7 @@ useEffect(() => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get('https://siac-extension-server.vercel.app/getProgramasYOficinas');
+        const response = await axios.get(`${API_URL}/getProgramasYOficinas`);
         const data = response.data;
         setEscuelas([...new Set(data.programas.map(item => item.Escuela).filter(Boolean))]);
         setOficinas(data.oficinas);
@@ -462,7 +464,7 @@ useEffect(() => {
       // Resto del código existente para verificar accesibilidad...
       
       // Verificar acceso con el backend
-      const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+      const response = await axios.post(`${API_URL}/progreso-actual`, {
         id_solicitud: solicitudId,
         etapa_destino: sectionNumber,
         paso_destino: 1

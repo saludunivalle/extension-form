@@ -6,7 +6,7 @@ import ResultsPage from './pages/ResultsPage';
 import GoogleLogin from './components/GoogleLogin';
 import Layout from './components/Layout'; 
 import Cookies from 'js-cookie';
-
+import {config} from './config';
 function App() {
   const [isLogged, setIsLogged] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
@@ -21,6 +21,7 @@ function App() {
           ? { id: decodedToken.sub, name: decodedToken.name, email: decodedToken.email }
           : decodedToken;
         console.log("User obtenido:", user);
+        
         setIsLogged(true);
         setUserData(user);
       } catch (error) {
@@ -32,7 +33,17 @@ function App() {
       setUserData(null);
     }
   }, []);
-
+  
+useEffect(() => {
+  fetch(`${config.API_URL}/health`)
+    .then(res => res.ok ? res.json() : Promise.reject(res.status))
+    .then(data => {
+      console.log('✅ Backend activo:', data);
+    })
+    .catch(err => {
+      console.error('❌ Backend NO disponible en', config.API_URL, err);
+    });
+}, []);
 
   if (userData === undefined) {
     return <div style={{textAlign: 'center', marginTop: '100px'}}>Cargando...</div>;

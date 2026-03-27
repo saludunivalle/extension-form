@@ -10,6 +10,8 @@ import Tooltip from '@mui/material/Tooltip';
 import PropTypes from 'prop-types';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+import { config } from '../../config';
+const API_URL = config.API_URL;
 
 // Importa las secciones de los pasos
 import Step1FormSection3 from './Step1FormSection3';
@@ -210,7 +212,7 @@ const validateStep = () => {
       if (!idSolicitud) return;
       
       try {
-        const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+        const response = await axios.post(`${API_URL}/progreso-actual`, {
           id_solicitud: idSolicitud,
           etapa_destino: 3,
           paso_destino: 6
@@ -342,7 +344,7 @@ const validateStep = () => {
       const pasoDataCompleto = completarValoresConNo(pasoData);
 
       try {
-          await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+          await axios.post(`${API_URL}/guardarProgreso`, {
               id_solicitud: idSolicitud,
               ...pasoDataCompleto, // Desestructurar pasoDataCompleto para que cada campo sea una clave separada
               paso: activeStep + 1,
@@ -400,7 +402,7 @@ const handleSubmit = async () => {
     const pasoDataCompleto = completarValoresConNo(pasoData);
 
     try {
-      await axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+      await axios.post(`${API_URL}/guardarProgreso`, {
         id_solicitud: idSolicitud,
         ...pasoDataCompleto,
         paso: 5,
@@ -432,7 +434,7 @@ const handleSubmit = async () => {
   else if (activeStep === 5) {
     try {
       // Marcar la etapa como completada
-      const response = await axios.post('https://siac-extension-server.vercel.app/actualizacion-progreso', {
+      const response = await axios.post(`${API_URL}/actualizacion-progreso`, {
         id_solicitud: idSolicitud,
         etapa_actual: 3,
         paso_actual: 6, // Paso 6 completado
@@ -548,7 +550,7 @@ const PrintReportButton = () => {
       if (!idSolicitud) return;
       
       try {
-        const response = await axios.post('https://siac-extension-server.vercel.app/progreso-actual', {
+        const response = await axios.post(`${API_URL}/progreso-actual`, {
           id_solicitud: idSolicitud,
           etapa_destino: formId || 3,
           paso_destino: 6 // Explícitamente verificar el paso 6

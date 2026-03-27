@@ -16,21 +16,26 @@ export const report1Config = {
     const allPossibleFields = [
       // Datos generales
       'nombre_actividad', 'tipo_curso', 'tipo_congreso', 'tipo_conferencia', 'tipo_simposio', 
-      'tipo_taller', 'tipo_seminario', 'tipo_diplomado', 'tipo_otro', 'tipo_otro_cual',
+      'tipo_taller', 'tipo_seminario', 'tipo_diplomado', 'tipo_especial', 'tipo_otro', 'tipo_otro_cual',
       
+      //Programa
+      'programa_nuevo', 'modificacion_programa', 'actualizacion_programa',
+      // Entradas para el diseño
+      'entrada_conocimiento', 'tendencias_sectoriales', 'grupos_focales','entrada_requisitos','entrada_oportunidad','entrada_propuesta',
+      'otras_entradas','entrada_investigacion', 'no_aplica',
       // Modalidad
       'modalidad_presencial', 'modalidad_patl', 'modalidad_semipresencial', 'modalidad_virtual', 
       'modalidad_mixta', 'modalidad_todas',
       
       // Periodicidad
-      'periodicidad_anual', 'periodicidad_semestral', 'periodicidad_permanente',
+      'periodicidad_anual', 'periodicidad_semestral', 'periodicidad_permanente','periodicidad_solo_una_vez',
       
       // Organización
       'organizacion_ofi_ext', 'organizacion_unidad_acad', 'organizacion_otro',
       'organizacion_otro_cual',
       
       // Solidaria
-      'extension_solidaria_si', 'extension_solidaria_no', 'costo_extension_solidaria',
+     
       
       // Certificado
       'certificado_solicitado_si', 'certificado_solicitado_no', 'razon_no_certificado_texto',
@@ -42,7 +47,7 @@ export const report1Config = {
       'becas_egresados_check', 'becas_funcionarios_check', 'becas_otros_check',
       
       // Campos faltantes importantes
-      'pieza_grafica_si', 'pieza_grafica_no', 'personal_externo',
+      , 'observaciones_cambios',
       
       // Otros campos específicos del formulario 1
       'fecha_formateada', 'total_horas', 'nombre_responsable', 'email_responsable',
@@ -85,6 +90,7 @@ export const report1Config = {
     transformedData.tipo_taller = '';
     transformedData.tipo_seminario = '';
     transformedData.tipo_diplomado = '';
+    transformedData.tipo_especial = '';
     transformedData.tipo_otro = '';
     transformedData.tipo_otro_cual = '';
 
@@ -95,6 +101,7 @@ export const report1Config = {
     else if (formData.tipo === 'Simposio') transformedData.tipo_simposio = 'X';
     else if (formData.tipo === 'Taller') transformedData.tipo_taller = 'X';
     else if (formData.tipo === 'Seminario') transformedData.tipo_seminario = 'X';
+    else if (formData.tipo === 'Programa Especial') transformedData.tipo_especial = 'X';
     else if (formData.tipo === 'Diplomado') transformedData.tipo_diplomado = 'X';
     else if (formData.tipo === 'Otro') {
       transformedData.tipo_otro = 'X';  // Esta línea es crucial para marcar "Otro"
@@ -118,6 +125,39 @@ export const report1Config = {
     else if (formData.modalidad === 'Mixta') transformedData.modalidad_mixta = 'X';
     else if (formData.modalidad === 'Todas') transformedData.modalidad_todas = 'X';
     
+    //--------- TIPO DE PROGRAMA -----
+    transformedData.programa_nuevo = '';
+    transformedData.modificacion_programa = '';
+    transformedData.actualizacion_programa = '';
+    if (formData.tipo_programa === 'Programa Nuevo') transformedData.programa_nuevo = 'X';
+    else if (['Modificación programa existente', 'Modificación de Programa'].includes(formData.tipo_programa)) {
+      transformedData.modificacion_programa = 'X';
+    }
+    else if (['Actualización programa existente', 'Actualización de Programa'].includes(formData.tipo_programa)) {
+      transformedData.actualizacion_programa = 'X';
+    }
+
+//--------ENTRADAS PARA EL DISEÑO -----
+    transformedData.entrada_conocimiento = '';
+    transformedData.tendencias_sectoriales = '';
+    transformedData.grupos_focales = '';
+    transformedData.entrada_requisitos = '';
+    transformedData.entrada_oportunidad = '';
+    transformedData.otras_entradas = '';
+    transformedData.entrada_investigacion = '';
+    transformedData.entrada_propuesta = '';
+    transformedData.no_aplica = '';
+    if (formData.entradas_diseño === 'F-07-MP-05-01-01 Conocimiento de las necesidades del mercado') transformedData.entrada_conocimiento = 'X';
+    if (formData.entradas_diseño === 'Tendencias Sectoriales del Mercado') transformedData.tendencias_sectoriales = 'X';
+    if (formData.entradas_diseño === 'Grupos Focales y/o Design Thinking') transformedData.grupos_focales = 'X';
+    if (formData.entradas_diseño === 'Requisitos y Necesidades de las Partes Interesadas (oferta cerrada)') transformedData.entrada_requisitos = 'X';
+    if (formData.entradas_diseño === 'Oportunidad en la Transferencia de Conocimiento') transformedData.entrada_oportunidad = 'X';
+    if (formData.entradas_diseño === 'Otras entradas (especificar en justificación)') transformedData.otras_entradas = 'X';
+    if (formData.entradas_diseño === 'Resultado de Investigaciones') transformedData.entrada_investigacion = 'X';
+    if (formData.entradas_diseño === 'Propuestas de Programas de Educación Continua Anteriores') transformedData.entrada_propuesta = 'X';
+    if (formData.entradas_diseño === 'No aplica') transformedData.no_aplica = 'X';
+
+
     // ----- PERIODICIDAD -----
     // Añadir justo antes de procesar los campos de periodicidad
 
@@ -143,7 +183,7 @@ export const report1Config = {
         
         // Intentar determinar el valor correcto de periodicidad
         if (formData.organizacion_actividad === 'no' || formData.organizacion_actividad === 'si') {
-            formData.extension_solidaria = organizacionOriginal;
+            
             formData.periodicidad_oferta = 'anual'; // valor predeterminado seguro
         } else {
             formData.periodicidad_oferta = 'anual'; // valor predeterminado seguro
@@ -157,7 +197,7 @@ export const report1Config = {
 
     // CORRECCIÓN DIRECTA PARA CAMPOS ESPECÍFICOS
     // Si el valor de periodicidad es evidentemente incorrecto, usar un valor predeterminado
-    if (!['anual', 'semestral', 'permanente'].includes(formData.periodicidad_oferta?.toLowerCase())) {
+    if (!['anual', 'semestral', 'permanente', 'solo una vez'].includes(formData.periodicidad_oferta?.toLowerCase())) {
         console.log(`⚠️ Valor de periodicidad incorrecto: "${formData.periodicidad_oferta}". Usando valor predeterminado "anual"`);
         formData.periodicidad_oferta = 'anual';
     }
@@ -168,11 +208,7 @@ export const report1Config = {
         formData.organizacion_actividad = 'ofi_ext';
     }
 
-    // Si el valor de extensión solidaria es evidentemente incorrecto, usar un valor predeterminado
-    if (!['si', 'no'].includes(formData.extension_solidaria?.toLowerCase())) {
-        console.log(`⚠️ Valor de extensión solidaria incorrecto: "${formData.extension_solidaria}". Usando valor predeterminado "no"`);
-        formData.extension_solidaria = 'no';
-    }
+
 
     // Asegurarnos de que el valor esté en minúsculas para comparar consistentemente
     const periodoValue = (formData.periodicidad_oferta || '').toLowerCase();
@@ -182,6 +218,7 @@ export const report1Config = {
     transformedData.periodicidad_anual = '';
     transformedData.periodicidad_semestral = '';
     transformedData.periodicidad_permanente = '';
+    transformedData.periodicidad_solo_una_vez = '';
 
     // Usar valores en minúsculas para comparación consistente
     if (periodoValue === 'anual') {
@@ -193,6 +230,9 @@ export const report1Config = {
     } else if (periodoValue === 'permanente') {
       console.log("✅ Marcando periodicidad_permanente");
       transformedData.periodicidad_permanente = 'X';
+    } else if (periodoValue === 'solo una vez') {
+      console.log("✅ Marcando periodicidad_solo_una_vez");
+      transformedData.periodicidad_solo_una_vez = 'X';
     } else {
       console.log("⚠️ Valor de periodicidad_oferta no reconocido!");
     }
@@ -218,26 +258,7 @@ export const report1Config = {
     }
     
     // ----- EXTENSIÓN SOLIDARIA -----
-    if (formData.extension_solidaria === 'si') transformedData.extension_solidaria_si = 'X';
-    else if (formData.extension_solidaria === 'no') transformedData.extension_solidaria_no = 'X';
     
-    // Asegurarse de que el costo_extension_solidaria se procese correctamente
-    if ((formData.extension_solidaria || '').toLowerCase() === 'si') {
-      // Convertir a número si es posible y formatear como moneda
-      const costo = parseInt(formData.costo_extension_solidaria || 0);
-      if (!isNaN(costo)) {
-        transformedData.costo_extension_solidaria = new Intl.NumberFormat('es-CO', {
-          style: 'currency',
-          currency: 'COP',
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0
-        }).format(costo);
-      } else {
-        transformedData.costo_extension_solidaria = formData.costo_extension_solidaria || '';
-      }
-    } else {
-      transformedData.costo_extension_solidaria = 'No aplica';
-    }
 
     // ----- CERTIFICADO SOLICITADO -----
     // Inicializar todos los campos relacionados con certificados con cadena vacía
@@ -337,7 +358,7 @@ export const report1Config = {
       'certificado_asistencia', 'certificado_aprobacion', 'certificado_no_otorga',
       
       // Periodicidad
-      'periodicidad_anual', 'periodicidad_semestral', 'periodicidad_permanente',
+      'periodicidad_anual', 'periodicidad_semestral', 'periodicidad_permanente','periodicidad_solo_una_vez',
       
       // Organización
       'organizacion_ofi_ext', 'organizacion_unidad_acad', 'organizacion_otro',
@@ -347,13 +368,13 @@ export const report1Config = {
       'modalidad_mixta', 'modalidad_todas',
       
       // Tipo de actividad
-      'tipo_taller', 'tipo_seminario', 'tipo_programa',
+      'tipo_taller', 'tipo_seminario', 'tipo_esepecial',
       
       // Extensión solidaria
-      'extension_solidaria_si', 'extension_solidaria_no',
+    
       
       // Campos faltantes importantes
-      'pieza_grafica_si', 'pieza_grafica_no', 'personal_externo'
+      'observaciones_cambios'
     ];
 
     // Verifica si hay algún placeholder sin reemplazar en algún campo crítico
@@ -375,6 +396,7 @@ export const report1Config = {
     if ((formData.periodicidad_oferta || '').toLowerCase() === 'anual') transformedData.periodicidad_anual = 'X';
     else if ((formData.periodicidad_oferta || '').toLowerCase() === 'semestral') transformedData.periodicidad_semestral = 'X';
     else if ((formData.periodicidad_oferta || '').toLowerCase() === 'permanente') transformedData.periodicidad_permanente = 'X';
+    else if ((formData.periodicidad_oferta || '').toLowerCase() === 'solo una vez') transformedData.periodicidad_solo_una_vez = 'X';
 
     // Organización - verificar otra vez
     if (formData.organizacion_actividad === 'ofi_ext') transformedData.organizacion_ofi_ext = 'X';
@@ -382,8 +404,7 @@ export const report1Config = {
     else if (formData.organizacion_actividad === 'otro_act') transformedData.organizacion_otro = 'X';
 
     // Extensión solidaria - verificar otra vez
-    if ((formData.extension_solidaria || '').toLowerCase() === 'si') transformedData.extension_solidaria_si = 'X';
-    else if ((formData.extension_solidaria || '').toLowerCase() === 'no') transformedData.extension_solidaria_no = 'X';
+
 
     // Modalidad - verificar otra vez
     if (formData.modalidad === 'Presencial') transformedData.modalidad_presencial = 'X';
@@ -431,20 +452,16 @@ export const report1Config = {
     }
 
     // Procesar extensión solidaria en un objeto separado
-    const extensionSolidariaData = {
-      extension_solidaria_si: formData.extension_solidaria === 'si' ? 'X' : '',
-      extension_solidaria_no: formData.extension_solidaria === 'no' ? 'X' : '',
-      costo_extension_solidaria: formData.extension_solidaria === 'si' ? formData.costo_extension_solidaria || '' : ''
-    };
+
+    
 
     // Actualizar los datos transformados con estos objetos más específicos
     Object.assign(transformedData, certificadoData, extensionSolidariaData);
 
     // Verificación final para evitar marcadores de plantilla no reemplazados
     const fieldGroups = {
-      periodicidad: ['periodicidad_anual', 'periodicidad_semestral', 'periodicidad_permanente'],
+      periodicidad: ['periodicidad_anual', 'periodicidad_semestral', 'periodicidad_permanente', 'periodicidad_solo_una_vez'],
       organizacion: ['organizacion_ofi_ext', 'organizacion_unidad_acad', 'organizacion_otro'],
-      extension: ['extension_solidaria_si', 'extension_solidaria_no', 'costo_extension_solidaria'],
       certificado: ['certificado_asistencia', 'certificado_aprobacion', 'certificado_no_otorga']
     };
 
@@ -460,10 +477,8 @@ export const report1Config = {
 
     // VERIFICACIÓN FINAL CRÍTICA PARA ASEGURAR QUE LOS CAMPOS TENGAN AL MENOS UN VALOR
     const grupoCampos = {
-      periodicidad: ['periodicidad_anual', 'periodicidad_semestral', 'periodicidad_permanente'],
+      periodicidad: ['periodicidad_anual', 'periodicidad_semestral', 'periodicidad_permanente', 'periodicidad_solo_una_vez'],
       organizacion: ['organizacion_ofi_ext', 'organizacion_unidad_acad', 'organizacion_otro'],
-      extension: ['extension_solidaria_si', 'extension_solidaria_no'],
-      pieza_grafica: ['pieza_grafica_si', 'pieza_grafica_no']
     };
 
     // Para cada grupo, asegurarse de que al menos un campo tenga valor 'X'
@@ -482,7 +497,9 @@ export const report1Config = {
     // Verificación final de periodicidad específicamente
     if (transformedData.periodicidad_anual !== 'X' && 
         transformedData.periodicidad_semestral !== 'X' && 
-        transformedData.periodicidad_permanente !== 'X') {
+        transformedData.periodicidad_permanente !== 'X' &&
+        transformedData.periodicidad_solo_una_vez !== 'X'
+      ) {
       console.log("⚠️ CORRECCIÓN DE EMERGENCIA: Forzando valor X en periodicidad_anual");
       transformedData.periodicidad_anual = 'X';
     }
@@ -490,22 +507,11 @@ export const report1Config = {
     // ----- CAMPOS FALTANTES IMPORTANTES -----
     
     // PIEZA GRÁFICA - "¿Tiene Pieza Gráfica?"
-    transformedData.pieza_grafica_si = '';
-    transformedData.pieza_grafica_no = '';
-    
-    if (formData.pieza_grafica && formData.pieza_grafica !== '') {
-      // Si hay un archivo adjunto o valor en pieza_grafica
-      transformedData.pieza_grafica_si = 'X';
-      console.log("✅ Marcando pieza_grafica_si = X (hay archivo adjunto)");
-    } else {
-      // Si no hay archivo adjunto
-      transformedData.pieza_grafica_no = 'X';
-      console.log("✅ Marcando pieza_grafica_no = X (no hay archivo adjunto)");
-    }
+ 
     
     // PERSONAL EXTERNO
-    transformedData.personal_externo = formData.personal_externo || '';
-    console.log(`✅ Campo personal_externo: "${transformedData.personal_externo}"`);
+    transformedData.observaciones_cambios = formData.observaciones_cambios || '';
+    console.log(`✅ Campo observaciones_cambios: "${transformedData.observaciones_cambios}"`);
 
     // Imprimir datos finales transformados para depuración
     console.log("⭐ DATOS TRANSFORMADOS FINALES:", transformedData);

@@ -13,7 +13,8 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import PropTypes from "prop-types";
 import axios from 'axios';
-
+import { config } from '../../config'; // Importar la configuración para obtener la URL del backend
+const API_URL = config.API_URL;
 // Componente para un riesgo individual
 function RiesgoItem({ riesgo, onUpdate, onDelete }) {
   const [editing, setEditing] = useState(false);
@@ -243,13 +244,13 @@ function RiesgosDinamicos({ idSolicitud, userData }) {
       setLoading(true);
       try {
         // Cargar categorías
-        const categoriasResponse = await axios.get('https://siac-extension-server.vercel.app/categorias-riesgo');
+        const categoriasResponse = await axios.get(`${API_URL}/categorias-riesgo`);
         if (categoriasResponse.data.success) {
           setCategorias(categoriasResponse.data.data);
         }
         
         // Cargar riesgos
-        const riesgosResponse = await axios.get(`https://siac-extension-server.vercel.app/riesgos?id_solicitud=${idSolicitud}`);
+        const riesgosResponse = await axios.get(`${API_URL}/riesgos?id_solicitud=${idSolicitud}`);
         if (riesgosResponse.data.success) {
           setRiesgos(riesgosResponse.data.data);
         }
@@ -279,7 +280,7 @@ function RiesgosDinamicos({ idSolicitud, userData }) {
   // Handlers para operaciones CRUD
   const handleSaveRiesgo = async (riesgoData) => {
     try {
-      const response = await axios.post('https://siac-extension-server.vercel.app/riesgos', {
+      const response = await axios.post(`${API_URL}/riesgos`, {
         ...riesgoData,
         id_solicitud: idSolicitud
       });
@@ -308,7 +309,7 @@ function RiesgosDinamicos({ idSolicitud, userData }) {
 
   const handleUpdateRiesgo = async (riesgoData) => {
     try {
-      const response = await axios.put('https://siac-extension-server.vercel.app/riesgos', riesgoData);
+      const response = await axios.put(`${API_URL}/riesgos`, riesgoData);
       
       if (response.data.success) {
         setRiesgos(prev => 
@@ -338,7 +339,7 @@ function RiesgosDinamicos({ idSolicitud, userData }) {
     if (!window.confirm("¿Está seguro de eliminar este riesgo?")) return;
     
     try {
-      const response = await axios.delete(`https://siac-extension-server.vercel.app/riesgos/${id_riesgo}`);
+      const response = await axios.delete(`${API_URL}/riesgos/${id_riesgo}`);
       
       if (response.data.success) {
         setRiesgos(prev => prev.filter(r => r.id_riesgo !== id_riesgo));
@@ -366,7 +367,7 @@ function RiesgosDinamicos({ idSolicitud, userData }) {
     try {
       setMigrando(true);
       
-      const response = await axios.post('https://siac-extension-server.vercel.app/migrar-riesgos-form3', {
+      const response = await axios.post(`${API_URL}/migrar-riesgos-form3`, {
         id_solicitud: idSolicitud,
         id_usuario: userData.id_usuario,
         name: userData.name

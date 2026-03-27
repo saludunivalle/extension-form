@@ -1,9 +1,34 @@
-import { Grid, TextField } from '@mui/material';
+import { Grid, TextField, FormControl, FormControlLabel, FormLabel, RadioGroup, Radio, FormHelperText } from '@mui/material';
+import { fr } from 'date-fns/locale';
 import PropTypes from "prop-types";
 
-function Step2({ formData, handleInputChange, errors }) {
+function Step2({ formData, handleInputChange, errors, entradas_diseño }) {
   return (
     <Grid container spacing={2}>
+      <Grid item xs={12}>
+        <FormControl component="fieldset" error={!!errors?.entradas_diseño} required>
+          <FormLabel component="legend"> Entradas para el Diseño</FormLabel>
+          <RadioGroup
+            name="entradas_diseño"
+            value={formData.entradas_diseño || ''}
+            onChange={handleInputChange}
+          >
+            <FormControlLabel value="F-07-MP-05-01-01 Conocimiento de las necesidades del mercado" control={<Radio />} label="F-07-MP-05-01-01 Conocimiento de las necesidades del mercado" />
+            <FormControlLabel value="Tendencias Sectoriales del Mercado" control={<Radio />} label="Tendencias Sectoriales del Mercado" />
+            <FormControlLabel value="Grupos Focales y/o Design Thinking" control={<Radio />} label="Grupos Focales y/o Design Thinking" />
+            <FormControlLabel value="Requisitos y Necesidades de las Partes Interesadas (oferta cerrada)" control={<Radio />} label="Requisitos y Necesidades de las Partes Interesadas (oferta cerrada)" />
+            <FormControlLabel value="Oportunidad en la Transferencia de Conocimiento" control={<Radio />} label="Oportunidad en la Transferencia de Conocimiento" />
+            <FormControlLabel value="Otras entradas (especificar en justificación)" control={<Radio />} label="Otras entradas (especificar en justificación)" />
+            <FormControlLabel value="Resultado de Investigaciones" control={<Radio />} label="Resultado de Investigaciones" />
+            <FormControlLabel value="Propuestas de Programas de Educación Continua Anteriores" control={<Radio />} label="Propuestas de Programas de Educación Continua Anteriores" />
+            { formData.tipo_programa || formData.programa == 'Modificación de Programa' &&(
+            <FormControlLabel value="No aplica" control={<Radio />} label="No aplica" />
+
+)          }
+          </RadioGroup>
+          {errors?.entradas_diseño && <FormHelperText>{errors.entradas_diseño}</FormHelperText>}
+        </FormControl>
+        </Grid>
       <Grid item xs={12}>
         <TextField
           label="Introducción"

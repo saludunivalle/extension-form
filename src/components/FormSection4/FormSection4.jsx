@@ -15,10 +15,10 @@ import Step2FormSection4 from './Step2FormSection4';
 import Step3FormSection4 from './Step3FormSection4';
 import Step4FormSection4 from './Step4FormSection4';
 import Step5FormSection4 from './Step5FormSection4';
-
+import { config } from '../../config';
 import CheckIcon from '@mui/icons-material/Check'; // Importa el ícono del check
 import { styled } from '@mui/system';
-
+const API_URL = config.API_URL;
   /* 
   Este componente se encarga de cambiar el color de fondo, el color del texto y otros estilos visuales del ícono:
   - Si el paso está completado (`completed`), el fondo es azul oscuro y el texto blanco.
@@ -564,7 +564,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
           
           // Use retry logic for API calls to prevent rate limiting
           await retryWithBackoff(() => 
-            axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+            axios.post(`${API_URL}/guardarProgreso`, {
               id_solicitud: idSolicitud,
               ...pasoDataCompleto,
               paso: activeStep + 1,
@@ -763,7 +763,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
         
         // Use retry logic for API calls to prevent rate limiting
         const response = await retryWithBackoff(() => 
-          axios.post('https://siac-extension-server.vercel.app/guardarProgreso', {
+          axios.post(`${API_URL}/guardarProgreso`, {
             id_solicitud: idSolicitud,
             ...pasoDataCompleto,
             paso: 5,

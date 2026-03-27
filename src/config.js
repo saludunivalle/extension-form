@@ -6,7 +6,7 @@ export const config = {
       ? 'http://localhost:3001' 
       : 'https://siac-extension-server.vercel.app'
   ),
-  
+ 
   // Google OAuth Client ID
   GOOGLE_CLIENT_ID: import.meta.env.VITE_GOOGLE_CLIENT_ID || '199688357069-hoo21kd8p8c1iolqm5imf14qb7306mgc.apps.googleusercontent.com',
   
@@ -21,3 +21,4 @@ export const config = {
     }
   }
 }; 
+ console.log('usando: ',config.API_URL);
