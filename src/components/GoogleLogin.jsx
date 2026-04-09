@@ -8,7 +8,7 @@ import PropTypes from "prop-types";
 import { config } from '../config';
 import { userService, checkServerHealth } from '../services/api';
 
-const GoogleLogin = ({ setIsLogin, setUserInfo }) => {
+const GoogleLogin = ({ setIsLogin, setUserData }) => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -17,7 +17,7 @@ const GoogleLogin = ({ setIsLogin, setUserInfo }) => {
     setIsLoading(true);
     try {
       const data_decode = decodeToken(response.credential);
-      
+      console.log('Token decodificado:', data_decode);
       // Verificación del dominio de correo
       if (!data_decode.email.endsWith('@correounivalle.edu.co')) {
         alert('Por favor ingrese con el correo institucional de la Universidad del Valle');
@@ -25,10 +25,11 @@ const GoogleLogin = ({ setIsLogin, setUserInfo }) => {
         return;
       }
 
-      const userInfo = {
+      const authenticatedUser = {
         id: data_decode.sub,
         email: data_decode.email,
         name: data_decode.name,
+        role: '',
       };
 
       // IMPORTANTE: Guardar el token y el email en localStorage para autenticación
@@ -41,22 +42,54 @@ const GoogleLogin = ({ setIsLogin, setUserInfo }) => {
       
       if (serverAvailable) {
         try {
-          const backendResponse = await userService.saveUser(userInfo);
-          
-          // Si el backend devuelve un ID específico, actualizarlo
-          if (backendResponse?.userId) {
-            localStorage.setItem('user_id', backendResponse.userId);
+          const authResponse = await userService.authGoogle(response.credential);
+          console.log('Respuesta de autenticación backend:', authResponse);
+          const backendUser = authResponse?.userInfo;
+
+          if (backendUser?.id) {
+            authenticatedUser.id = backendUser.id;
+            localStorage.setItem('user_id', backendUser.id);
+          }
+
+          if (backendUser?.email) {
+            authenticatedUser.email = backendUser.email;
+            localStorage.setItem('email', backendUser.email);
+          }
+
+          if (backendUser?.name) {
+            authenticatedUser.name = backendUser.name;
+          }
+
+          if (backendUser?.role) {
+            authenticatedUser.role = backendUser.role;
           }
         } catch (backendError) {
-          console.warn('Error al guardar usuario en backend:', backendError);
-          // Continuar sin fallar si el backend no está disponible
-          // El usuario ya está autenticado con Google
+          console.warn('Error al autenticar usuario en backend:', backendError);
+
+          // Fallback de compatibilidad con el flujo previo
+          try {
+            const backendResponse = await userService.saveUser(authenticatedUser);
+            if (backendResponse?.userId) {
+              authenticatedUser.id = backendResponse.userId;
+              localStorage.setItem('user_id', backendResponse.userId);
+            }
+            if (backendResponse?.role) {
+              authenticatedUser.role = backendResponse.role;
+            }
+          } catch (saveUserError) {
+            console.warn('Error al guardar usuario en backend:', saveUserError);
+          }
         }
       } else {
         console.warn('Servidor no disponible - continuando sin guardar en backend');
       }
 
-      setUserInfo(userInfo);
+      if (!authenticatedUser.role && data_decode.role) {
+        authenticatedUser.role = data_decode.role;
+      }
+
+      localStorage.setItem('user_data', JSON.stringify(authenticatedUser));
+      setUserData(authenticatedUser);
       setIsLogin(true);
 
       Cookies.set('token', JSON.stringify(data_decode), { 
@@ -70,7 +103,7 @@ const GoogleLogin = ({ setIsLogin, setUserInfo }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [navigate, setIsLogin, setUserInfo]);
+  }, [navigate, setIsLogin, setUserData]);
 
   useEffect(() => {
     let script;
@@ -145,7 +178,7 @@ const GoogleLogin = ({ setIsLogin, setUserInfo }) => {
 
 GoogleLogin.propTypes = {
   setIsLogin: PropTypes.func.isRequired,
-  setUserInfo: PropTypes.func.isRequired,
+  setUserData: PropTypes.func.isRequired,
 };
 
 export default GoogleLogin;

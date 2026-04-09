@@ -174,7 +174,7 @@ function Step4({ formData, handleInputChange, errors }) {
 
       <Grid item xs={12}>
         <TextField
-          label="Valor unitario del programa EC expresado en SMMLV"
+          label="Valor unitario del programa EC expresado en SMMLV *"
           fullWidth
           name="valor_inscripcion"
           value={

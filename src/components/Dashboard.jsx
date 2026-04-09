@@ -1,36 +1,174 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { openFormReport, downloadFormReport } from '../services/reportServices';
-import { Button, Typography, List, ListItem, ListItemText, CircularProgress, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
+import { downloadFormReport } from '../services/reportServices';
+import { Button, Typography, List, ListItem, ListItemText, CircularProgress, Tooltip } from '@mui/material';
 import {config} from '../config';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { Close, Download, Visibility, Print } from '@mui/icons-material';
+import { Print } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from "prop-types";
 const API_URL = config.API_URL;
-const sectionTitles = [
-  'Aprobación - Formulario F-05-MP-05-01-01',
-  'Presupuesto - Formulario F-06-MP-05-01-01',
-  'Riesgos Potenciales - Formulario F-08-MP-05-01-01',
-  'Identificación de Mercadeo - Formulario F-07-MP-05-01-01'
-];
+
+const flattenSolicitudResponse = (data) => {
+  if (!data || typeof data !== 'object') {
+    return {};
+  }
+
+  const rootFields = {};
+  const nestedFields = {};
+
+  Object.entries(data).forEach(([key, value]) => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      Object.assign(nestedFields, value);
+    } else {
+      rootFields[key] = value;
+    }
+  });
+
+  return Object.keys(nestedFields).length > 0 ? { ...rootFields, ...nestedFields } : data;
+};
+
+const parseEstadoFormularios = (value) => {
+  if (!value) return {};
+  if (typeof value === 'object') return value;
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  return {};
+};
+
+const normalizeFormStatus = (value) => String(value || '').trim().toLowerCase();
+
+const normalizeStatusForMatch = (value) => {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+};
+
+const isCorrectionsStatus = (status) => {
+  const normalized = normalizeStatusForMatch(status);
+  return normalized.includes('requiere correccion');
+};
+
+const hasCorrectionsInRequest = (request) => {
+  const estados = request?.estadoFormularios;
+  if (!estados || typeof estados !== 'object') {
+    return false;
+  }
+
+  return Object.values(estados).some((estado) => isCorrectionsStatus(estado));
+};
+
+const isLockedForOwner = (status) => {
+  const normalized = normalizeStatusForMatch(status);
+  return normalized === 'enviado a revision' || normalized === 'aprobado';
+};
+
+const normalizeRequest = (request) => {
+  if (Array.isArray(request)) {
+    const [
+      idSolicitud,
+      idUsuario,
+      fechaSolicitud,
+      nombreSolicitante,
+      formulario,
+      estado,
+      nombreActividad,
+      paso,
+      estadoFormulariosRaw,
+    ] = request;
+
+    return {
+      idSolicitud: idSolicitud || null,
+      id_usuario: idUsuario || null,
+      fecha_solicitud: fechaSolicitud || '',
+      nombre_solicitante: nombreSolicitante || '',
+      formulario: Number(formulario) || 0,
+      estado: estado || '',
+      nombre_actividad: nombreActividad || '',
+      paso: Number(paso) || 0,
+      etapa_actual: Number(formulario) || 0,
+      estadoFormularios: parseEstadoFormularios(estadoFormulariosRaw),
+    };
+  }
+
+  return {
+    ...request,
+    idSolicitud: request.idSolicitud || request.id_solicitud || request.id || request.solicitud_id,
+    id_usuario: request.id_usuario || request.idUsuario || request.userId || request.id_user || request.user_id || request.solicitante_id || request.idSolicitante || request.usuario?.id || request.user?.id || null,
+    nombre_actividad: request.nombre_actividad || request.nombreActividad || request.solicitud || request.actividad || request.titulo || '',
+    nombre_solicitante: request.nombre_solicitante || request.nombreSolicitante || request.usuario?.name || request.user?.name || '',
+    fecha_solicitud: request.fecha_solicitud || request.fechaSolicitud || '',
+    etapa_actual: Number(request.etapa_actual || request.formulario) || 0,
+    paso: Number(request.paso) || 0,
+    estadoFormularios: parseEstadoFormularios(request.estadoFormularios),
+  };
+};
+
+const resolveRequestOwnerId = (request) => {
+  return request.id_usuario || request.idUsuario || request.userId || request.id_user || request.user_id || request.solicitante_id || request.idSolicitante || request.usuario?.id || request.user?.id || null;
+};
+
+const normalizeText = (value) => String(value || '').trim().toLowerCase();
+
+const isOwnRequest = (request, currentUserId, currentUserName, currentUserEmail) => {
+  const ownerId = resolveRequestOwnerId(request);
+
+  if (ownerId) {
+    return String(ownerId) === String(currentUserId);
+  }
+
+  const requestOwnerName = normalizeText(request.nombre_solicitante || request.nombreSolicitante || request.usuario?.name || request.user?.name);
+  const requestOwnerEmail = normalizeText(request.email_solicitante || request.correo_solicitante || request.usuario?.email || request.user?.email);
+
+  if (requestOwnerEmail && normalizeText(currentUserEmail)) {
+    return requestOwnerEmail === normalizeText(currentUserEmail);
+  }
+
+  if (requestOwnerName && normalizeText(currentUserName)) {
+    return requestOwnerName === normalizeText(currentUserName);
+  }
+
+  // Si no hay metadatos del propietario, asumir propia para no romper el flujo existente.
+  return true;
+};
+
+const mergeUniqueRequests = (requests = []) => {
+  return requests.filter((request, index, array) =>
+    array.findIndex((item) => String(item.idSolicitud) === String(request.idSolicitud)) === index
+  );
+};
+
+const normalizeRevisionRequest = (request) => {
+  return {
+    ...request,
+    idSolicitud: request.idSolicitud || request.id_solicitud || request.id || request.solicitud_id,
+    id_usuario: request.id_usuario || request.idUsuario || request.userId || request.user?.id || request.usuario?.id || null,
+    fecha_solicitud: request.fecha_solicitud || request.fechaSolicitud || request.fecha || '',
+    nombre_solicitante: request.nombre_solicitante || request.nombreSolicitante || request.name || request.user?.name || request.usuario?.name || '',
+    nombre_actividad: request.nombre_actividad || request.nombreActividad || request.solicitud || request.actividad || request.titulo || '',
+    etapa_actual: Number(request.etapa_actual || request.formulario) || 0,
+    paso: Number(request.paso) || 0,
+    estadoFormularios: parseEstadoFormularios(request.estado_formularios || request.estadoFormularios),
+  };
+};
 
 function Dashboard({ userData }) {
-  const [activeRequests, setActiveRequests] = useState([]);
-  const [completedRequests, setCompletedRequests] = useState([]);
+  const [ownRequests, setOwnRequests] = useState([]);
+  const [receivedRequests, setReceivedRequests] = useState([]);
+  const [isAdmin, setIsAdmin] = useState(userData?.role?.toLowerCase() === 'admin');
   const [loading, setLoading] = useState(true);
   const [loadingReports, setLoadingReports] = useState({});
   const navigate = useNavigate();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedReportLink, setSelectedReportLink] = useState('');
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [selectedFormData, setSelectedFormData] = useState({
-    idSolicitud: null,
-    formNumber: null,
-    reportLink: null,
-    loading: false,
-    error: null
-  });
 
   const theme = createTheme({
     palette: {
@@ -46,192 +184,132 @@ function Dashboard({ userData }) {
     },
   });
 
-  const dialogStyles = {
-    paper: {
-      borderRadius: '16px',
-      padding: '20px',
-      boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.1)',
-      minWidth: '320px'
-    },
-    title: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '16px 24px',
-      borderBottom: '1px solid #eee'
-    },
-    content: {
-      padding: '24px',
-      textAlign: 'center'
-    },
-    actionButton: {
-      margin: '8px',
-      padding: '12px 24px',
-      borderRadius: '8px',
-      transition: 'all 0.3s ease',
-      '&:hover': {
-        transform: 'translateY(-2px)'
-      }
-    }
-  };
-
-  const [reportLinks, setReportLinks] = useState({
-    view: '',
-    download: '',
-    edit: ''
-  });
-
-
-  const handleOpenDialog = async (request, formNumber) => {
-    try {
-      // 1. Iniciar estado de carga
-      setSelectedFormData({
-        idSolicitud: request.idSolicitud,
-        formNumber: formNumber,
-        reportLink: null,
-        loading: true,
-        error: null
-      });
-      
-      // 2. Generar reporte primero
-      const response = await axios.post(`${API_URL}/report/generateReport`, {
-        solicitudId: request.idSolicitud,
-        formNumber
-      });
-  
-      // 3. Verificar si es una descarga local
-      if (response.data?.localDownload) {
-        // Es una descarga local debido a limitaciones de almacenamiento
-        const { fileData, fileName, contentType } = response.data;
-        
-        // Convertir base64 a blob
-        const byteCharacters = atob(fileData);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: contentType });
-        
-        // Crear URL del blob y descargar
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        
-        // Mostrar mensaje de éxito
-        alert('Reporte descargado localmente debido a limitaciones de almacenamiento en Google Drive');
-        
-        setSelectedFormData(prev => ({
-          ...prev,
-          loading: false
-        }));
-      } else if (response.data?.link) {
-        // Es un enlace de Google Drive
-        setDialogOpen(true);
-        setSelectedFormData(prev => ({
-          ...prev,
-          reportLink: response.data.link,
-          loading: false
-        }));
-      }
-      
-    } catch (error) {
-      setSelectedFormData(prev => ({
-        ...prev,
-        loading: false,
-        error: 'Error generando reporte'
-      }));
-      console.error('Error al generar reporte:', error);
-    }
-  };
-  
-  
-  const handleCloseDialog = () => {
-    setDialogOpen(false);
-    setSelectedReportLink('');
-    setSelectedRequest(null); // Limpiar el request seleccionado
-  };
-  
-  const handleOpenReport = () => {
-    if (selectedFormData.reportLink && selectedFormData.reportLink !== '') {
-      window.open(selectedFormData.reportLink, '_blank');
-      handleCloseDialog();
-    } else {
-      alert('No se encontró el enlace del reporte.');
-    }
-  };
-  
   useEffect(() => {
     const fetchRequests = async () => {
       setLoading(true);
       try {
-        // Obtener solicitudes activas
-        const activeResponse = await axios.get(
-          `${API_URL}/getActiveRequests`,
-          { params: { userId: userData.id } }
-        );
+        const requestsResponse = await axios.get(`${API_URL}/getRequests`, {
+          params: { userId: userData.id }
+        });
+        console.log('Respuesta de /getRequests:', requestsResponse.data);
 
-        const activeRequests = activeResponse.data;
-        // Asignar etapa_actual desde formulario
-        const requestsWithStages = activeRequests.map((request) => ({
-          ...request,
-          etapa_actual: Number(request.formulario) || 0,
-        }));
-        setActiveRequests(requestsWithStages);
-        console.log("Solicitudes activas con etapas:", requestsWithStages);
+        const roleFromApi = requestsResponse.data.role || '';
+        const adminFromApi = Boolean(requestsResponse.data?.isAdmin);
+        const adminByRole = String(roleFromApi).toLowerCase() === 'admin' || String(userData?.role || '').toLowerCase() === 'admin';
+        const adminUser = adminFromApi || adminByRole;
 
-        // Obtener solicitudes completadas
+        const activeRequestsData = Array.isArray(requestsResponse.data?.activeRequests)
+          ? requestsResponse.data.activeRequests
+          : [];
+        const completedRequestsData = Array.isArray(requestsResponse.data?.completedRequests)
+          ? requestsResponse.data.completedRequests
+          : [];
+
+        const normalizedActive = activeRequestsData.map(normalizeRequest);
+        const normalizedCompleted = completedRequestsData.map(normalizeRequest);
+        const mergedRequests = mergeUniqueRequests([...normalizedActive, ...normalizedCompleted]).filter((request) => Boolean(request.idSolicitud));
+
+        if (adminUser) {
+          const own = mergedRequests.filter((request) => isOwnRequest(request, userData.id, userData.name, userData.email));
+          const correctionsFromOthers = mergedRequests.filter((request) => (
+            !isOwnRequest(request, userData.id, userData.name, userData.email) && hasCorrectionsInRequest(request)
+          ));
+
+          setOwnRequests(own);
+
+          try {
+            const revisionResponse = await axios.get(`${API_URL}/admin/solicitudesRevision`, {
+              params: { userId: userData.id }
+            });
+
+            const revisionData = Array.isArray(revisionResponse.data?.data)
+              ? revisionResponse.data.data
+              : [];
+            console.log('Solicitudes en revisión para admin:', revisionData);
+
+            const normalizedRevisionRequests = revisionData
+              .map(normalizeRevisionRequest)
+              .filter((request) => Boolean(request.idSolicitud));
+
+            setReceivedRequests(mergeUniqueRequests([
+              ...normalizedRevisionRequests,
+              ...correctionsFromOthers,
+            ]));
+          } catch (revisionError) {
+            console.error('Error al obtener solicitudes en revision para admin:', revisionError);
+            setReceivedRequests(correctionsFromOthers);
+          }
+        } else {
+          setOwnRequests(mergedRequests);
+          setReceivedRequests([]);
+        }
+
+        setIsAdmin(adminUser);
+        console.log('Solicitudes cargadas desde /getRequests:', mergedRequests);
+
+      } catch (error) {
+        // Fallback para mantener compatibilidad con los endpoints actuales.
         try {
-          const completedResponse = await axios.get(
-            `${API_URL}/getCompletedRequests`,
+          const activeResponse = await axios.get(
+            `${API_URL}/getActiveRequests`,
             { params: { userId: userData.id } }
           );
 
-          const fullyCompletedRequests = completedResponse.data;
-          // Asignar etapa_actual desde formulario para solicitudes completadas
-          const fullyCompletedRequestsWithStages = fullyCompletedRequests.map((request) => ({
-            ...request,
-            etapa_actual: Number(request.formulario) || 0,
-          }));
+          const activeRequests = Array.isArray(activeResponse.data) ? activeResponse.data : [];
+          const requestsWithStages = activeRequests.map(normalizeRequest);
 
-          // Filtro extra: solo solicitudes donde TODOS los formularios están en 'Completado'
-          const allCompleted = requestsWithStages.filter(request => {
-            if (!request.estadoFormularios) return false;
-            return Object.values(request.estadoFormularios).every(estado => estado === "Completado");
-          });
+          let mergedRequests = [...requestsWithStages];
 
-          // Combinar ambas fuentes y eliminar duplicados
-          const allCompletedRequests = [...fullyCompletedRequestsWithStages, ...allCompleted];
-          const uniqueCompletedRequests = allCompletedRequests.filter((request, index, array) =>
-            array.findIndex(r => r.idSolicitud === request.idSolicitud) === index
-          );
+          try {
+            const completedResponse = await axios.get(
+              `${API_URL}/getCompletedRequests`,
+              { params: { userId: userData.id } }
+            );
 
-          setCompletedRequests(uniqueCompletedRequests);
-          console.log("Solicitudes terminadas (solo finalizadas):", uniqueCompletedRequests);
+            const fullyCompletedRequests = Array.isArray(completedResponse.data) ? completedResponse.data : [];
+            const fullyCompletedRequestsWithStages = fullyCompletedRequests.map(normalizeRequest);
 
-        } catch (completedError) {
-          if (completedError.response?.status === 404) {
-            // Si no hay solicitudes completadas del backend, buscar en activas
-            const allCompleted = requestsWithStages.filter(request => {
+            const allCompleted = requestsWithStages.filter((request) => {
               if (!request.estadoFormularios) return false;
-              return Object.values(request.estadoFormularios).every(estado => estado === "Completado");
+              return Object.values(request.estadoFormularios).every((estado) => estado === 'Completado');
             });
-            setCompletedRequests(allCompleted);
-            console.log("Solo se encontraron solicitudes finalizadas en activas:", allCompleted);
-          } else {
-            console.error('Error al obtener solicitudes completadas:', completedError);
-            setCompletedRequests([]);
-          }
-        }
 
-      } catch (error) {
-        console.error('Error al obtener solicitudes activas:', error);
-        setActiveRequests([]);
+            mergedRequests = mergeUniqueRequests([
+              ...requestsWithStages,
+              ...fullyCompletedRequestsWithStages,
+              ...allCompleted,
+            ]);
+          } catch (completedError) {
+            if (completedError.response?.status !== 404) {
+              console.error('Error al obtener solicitudes completadas:', completedError);
+            }
+          }
+
+          const isAdminFallback = String(userData?.role || '').toLowerCase() === 'admin';
+          const validRequests = mergedRequests.filter((request) => Boolean(request.idSolicitud));
+
+          setIsAdmin(isAdminFallback);
+
+          if (isAdminFallback) {
+            const own = validRequests.filter((request) => isOwnRequest(request, userData.id, userData.name, userData.email));
+            const correctionsFromOthers = validRequests.filter((request) => (
+              !isOwnRequest(request, userData.id, userData.name, userData.email) && hasCorrectionsInRequest(request)
+            ));
+
+            setOwnRequests(own);
+            setReceivedRequests(correctionsFromOthers);
+          } else {
+            setOwnRequests(validRequests);
+            setReceivedRequests([]);
+          }
+
+          console.log('Solicitudes cargadas desde fallback:', mergedRequests);
+        } catch (fallbackError) {
+          console.error('Error al obtener solicitudes:', error);
+          console.error('Error en fallback de solicitudes:', fallbackError);
+          setOwnRequests([]);
+          setReceivedRequests([]);
+        }
       }
       setLoading(false);
     };
@@ -241,15 +319,14 @@ function Dashboard({ userData }) {
   }, [userData]);
 
   useEffect(() => {
-    if (activeRequests.length > 0) {
-      console.log("Datos de solicitudes activas:", activeRequests);
-      console.log("Valores de etapa_actual:", activeRequests.map(r => ({
-        id: r.idSolicitud,
-        etapa: r.etapa_actual,
-        nombre: r.nombre_actividad
+    if (ownRequests.length > 0) {
+      console.log('Mis solicitudes:', ownRequests.map((request) => ({
+        id: request.idSolicitud,
+        etapa: request.etapa_actual,
+        nombre: request.nombre_actividad
       })));
     }
-  }, [activeRequests]);
+  }, [ownRequests]);
  
   const handleCreateNewRequest = async () => {
     try {
@@ -291,77 +368,39 @@ function Dashboard({ userData }) {
     }
 };
 
-const handleContinueRequest = async (request) => {
+const handleContinueRequest = async (request, { readOnly = false } = {}) => {
   try {
     console.log(`🔎 Buscando datos actualizados para la solicitud con ID: ${request.idSolicitud}`);
     const response = await axios.get(`${API_URL}/getSolicitud`, {
       params: { id_solicitud: request.idSolicitud }
     });
     
-    // Obtener datos de la hoja SOLICITUDES que contiene ETAPAS
-    const solicitudData = response.data.SOLICITUDES || response.data;
+    // Aplanar todas las hojas para conservar los campos de todos los formularios
+    const solicitudData = flattenSolicitudResponse(response.data);
+    const solicitudMeta = response.data?.SOLICITUDES || solicitudData;
 
     console.log("Estado de formularios:", {
-      form1: solicitudData.estado_formulario_1,
-      form2: solicitudData.estado_formulario_2,
-      form3: solicitudData.estado_formulario_3,
-      form4: solicitudData.estado_formulario_4
+      form1: solicitudMeta.estado_formulario_1,
+      form2: solicitudMeta.estado_formulario_2,
+      form3: solicitudMeta.estado_formulario_3,
+      form4: solicitudMeta.estado_formulario_4
     });
     
     // Extraer etapa_actual y paso de los datos de SOLICITUDES
-    const etapa_actual = solicitudData.etapa_actual || request.formulario;
-    const paso = solicitudData.paso || 0;
+    const etapa_actual = solicitudMeta.etapa_actual || request.formulario;
+    const paso = solicitudMeta.paso || 0;
     
     localStorage.setItem('id_solicitud', solicitudData.id_solicitud);
     localStorage.setItem('formData', JSON.stringify(solicitudData));
     
-    navigate(`/formulario/${etapa_actual}?solicitud=${request.idSolicitud}&paso=${paso}`);
+    navigate(`/formulario/${etapa_actual}?solicitud=${request.idSolicitud}&paso=${paso}${readOnly ? '&readOnly=1' : ''}`);
   } catch (error) {
     console.error('🚨 Error al continuar la solicitud:', error);
     alert('Hubo un problema al cargar los datos de la solicitud. Inténtalo de nuevo.');
   }
 };
   
-const handleGenerateFormReport = async (request, formNumber) => {
-  try {
-    const { idSolicitud } = request;
-
-    if (!idSolicitud || !formNumber) {
-      alert("No se puede generar el informe porque falta información.");
-      return;
-    }
-
-    console.log(`🔎 Buscando datos de la solicitud con ID: ${idSolicitud}`);
-    
-    // 1. Obtener datos actualizados desde Google Sheets
-    const response = await axios.get(`${API_URL}/getSolicitud`, {
-      params: { id_solicitud: idSolicitud }
-    });
-
-    if (response.status === 200 && response.data) {
-      // 2. Extraer y guardar los datos
-      const solicitudData = response.data.SOLICITUDES || response.data;
-      
-      if (!solicitudData.id_solicitud) {
-        throw new Error("La respuesta no contiene un ID válido.");
-      }
-      
-      localStorage.setItem('id_solicitud', solicitudData.id_solicitud);
-      localStorage.setItem('formData', JSON.stringify(solicitudData));
-      
-      // 3. Utilizar el servicio existente
-      await openFormReport(idSolicitud, formNumber);
-    } else {
-      throw new Error('No se encontraron datos para la solicitud.');
-    }
-  } catch (error) {
-    console.error('🚨 Error al generar el reporte del formulario:', error);
-    alert('Hubo un problema al generar el reporte. Inténtalo de nuevo.');
-  }
-};
-
-
-const handleNavigateToForm = async (request, formNumber) => {
+const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
   try {
     const { idSolicitud } = request;
     
@@ -377,12 +416,12 @@ const handleNavigateToForm = async (request, formNumber) => {
     
     if (response.status === 200 && response.data) {
       // Guardar los datos actualizados en localStorage
-      const solicitudData = response.data.SOLICITUDES || response.data;
+      const solicitudData = flattenSolicitudResponse(response.data);
       localStorage.setItem('formData', JSON.stringify(solicitudData));
       console.log(`✅ Datos cargados correctamente para solicitud ${idSolicitud}`);
       
       // Navegar al formulario
-      navigate(`/formulario/${formNumber}?solicitud=${idSolicitud}&paso=0`);
+      navigate(`/formulario/${formNumber}?solicitud=${idSolicitud}&paso=0${readOnly ? '&readOnly=1' : ''}`);
     } else {
       throw new Error('No se encontraron datos para esta solicitud');
     }
@@ -399,30 +438,57 @@ const handleNavigateToForm = async (request, formNumber) => {
     "Mercadeo"
   ];
 
-  const getButtonState = (request, formNumber, isInCompletedSection = false) => {
+  const getButtonState = (request, formNumber, { isReceived = false } = {}) => {
     const currentStage = Number(request.etapa_actual) || 0;
     const currentForm = formNumber === currentStage;
     
     // Verificar el estado específico de este formulario
     const formStatus = request.estadoFormularios?.[formNumber.toString()] || "En progreso";
-    const isThisFormCompleted = formStatus === "Completado";
+    const normalizedStatus = normalizeStatusForMatch(formStatus);
+    const isThisFormCompleted = normalizedStatus === "completado" || normalizedStatus === "Completado";
+    const isApproved = normalizedStatus === 'aprobado';
+    const isInReview = normalizedStatus === 'enviado a revision';
+    const isCorrections = isCorrectionsStatus(formStatus);
+
+    const blockedForOwner = !isAdmin && !isReceived && isLockedForOwner(formStatus);
+
+    if (isApproved) {
+      return {
+        formEnabled: !blockedForOwner,
+        reportEnabled: true,
+        formColor: '#2e7d32',
+        reportColor: '#f0611a',
+        cursor: blockedForOwner ? 'not-allowed' : 'pointer',
+        progress: 100
+      };
+    }
+
+    if (isInReview) {
+      return {
+        formEnabled: isAdmin || isReceived,
+        reportEnabled: false,
+        formColor: '#f9a825',
+        reportColor: '#e0e0e0',
+        cursor: (isAdmin || isReceived) ? 'pointer' : 'not-allowed',
+        progress: 100
+      };
+    }
+
+    if (isCorrections) {
+      return {
+        formEnabled: true,
+        reportEnabled: false,
+        formColor: '#ef6c00',
+        reportColor: '#e0e0e0',
+        cursor: 'pointer',
+        progress: 100
+      };
+    }
     
     const isCurrentFormComplete = isFormCompleted(request, formNumber);
     const isPast = formNumber < currentStage;
     const isCompleted = isFormCompleted(request, formNumber) || isThisFormCompleted;
   
-    // En la sección de solicitudes terminadas, asegúrate de que getButtonState se llame con true y que siempre devuelva los botones habilitados para formularios y reportes
-    if (isInCompletedSection) {
-      return { 
-        formEnabled: true, 
-        reportEnabled: true,
-        formColor: '#1976d2', 
-        reportColor: '#f0611a',
-        cursor: 'pointer', 
-        progress: 100 
-      };
-    }
-
     // Lógica para solicitudes en creación
     if (isCurrentFormComplete || isPast || isThisFormCompleted) {
       return { 
@@ -513,6 +579,188 @@ const handleNavigateToForm = async (request, formNumber) => {
     );
   }
 
+  const isRequestCompleted = (request) => {
+    if (request?.estadoFormularios && typeof request.estadoFormularios === 'object') {
+      return Object.values(request.estadoFormularios).every((estado) => estado === 'Completado');
+    }
+
+    return [1, 2, 3, 4].every((formNumber) => isFormCompleted(request, formNumber));
+  };
+
+  const renderFormNamesHeader = () => {
+    return (
+      <div style={{ display: 'flex', marginTop: '10px', marginLeft: '42%' }}>
+        <div style={{ width: '120px' }}></div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {formNames.map((name, index) => (
+            <div
+              key={`form-name-${index}`}
+              style={{
+                width: '120px',
+                textAlign: 'center',
+                fontWeight: 'bold',
+                color: '#1976d2'
+              }}
+            >
+              <Typography
+                variant="body2"
+                align="center"
+                style={{
+                  fontSize: '0.75rem',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+                title={name}
+              >
+                {name}
+              </Typography>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderRequestList = ({ requests, readOnlyMode = false, isReceived = false }) => (
+    <List>
+      {requests.map((request) => (
+        <ListItem key={`${readOnlyMode ? 'readonly' : 'own'}-${request.idSolicitud}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {(() => {
+            const waitingCorrections = hasCorrectionsInRequest(request);
+            const titleText = isReceived
+              ? `${request.fecha_solicitud || 'Sin fecha'} - ${request.nombre_solicitante || 'Usuario sin nombre'} - ${request.nombre_actividad || `Solicitud ${request.idSolicitud} `} `
+              : (request.nombre_actividad || `Solicitud ${request.idSolicitud}  `);
+
+            return (
+              <ListItemText
+                primary={
+                  <span>
+                    {titleText}
+                    {waitingCorrections && (
+                      <span style={{ color: '#ef6c00', fontWeight: 700, marginLeft: '8px' }}>
+                        Esperando correccion
+                      </span>
+                    )}
+                  </span>
+                }
+              />
+            );
+          })()}
+
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={() => {
+              const currentFormStatus = request.estadoFormularios?.[String(request.etapa_actual)] || '';
+              const shouldReadOnly = readOnlyMode || (!isAdmin && isLockedForOwner(currentFormStatus));
+              handleContinueRequest(request, { readOnly: shouldReadOnly });
+            }}
+            style={{ marginRight: '15px', marginLeft: '15px' }}
+          >
+            {readOnlyMode || isReceived || isRequestCompleted(request) ? 'Ver formulario' : 'Continuar'}
+          </Button>
+
+          <div style={{ display: 'flex', gap: '10px' }}>
+            {[1, 2, 3, 4].map((formNumber) => {
+              if (readOnlyMode) {
+                return (
+                  <Button
+                    key={`view-${request.idSolicitud}-${formNumber}`}
+                    variant="contained"
+                    style={{
+                      backgroundColor: '#1976d2',
+                      width: '120px',
+                      height: '36px',
+                    }}
+                    onClick={() => handleNavigateToForm(request, formNumber, true)}
+                  >
+                    {formNumber}
+                  </Button>
+                );
+              }
+
+              const { formEnabled, reportEnabled, formColor, reportColor } = getButtonState(request, formNumber, { isReceived });
+
+              const formStatus = request.estadoFormularios?.[String(formNumber)] || '';
+              const shouldReadOnly = !isAdmin && isLockedForOwner(formStatus);
+
+              return (
+                <div key={`container-${request.idSolicitud}-${formNumber}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '120px' }}>
+                  <div style={{ display: 'flex', width: '100%', height: '36px' }}>
+                    <Button
+                      variant="contained"
+                      style={{
+                        backgroundColor: formColor,
+                        cursor: formEnabled ? 'pointer' : 'not-allowed',
+                        flex: 1,
+                        borderRadius: '4px 0 0 4px',
+                        minWidth: 'unset',
+                        padding: '6px 8px',
+                        height: '36px'
+                      }}
+                      onClick={() => handleNavigateToForm(request, formNumber, shouldReadOnly)}
+                      disabled={!formEnabled}
+                    >
+                      {formNumber}
+                    </Button>
+
+                    {reportEnabled ? (
+                      <Tooltip title="Generar reporte">
+                        <span>
+                          <Button
+                            variant="contained"
+                            style={{
+                              backgroundColor: reportColor,
+                              cursor: loadingReports[`${request.idSolicitud}-${formNumber}`] ? 'wait' : 'pointer',
+                              flex: 1,
+                              borderRadius: '0 4px 4px 0',
+                              minWidth: 'unset',
+                              padding: '6px 8px',
+                              height: '36px'
+                            }}
+                            onClick={() => handleDownloadFormReport(request, formNumber)}
+                            disabled={loadingReports[`${request.idSolicitud}-${formNumber}`]}
+                          >
+                            {loadingReports[`${request.idSolicitud}-${formNumber}`] ? (
+                              <CircularProgress size={20} color="inherit" />
+                            ) : (
+                              <Print style={{ fontSize: '16px' }} />
+                            )}
+                          </Button>
+                        </span>
+                      </Tooltip>
+                    ) : (
+                      <Tooltip title="Formulario no completado">
+                        <span>
+                          <Button
+                            variant="contained"
+                            style={{
+                              backgroundColor: reportColor,
+                              cursor: 'not-allowed',
+                              flex: 1,
+                              borderRadius: '0 4px 4px 0',
+                              minWidth: 'unset',
+                              padding: '6px 8px',
+                              height: '36px'
+                            }}
+                            disabled
+                          >
+                            <Print style={{ fontSize: '16px' }} />
+                          </Button>
+                        </span>
+                      </Tooltip>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </ListItem>
+      ))}
+    </List>
+  );
+
   return (
     <ThemeProvider theme={theme}>
       <div style={{ padding: '20px', marginTop: '130px' }}>
@@ -526,274 +774,21 @@ const handleNavigateToForm = async (request, formNumber) => {
           Crear Nueva Solicitud
         </Button>
 
-        {/* Solicitudes en Creación */}
         <Typography variant="h6" style={{ marginTop: '20px' }}>
-          Solicitudes en Creación:
+          Mis Solicitudes:
         </Typography>
-        {activeRequests.length > 0 && (
-          <div style={{ 
-            display: 'flex', 
-            marginTop: '10px',
-            marginLeft: '42%', // Alineamos con los botones de las solicitudes
-          }}>
-            <div style={{ width: '80px' }}></div> {/* Espacio para el botón "Continuar" */}
-            <div style={{ display: 'flex', gap: '10px' }}>
-              {formNames.map((name, index) => (
-                <div key={`form-name-${index}`} style={{ 
-                  width: '120px', 
-                  textAlign: 'center',
-                  fontWeight: 'bold',
-                  color: '#1976d2' 
-                }}>
-                  <Typography 
-                    variant="body2" 
-                    align="center"
-                    style={{
-                      fontSize: '0.75rem',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                    title={name}
-                  >
-                    {name}
-                  </Typography>
-                </div>
-              ))}
-            </div>
-          </div>
+        {ownRequests.length > 0 && renderFormNamesHeader()}
+        {renderRequestList({ requests: ownRequests, readOnlyMode: false })}
+
+        {isAdmin && (
+          <>
+            <Typography variant="h6" style={{ marginTop: '20px' }}>
+              Solicitudes recibidas:
+            </Typography>
+            {receivedRequests.length > 0 && renderFormNamesHeader()}
+            {renderRequestList({ requests: receivedRequests, readOnlyMode: false, isReceived: true })}
+          </>
         )}
-        <List>
-          {activeRequests.map((request) => (
-            <ListItem key={request.idSolicitud} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <ListItemText primary={request.nombre_actividad || `Solicitud ${request.idSolicitud}`} />
-              <Button
-                variant="outlined"
-                color="primary"
-                onClick={() => handleContinueRequest(request)}
-                style={{ marginRight: '15px' }}
-              >
-                Continuar
-              </Button>
-              
-              <div style={{ display: 'flex', gap: '10px' }}>
-                {[1, 2, 3, 4].map((formNumber) => {
-                  const { formEnabled, reportEnabled, formColor, reportColor } = getButtonState(request, formNumber, false);
-                  return (
-                    <div key={`container-${request.idSolicitud}-${formNumber}`} style={{ 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      alignItems: 'center',
-                      width: '120px' 
-                    }}>
-                      <div style={{ display: 'flex', width: '100%', height: '36px' }}>
-                        {/* Botón del formulario (mitad izquierda) */}
-                        <Button
-                          variant="contained"
-                          style={{
-                            backgroundColor: formColor,
-                            cursor: formEnabled ? 'pointer' : 'not-allowed',
-                            flex: 1,
-                            borderRadius: '4px 0 0 4px',
-                            minWidth: 'unset',
-                            padding: '6px 8px',
-                            height: '36px'
-                          }}
-                          onClick={() => handleNavigateToForm(request, formNumber)}
-                          disabled={!formEnabled}
-                        >
-                          {formNumber}
-                        </Button>
-                        
-                        {/* Botón del reporte (mitad derecha) */}
-                        {reportEnabled ? (
-                          <Tooltip title="Generar reporte">
-                            <span>
-                              <Button
-                                variant="contained"
-                                style={{
-                                  backgroundColor: reportColor,
-                                  cursor: loadingReports[`${request.idSolicitud}-${formNumber}`] ? 'wait' : 'pointer',
-                                  flex: 1,
-                                  borderRadius: '0 4px 4px 0',
-                                  minWidth: 'unset',
-                                  padding: '6px 8px',
-                                  height: '36px'
-                                }}
-                                onClick={() => handleDownloadFormReport(request, formNumber)}
-                                disabled={loadingReports[`${request.idSolicitud}-${formNumber}`]}
-                              >
-                                {loadingReports[`${request.idSolicitud}-${formNumber}`] ? (
-                                  <CircularProgress size={20} color="inherit" />
-                                ) : (
-                                  <Print style={{ fontSize: '16px' }} />
-                                )}
-                              </Button>
-                            </span>
-                          </Tooltip>
-                        ) : (
-                          <Tooltip title="Formulario no completado">
-                            <span>
-                              <Button
-                                variant="contained"
-                                style={{
-                                  backgroundColor: reportColor,
-                                  cursor: 'not-allowed',
-                                  flex: 1,
-                                  borderRadius: '0 4px 4px 0',
-                                  minWidth: 'unset',
-                                  padding: '6px 8px',
-                                  height: '36px'
-                                }}
-                                disabled
-                              >
-                                <Print style={{ fontSize: '16px' }} />
-                              </Button>
-                            </span>
-                          </Tooltip>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </ListItem>
-          ))}
-        </List>
-        {/* Solicitudes Terminadas */}
-        <Typography variant="h6" style={{ marginTop: '20px' }}>
-          Solicitudes Terminadas:
-        </Typography>
-        {completedRequests.length > 0 && (
-          <div style={{ 
-            display: 'flex', 
-            marginTop: '10px',
-            marginLeft: '42%', // Alineamos con los botones de las solicitudes
-          }}>
-            <div style={{ width: '80px' }}></div> {/* Espacio para el botón "Continuar" */}
-            <div style={{ display: 'flex', gap: '10px' }}>
-              {formNames.map((name, index) => (
-                <div key={`completed-form-name-${index}`} style={{ 
-                  width: '120px', 
-                  textAlign: 'center',
-                  fontWeight: 'bold',
-                  color: '#1976d2' 
-                }}>
-                  <Typography 
-                    variant="body2" 
-                    align="center"
-                    style={{
-                      fontSize: '0.75rem',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                    title={name}
-                  >
-                    {name}
-                  </Typography>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        <List>
-        {completedRequests.map((request) => (
-          <ListItem key={request.idSolicitud} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <ListItemText primary={request.nombre_actividad || `Solicitud ${request.idSolicitud}`} />
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={() => handleNavigateToForm(request, 1)}
-              style={{ marginRight: '15px' }}
-            >
-              Ver Formularios
-            </Button>
-            
-            <div style={{ display: 'flex', gap: '10px' }}>
-              {[1, 2, 3, 4].map((formNumber) => {
-                const { formEnabled, reportEnabled, formColor, reportColor } = getButtonState(request, formNumber, true);
-                return (
-                  <div key={`container-${request.idSolicitud}-${formNumber}`} style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    alignItems: 'center',
-                    width: '120px' 
-                  }}>
-                    <div style={{ display: 'flex', width: '100%', height: '36px' }}>
-                      {/* Botón del formulario (mitad izquierda) */}
-                      <Button
-                        variant="contained"
-                        style={{
-                          backgroundColor: formColor,
-                          cursor: formEnabled ? 'pointer' : 'not-allowed',
-                          flex: 1,
-                          borderRadius: '4px 0 0 4px',
-                          minWidth: 'unset',
-                          padding: '6px 8px',
-                          height: '36px'
-                        }}
-                        onClick={() => handleNavigateToForm(request, formNumber)}
-                        disabled={!formEnabled}
-                      >
-                        {formNumber}
-                      </Button>
-                      
-                      {/* Botón del reporte (mitad derecha) */}
-                      {reportEnabled ? (
-                        <Tooltip title="Generar reporte">
-                          <span>
-                            <Button
-                              variant="contained"
-                              style={{
-                                backgroundColor: reportColor,
-                                cursor: loadingReports[`${request.idSolicitud}-${formNumber}`] ? 'wait' : 'pointer',
-                                flex: 1,
-                                borderRadius: '0 4px 4px 0',
-                                minWidth: 'unset',
-                                padding: '6px 8px',
-                                height: '36px'
-                              }}
-                              onClick={() => handleDownloadFormReport(request, formNumber)}
-                              disabled={loadingReports[`${request.idSolicitud}-${formNumber}`]}
-                            >
-                              {loadingReports[`${request.idSolicitud}-${formNumber}`] ? (
-                                <CircularProgress size={20} color="inherit" />
-                              ) : (
-                                <Print style={{ fontSize: '16px' }} />
-                              )}
-                            </Button>
-                          </span>
-                        </Tooltip>
-                      ) : (
-                        <Tooltip title="Formulario no completado">
-                          <span>
-                            <Button
-                              variant="contained"
-                              style={{
-                                backgroundColor: reportColor,
-                                cursor: 'not-allowed',
-                                flex: 1,
-                                borderRadius: '0 4px 4px 0',
-                                minWidth: 'unset',
-                                padding: '6px 8px',
-                                height: '36px'
-                              }}
-                              disabled
-                            >
-                              <Print style={{ fontSize: '16px' }} />
-                            </Button>
-                          </span>
-                        </Tooltip>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </ListItem>
-        ))}
-        </List>
       </div>
     </ThemeProvider>
   );
@@ -803,6 +798,8 @@ Dashboard.propTypes = {
   userData: PropTypes.shape({
     id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
     name: PropTypes.string.isRequired,
+    email: PropTypes.string,
+    role: PropTypes.string,
   }).isRequired,
 };
 
