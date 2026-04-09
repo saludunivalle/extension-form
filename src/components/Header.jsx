@@ -1,5 +1,6 @@
 import { styled } from "@mui/material/styles";
 import { Link } from "react-router-dom";
+import Cookies from 'js-cookie';
 import logo from "/src/assets/images/logounivalle.svg";
 
 const HeaderContainer = styled("header")(({ theme }) => ({
@@ -80,6 +81,21 @@ const Logo = styled("div")(({ theme }) => ({
   },
 }));
 
+const LogoutButton = styled("button")(({ theme }) => ({
+  border: 'none',
+  backgroundColor: '#1976d2',
+  color: '#ffffff',
+  borderRadius: '6px',
+  padding: '8px 12px',
+  cursor: 'pointer',
+  fontWeight: 600,
+  marginRight: '10px',
+  [theme.breakpoints.down('sm')]: {
+    marginTop: '8px',
+    marginRight: 0,
+  },
+}));
+
 const capitalizeWords = (str) => {
   return str
     .toLowerCase()
@@ -89,6 +105,18 @@ const capitalizeWords = (str) => {
 };
 
 const Header = ({ userData }) => {
+  const normalizedRole = userData?.role?.toLowerCase() === 'admin' ? 'admin' : '';
+  const displayName = userData?.name ? capitalizeWords(userData.name) : '';
+
+  const handleLogout = () => {
+    Cookies.remove('token');
+    localStorage.removeItem('google_token');
+    localStorage.removeItem('user_data');
+    localStorage.removeItem('user_id');
+    localStorage.removeItem('email');
+    window.location.replace('/login');
+  };
+
   return (
     <HeaderContainer role="navegación" aria-label="Navegación Principal">
       <Logo>
@@ -98,8 +126,11 @@ const Header = ({ userData }) => {
       </Logo>
       <TitleContainer>
         <Title>Solicitud Actividades de Extensión</Title>
-        {userData && <UserName>{`${capitalizeWords(userData.name)}`}</UserName>}
+        {userData && <UserName>{normalizedRole === 'admin' ? `${displayName} - Administrador` : displayName}</UserName>}
       </TitleContainer>
+      <LogoutButton type="button" onClick={handleLogout}>
+        Salir
+      </LogoutButton>
     </HeaderContainer>
   );
 };

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Container, Typography, useMediaQuery, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button } from '@mui/material';
+import { Container, Typography, useMediaQuery, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button, Alert } from '@mui/material';
 import FormSection from '../components/FormSection/FormSection';
 import FormSection2 from '../components/FormSection2/FormSection2';
 import FormSection3 from '../components/FormSection3/FormSection3';
@@ -25,8 +25,125 @@ const sectionShortTitles = [
   'Identificación de Mercadeo'
 ];
 
+const flattenSolicitudData = (data) => {
+  if (!data || typeof data !== 'object') {
+    return {};
+  }
+
+  const rootFields = {};
+  const nestedFields = {};
+
+  Object.entries(data).forEach(([key, value]) => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      Object.assign(nestedFields, value);
+    } else {
+      rootFields[key] = value;
+    }
+  });
+
+  return Object.keys(nestedFields).length > 0 ? { ...rootFields, ...nestedFields } : data;
+};
+
+const normalizeYesNo = (value) => {
+  if (value === true) return 'Sí';
+  if (value === false) return 'No';
+  if (typeof value !== 'string') return value;
+
+  const normalized = value.trim().toLowerCase();
+  if (['sí', 'si', 's', 'yes', 'y', 'true', '1'].includes(normalized)) return 'Sí';
+  if (['no', 'n', 'false', '0'].includes(normalized)) return 'No';
+  return value;
+};
+
+const hasUsefulText = (value) => {
+  if (typeof value !== 'string') return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized !== '' && normalized !== 'no';
+};
+
+const normalizeLoadedSolicitudData = (rawData) => {
+  const data = { ...flattenSolicitudData(rawData) };
+
+  const yesNoFields = [
+    'personasInteresChecked',
+    'personasMatriculadasChecked',
+    'innovacion',
+    'solicitudExterno',
+    'interesSondeo',
+    'llamadas',
+    'encuestas',
+    'webinar',
+    'pautas_redes',
+    'preregistroFisico',
+    'preregistroGoogle',
+    'gremios',
+    'sectores_empresariales',
+    'politicas_publicas',
+    'focusGroup',
+    'desayunosTrabajo',
+    'almuerzosTrabajo',
+    'openHouse',
+    'ferias_colegios',
+    'ferias_empresarial',
+    'modalidadPresencial',
+    'modalidadVirtual',
+    'modalidadSemipresencial',
+    'traslados_docente',
+    'modalidad_asistida_tecnologia',
+    'particulares',
+    'colegios',
+    'empresas',
+    'egresados',
+    'colaboradores',
+    'paginaWeb',
+    'facebook',
+    'instagram',
+    'linkedin',
+    'correo',
+    'prensa',
+    'boletin',
+    'llamadas_redes'
+  ];
+
+  yesNoFields.forEach((field) => {
+    if (data[field] !== undefined) {
+      data[field] = normalizeYesNo(data[field]);
+    }
+  });
+
+  const conditionalFields = [
+    { check: 'otroInteresChecked', text: 'otroInteres' },
+    { check: 'otroMercadeoChecked', text: 'otroMercadeo' },
+    { check: 'otroEstrategiasChecked', text: 'otroEstrategias' },
+    { check: 'preregistroOtroChecked', text: 'preregistroOtro' },
+    { check: 'otros_mesas_trabajoChecked', text: 'otros_mesas_trabajo' },
+    { check: 'otros_mercadeoChecked', text: 'otros_mercadeo' },
+    { check: 'otros_publicos_potencialesChecked', text: 'otros_publicos_potenciales' },
+    { check: 'otro_canalChecked', text: 'otro_canal' }
+  ];
+
+  conditionalFields.forEach(({ check, text }) => {
+    const normalizedCheck = normalizeYesNo(data[check]);
+    const shouldBeChecked = hasUsefulText(data[text]) || normalizedCheck === 'Sí';
+    data[check] = shouldBeChecked ? 'Sí' : 'No';
+  });
+
+  if (!data.preregistroFisico && !data.preregistroGoogle && !hasUsefulText(data.preregistroOtro) && typeof data.preregistro === 'string') {
+    const preregistro = data.preregistro.toLowerCase();
+    if (preregistro.includes('físico') || preregistro.includes('fisico')) {
+      data.preregistroFisico = 'Sí';
+    }
+    if (preregistro.includes('google')) {
+      data.preregistroGoogle = 'Sí';
+    }
+  }
+
+  return data;
+};
+
 function FormPage({ userData }) {
   const [searchParams] = useSearchParams();
+  const isReadOnly = searchParams.get('readOnly') === '1';
   const [highestSectionReached, setHighestSectionReached] = useState(1);
   const { formId } = useParams(); // Se extrae la sección actual de la URL
   const formStep = searchParams.get('paso') || 0;
@@ -197,6 +314,51 @@ useEffect(() => {
   cargarEstadoGlobal();
 }, [solicitudId, formId, userData, totalSteps]);
 
+useEffect(() => {
+  if (!isReadOnly) {
+    return;
+  }
+
+  const blockedWritePaths = [
+    '/guardarProgreso',
+    '/guardarGastos',
+    '/guardarForm2Paso3',
+    '/createNewRequest',
+    '/riesgos',
+    '/migrar-riesgos-form3',
+    '/form/save',
+  ];
+
+  const shouldBlock = (url) => {
+    const rawUrl = String(url || '');
+    return blockedWritePaths.some((path) => rawUrl.includes(path));
+  };
+
+  const mockReadOnlyResponse = {
+    data: { success: true, readOnlyBlocked: true },
+    status: 200,
+    statusText: 'OK',
+    headers: {},
+  };
+
+  const originalPost = axios.post.bind(axios);
+  const originalPut = axios.put.bind(axios);
+  const originalPatch = axios.patch.bind(axios);
+  const originalDelete = axios.delete.bind(axios);
+
+  axios.post = (url, ...args) => (shouldBlock(url) ? Promise.resolve({ ...mockReadOnlyResponse, config: { url, method: 'post' } }) : originalPost(url, ...args));
+  axios.put = (url, ...args) => (shouldBlock(url) ? Promise.resolve({ ...mockReadOnlyResponse, config: { url, method: 'put' } }) : originalPut(url, ...args));
+  axios.patch = (url, ...args) => (shouldBlock(url) ? Promise.resolve({ ...mockReadOnlyResponse, config: { url, method: 'patch' } }) : originalPatch(url, ...args));
+  axios.delete = (url, ...args) => (shouldBlock(url) ? Promise.resolve({ ...mockReadOnlyResponse, config: { url, method: 'delete' } }) : originalDelete(url, ...args));
+
+  return () => {
+    axios.post = originalPost;
+    axios.put = originalPut;
+    axios.patch = originalPatch;
+    axios.delete = originalDelete;
+  };
+}, [isReadOnly]);
+
   // formData se inicializa con el id de solicitud obtenido de la URL
   const [formData, setFormData] = useState(() => {
     const savedFormData = localStorage.getItem('formData');
@@ -263,6 +425,33 @@ useEffect(() => {
     aplicaDesarrollo4: '', aplicaDesarrollo5: '', aplicaCierre1: '',
     aplicaCierre2: '', aplicaOtros1: '', aplicaOtros2: ''
   }});
+
+  useEffect(() => {
+    const hydrateFormData = async () => {
+      if (!solicitudId) return;
+
+      try {
+        const response = await axios.get(`${API_URL}/getSolicitud`, {
+          params: { id_solicitud: solicitudId }
+        });
+
+        const normalizedData = normalizeLoadedSolicitudData(response.data);
+        if (Object.keys(normalizedData).length === 0) return;
+
+        setFormData((prev) => ({
+          ...prev,
+          ...normalizedData,
+          id_solicitud: solicitudId || normalizedData.id_solicitud || prev.id_solicitud,
+        }));
+
+        localStorage.setItem('formData', JSON.stringify(normalizedData));
+      } catch (error) {
+        console.error('Error al hidratar datos de la solicitud:', error);
+      }
+    };
+
+    hydrateFormData();
+  }, [solicitudId]);
 
   // 1. Añadir un nuevo estado para rastrear formularios accesibles
   const [accessibleForms, setAccessibleForms] = useState(() => {
@@ -376,6 +565,10 @@ useEffect(() => {
 
   // Manejo de cambios en los inputs
   const handleInputChange = (event) => {
+    if (isReadOnly) {
+      return;
+    }
+
     const { name, value, files } = event.target;
     setFormData(prev => {
       let updated = { ...prev, [name]: files ? files[0] : value };
@@ -415,6 +608,10 @@ useEffect(() => {
   };
 
   const handleFileChange = (e) => {
+    if (isReadOnly) {
+      return;
+    }
+
     const { name, files } = e.target;
     if (files[0]) {
       setFormData(prev => ({ ...prev, [name]: files[0] }));
@@ -632,6 +829,11 @@ useEffect(() => {
       <Typography variant={isSmallScreen ? 'h5' : 'h4'} gutterBottom sx={{ fontWeight: 'bold', textAlign: isSmallScreen ? 'center' : 'left' }}>
         {sectionTitles[currentSection - 1]}
       </Typography>
+      {isReadOnly && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Modo solo lectura: puedes navegar entre pasos, pero no se guardaran cambios.
+        </Alert>
+      )}
       {renderFormSection()}
       <Dialog open={false} onClose={() => {}}>
         <DialogTitle>Datos Guardados</DialogTitle>

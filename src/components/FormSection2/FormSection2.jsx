@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Box, Button, Stepper, Step, StepLabel, Typography, CircularProgress, Alert, AlertTitle, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import { Box, Button, Stepper, Step, StepLabel, Typography, CircularProgress, Alert, AlertTitle, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, TextField } from '@mui/material';
 import PrintIcon from '@mui/icons-material/Print';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import IconButton from '@mui/material/IconButton';
@@ -19,6 +19,18 @@ import { openFormReport, downloadFormReport, openReportPreview } from '../../ser
 import axios from 'axios'; 
 import PropTypes from 'prop-types';
 import { config } from '../../config';
+import {
+  getRevisionStatus,
+  sendFormsToRevision,
+  approveForms,
+  sendCorrections,
+  getCurrentFormStatus,
+  getCurrentFormComment,
+  isApprovedStatus,
+  isSentToReviewStatus,
+  isCorrectionsStatus,
+  isCompletedStatus,
+} from '../../services/revisionService';
 const API_URL = config.API_URL;
   /* 
   Este componente se encarga de cambiar el color de fondo, el color del texto y otros estilos visuales del ícono:
@@ -81,6 +93,13 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   const [previewLoading, setPreviewLoading] = useState(false);
   const [localFormData, setLocalFormData] = useState({...formData});
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const isReadOnly = new URLSearchParams(location.search).get('readOnly') === '1';
+  const currentUserId = userData?.id || userData?.id_usuario || '';
+  const isAdminUser = String(userData?.role || '').toLowerCase() === 'admin';
+  const [revisionStatusData, setRevisionStatusData] = useState(null);
+  const [revisionActionLoading, setRevisionActionLoading] = useState(false);
+  const [correctionComment, setCorrectionComment] = useState('');
+  const [commentsDialogOpen, setCommentsDialogOpen] = useState(false);
 
   // Define setFormData as a function that updates formData through handleInputChange
   const setFormData = (newDataOrCallback) => {
@@ -121,6 +140,108 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
     console.log('Formulario data recibido: ', formData);
     console.log('Datos del usuario: ', userData);
   }, [formData, userData]);
+
+  const loadRevisionStatus = useCallback(async () => {
+    if (!idSolicitud || !currentUserId) return;
+
+    try {
+      const statusResponse = await getRevisionStatus(idSolicitud, currentUserId);
+      setRevisionStatusData(statusResponse);
+    } catch (error) {
+      console.warn('No fue posible cargar estado de revision del formulario 2:', error);
+    }
+  }, [idSolicitud, currentUserId]);
+
+  useEffect(() => {
+    loadRevisionStatus();
+  }, [loadRevisionStatus]);
+
+  const currentFormReviewStatus = getCurrentFormStatus(revisionStatusData, formId);
+  const currentFormComment = getCurrentFormComment(revisionStatusData, formId);
+  const normalizedReviewStatus = String(currentFormReviewStatus || '').trim().toLowerCase();
+  const isLockedByRevision = !isAdminUser && (isSentToReviewStatus(currentFormReviewStatus) || isApprovedStatus(currentFormReviewStatus));
+  const canUserSendReview = !isAdminUser && !isReadOnly && activeStep === steps.length - 1 && !isLockedByRevision && (isCompletedStatus(currentFormReviewStatus) || isCorrectionsStatus(currentFormReviewStatus) || normalizedReviewStatus === '' || normalizedReviewStatus === 'en progreso');
+  const canAdminReviewActions = isAdminUser && !isReadOnly && activeStep === steps.length - 1 && isSentToReviewStatus(currentFormReviewStatus);
+
+  const handleSendCurrentFormToReview = async () => {
+    if (!idSolicitud || !currentUserId) return;
+
+    setRevisionActionLoading(true);
+    try {
+      const response = await sendFormsToRevision({
+        id_solicitud: idSolicitud,
+        userId: currentUserId,
+        formularios: [formId],
+      });
+
+      if (response?.success) {
+        await loadRevisionStatus();
+        alert('Formulario enviado a revision correctamente.');
+        window.location.href = '/';
+      }
+    } catch (error) {
+      console.error('Error al enviar formulario 2 a revision:', error);
+      alert(error?.response?.data?.message || 'No se pudo enviar el formulario a revision.');
+    } finally {
+      setRevisionActionLoading(false);
+    }
+  };
+
+  const handleApproveCurrentForm = async () => {
+    if (!idSolicitud || !currentUserId) return;
+
+    setRevisionActionLoading(true);
+    try {
+      const response = await approveForms({
+        id_solicitud: idSolicitud,
+        userId: currentUserId,
+        formularios: [formId],
+      });
+
+      if (response?.success) {
+        await loadRevisionStatus();
+        alert('Formulario aprobado correctamente.');
+      }
+    } catch (error) {
+      console.error('Error al aprobar formulario 2:', error);
+      alert(error?.response?.data?.message || 'No se pudo aprobar el formulario.');
+    } finally {
+      setRevisionActionLoading(false);
+    }
+  };
+
+  const handleSendCorrectionsCurrentForm = async () => {
+    if (!idSolicitud || !currentUserId) return;
+
+    if (!correctionComment.trim()) {
+      alert('Debe ingresar un comentario antes de devolver con correccion.');
+      return;
+    }
+
+    setRevisionActionLoading(true);
+    try {
+      const response = await sendCorrections({
+        id_solicitud: idSolicitud,
+        userId: currentUserId,
+        formularios: [formId],
+        comentarios_por_formulario: {
+          [String(formId)]: correctionComment.trim(),
+        },
+        comentarios: correctionComment.trim(),
+      });
+
+      if (response?.success) {
+        await loadRevisionStatus();
+        setCorrectionComment('');
+        alert('Correcciones enviadas correctamente.');
+      }
+    } catch (error) {
+      console.error('Error al enviar correcciones del formulario 2:', error);
+      alert(error?.response?.data?.message || 'No se pudieron enviar correcciones.');
+    } finally {
+      setRevisionActionLoading(false);
+    }
+  };
 
   // 1. Agregar sistema de caché local
 const requestCache = {
@@ -1261,6 +1382,17 @@ useEffect(() => {
         </Typography>
       </Box>
     )}
+    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+      {currentFormComment && (
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={() => setCommentsDialogOpen(true)}
+        >
+          Ver comentarios
+        </Button>
+      )}
+    </Box>
     <Stepper
       activeStep={activeStep}
       sx={{
@@ -1326,10 +1458,17 @@ useEffect(() => {
         <Button disabled={activeStep === 0} onClick={handleBack}>
           Atrás
         </Button>
+        <Button
+          variant="outlined"
+          color="secondary"
+          onClick={() => window.location.href = '/'}
+        >
+          Volver al inicio
+        </Button>
         <Button variant="contained"
           color="primary" 
           onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext} 
-          disabled={isLoading}
+          disabled={isLoading || isLockedByRevision}
           startIcon={isLoading ? <CircularProgress size={20} /> : null}
           >
           {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
@@ -1369,17 +1508,33 @@ useEffect(() => {
               borderTop: '0px', // Quita la línea divisoria
               gap: 2, // Aumenta el espaciado entre botones
             }}>
-              <Button 
-                onClick={() => window.location.href = '/'} 
-                color="secondary" 
-                variant="outlined"
-                sx={{ 
-                  minWidth: '150px', // Ancho fijo para todos los botones
-                  height: '40px'     // Altura fija para todos los botones
-                }}
-              >
-                Volver al Inicio
-              </Button>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Button 
+                  onClick={() => window.location.href = '/'} 
+                  color="secondary" 
+                  variant="outlined"
+                  sx={{ 
+                    minWidth: '150px', // Ancho fijo para todos los botones
+                    height: '40px'     // Altura fija para todos los botones
+                  }}
+                >
+                  Volver al Inicio
+                </Button>
+                {canUserSendReview && (
+                  <Button
+                    onClick={handleSendCurrentFormToReview}
+                    color="secondary"
+                    variant="contained"
+                    disabled={revisionActionLoading}
+                    sx={{
+                      minWidth: '170px',
+                      height: '40px'
+                    }}
+                  >
+                    Enviar a revision
+                  </Button>
+                )}
+              </Box>
               <Box sx={{ display: 'flex', gap: 2 }}> {/* Mayor espacio entre botones */}
                 <Button 
                   onClick={async () => {
@@ -1458,6 +1613,57 @@ useEffect(() => {
             </DialogActions>
           </Dialog>
       </Box>
+
+      {isLockedByRevision && (
+        <Typography variant="body2" color="warning.main" sx={{ mb: 2 }}>
+          Este formulario esta bloqueado porque fue enviado a revision o ya fue aprobado.
+        </Typography>
+      )}
+
+      {activeStep === steps.length - 1 && !isReadOnly && (
+        <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          {canAdminReviewActions && (
+            <>
+              <TextField
+                label="Comentario de correccion"
+                multiline
+                minRows={2}
+                value={correctionComment}
+                onChange={(event) => setCorrectionComment(event.target.value)}
+                sx={{ minWidth: 320, flex: 1 }}
+              />
+              <Button
+                variant="contained"
+                color="success"
+                onClick={handleApproveCurrentForm}
+                disabled={revisionActionLoading}
+              >
+                Aprobar formulario
+              </Button>
+              <Button
+                variant="outlined"
+                color="warning"
+                onClick={handleSendCorrectionsCurrentForm}
+                disabled={revisionActionLoading}
+              >
+                Enviar con correcciones
+              </Button>
+            </>
+          )}
+        </Box>
+      )}
+
+      <Dialog open={commentsDialogOpen} onClose={() => setCommentsDialogOpen(false)}>
+        <DialogTitle>Comentario del formulario</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {currentFormComment || 'Este formulario no tiene comentarios.'}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCommentsDialogOpen(false)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

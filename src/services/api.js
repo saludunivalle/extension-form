@@ -45,6 +45,16 @@ apiClient.interceptors.response.use(
 
 // Servicios específicos
 export const userService = {
+  authGoogle: async (token) => {
+    try {
+      const response = await apiClient.post('/auth/google', { token });
+      return response.data;
+    } catch (error) {
+      console.error('Error en autenticacion Google:', error);
+      throw error;
+    }
+  },
+
   saveUser: async (userData) => {
     try {
       const response = await apiClient.post('/saveUser', userData);

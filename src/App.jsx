@@ -9,16 +9,23 @@ import Cookies from 'js-cookie';
 import {config} from './config';
 function App() {
   const [isLogged, setIsLogged] = useState(false);
-  const [userInfo, setUserInfo] = useState(null);
   const [userData, setUserData] = useState();
 
-  useEffect(() => {
+  const syncUserFromCookie = () => {
     const token = Cookies.get('token');
+    const savedUserData = localStorage.getItem('user_data');
+    const parsedSavedUserData = savedUserData ? JSON.parse(savedUserData) : null;
+
     if (token) {
       try {
         const decodedToken = JSON.parse(token);
         const user = decodedToken.sub
-          ? { id: decodedToken.sub, name: decodedToken.name, email: decodedToken.email }
+          ? {
+              id: decodedToken.sub,
+              name: decodedToken.name,
+              email: decodedToken.email,
+              role: decodedToken.role || parsedSavedUserData?.role || ''
+            }
           : decodedToken;
         console.log("User obtenido:", user);
         
@@ -30,9 +37,20 @@ function App() {
         setUserData(null);
       }
     } else {
+      setIsLogged(false);
       setUserData(null);
     }
+  };
+
+  useEffect(() => {
+    syncUserFromCookie();
   }, []);
+
+  useEffect(() => {
+    if (!userData && isLogged) {
+      syncUserFromCookie();
+    }
+  }, [isLogged, userData]);
   
 useEffect(() => {
   fetch(`${config.API_URL}/health`)
@@ -67,7 +85,11 @@ useEffect(() => {
         <Route
           path="/login"
           element={
-            <GoogleLogin setIsLogin={setIsLogged} setUserInfo={setUserInfo} />
+            userData && userData.id ? (
+              <Navigate to="/" replace />
+            ) : (
+              <GoogleLogin setIsLogin={setIsLogged} setUserData={setUserData} />
+            )
           }
         />
         <Route

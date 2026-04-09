@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Typography, Box, Grid, Checkbox, TextField, Button, 
-  CircularProgress, Snackbar, Alert, Card, CardContent, Divider
+  CircularProgress, Snackbar, Alert, Card, CardContent
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -12,6 +12,24 @@ import PropTypes from "prop-types";
 import axios from 'axios'; // Importar axios para las peticiones HTTP
 import { config } from '../../config'; // Importar la configuración para obtener la URL del backend
 const API_URL = config.API_URL;
+
+const normalizeCategory = (value = '') => {
+  if (typeof value !== 'string') return '';
+
+  const normalized = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
+  if (normalized === 'diseno' || normalized === 'diseño') return 'diseno';
+  if (normalized === 'locacion' || normalized === 'locaciones') return 'locacion';
+  if (normalized === 'otros' || normalized === 'otro') return 'otros';
+  if (normalized === 'desarrollo') return 'desarrollo';
+  if (normalized === 'cierre') return 'cierre';
+
+  return normalized;
+};
 
 function OtrosRiesgos({ idSolicitud, userData, categoria }) {
   const [riesgos, setRiesgos] = useState([]);
@@ -31,7 +49,10 @@ function OtrosRiesgos({ idSolicitud, userData, categoria }) {
         
         if (response.data.success) {
           // Filtrar solo los riesgos de la categoría específica
-          const riesgosFiltrados = response.data.data.filter(r => r.categoria === categoria);
+          const categoriaObjetivo = normalizeCategory(categoria);
+          const riesgosFiltrados = response.data.data.filter(
+            (r) => normalizeCategory(r.categoria) === categoriaObjetivo
+          );
           setRiesgos(riesgosFiltrados);
         }
       } catch (error) {
@@ -60,9 +81,11 @@ function OtrosRiesgos({ idSolicitud, userData, categoria }) {
       
       const response = await axios.post(`${API_URL}/riesgos`, {
         nombre_riesgo: nuevoRiesgo.nombre,
-        aplica: nuevoRiesgo.aplica ? 'Sí' : 'No',
+        aplica: nuevoRiesgo.aplica ? 'Sí aplica' : 'No aplica',
         mitigacion: nuevoRiesgo.mitigacion || '',
         id_solicitud: idSolicitud,
+        id_usuario: userData?.id_usuario,
+        name: userData?.name,
         categoria: categoria
       });
       
@@ -112,6 +135,8 @@ function OtrosRiesgos({ idSolicitud, userData, categoria }) {
         nombre_riesgo: riesgoActualizado.nombre_riesgo,
         aplica: riesgoActualizado.aplica,
         mitigacion: riesgoActualizado.mitigacion,
+        id_usuario: userData?.id_usuario,
+        name: userData?.name,
         categoria: categoria
       });
       
@@ -234,19 +259,19 @@ function OtrosRiesgos({ idSolicitud, userData, categoria }) {
                   </Grid>
                   <Grid item xs={6} md={3} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Checkbox
-                      checked={editando === riesgo.id_riesgo ? riesgo.aplica_temp === 'Sí' : riesgo.aplica === 'Sí'}
+                      checked={editando === riesgo.id_riesgo ? riesgo.aplica_temp === 'Sí aplica' : riesgo.aplica === 'Sí aplica'}
                       onChange={(e) => {
                         if (editando === riesgo.id_riesgo) {
                           const updatedRiesgos = riesgos.map(r => {
                             if (r.id_riesgo === riesgo.id_riesgo) {
-                              return { ...r, aplica_temp: e.target.checked ? 'Sí' : 'No' };
+                              return { ...r, aplica_temp: e.target.checked ? 'Sí aplica' : 'No aplica' };
                             }
                             return r;
                           });
                           setRiesgos(updatedRiesgos);
                         } else {
                           actualizarRiesgo(riesgo.id_riesgo, {
-                            aplica: e.target.checked ? 'Sí' : 'No'
+                            aplica: e.target.checked  ? 'Sí aplica' : 'No aplica'
                           });
                         }
                       }}
@@ -254,8 +279,8 @@ function OtrosRiesgos({ idSolicitud, userData, categoria }) {
                     />
                     <Typography variant="body2" color="textSecondary">
                       {editando === riesgo.id_riesgo 
-                        ? (riesgo.aplica_temp === 'Sí' ? 'Sí aplica' : 'No aplica')
-                        : (riesgo.aplica === 'Sí' ? 'Sí aplica' : 'No aplica')}
+                        ? (riesgo.aplica_temp === 'Sí aplica' || riesgo.aplica_temp === 'Sí' ? 'Sí aplica' : 'No aplica')
+                        : (riesgo.aplica === 'Sí aplica' || riesgo.aplica === 'Sí' ? 'Sí aplica' : 'No aplica')}
                     </Typography>
                   </Grid>
                   <Grid item xs={12} md={4}>
