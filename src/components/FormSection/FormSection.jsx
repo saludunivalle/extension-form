@@ -307,7 +307,8 @@ const API_URL = config.API_URL;
     const normalizedReviewStatus = String(currentFormReviewStatus || '').trim().toLowerCase();
     const isLockedByRevision = !isAdminUser && (isSentToReviewStatus(currentFormReviewStatus) || isApprovedStatus(currentFormReviewStatus));
     const canUserSendReview = !isAdminUser && !isReadOnly && activeStep === steps.length - 1 && !isLockedByRevision && (isCompletedStatus(currentFormReviewStatus) || isCorrectionsStatus(currentFormReviewStatus) || normalizedReviewStatus === '' || normalizedReviewStatus === 'en progreso');
-    const canAdminReviewActions = isAdminUser && !isReadOnly && activeStep === steps.length - 1 && isSentToReviewStatus(currentFormReviewStatus);
+    const canAdminReviewMode = isAdminUser && !isReadOnly && isSentToReviewStatus(currentFormReviewStatus);
+    const canAdminReviewActions = canAdminReviewMode && activeStep === steps.length - 1;
 
     const handleSendCurrentFormToReview = async () => {
       if (!idSolicitud || !currentUserId) return;
@@ -1039,7 +1040,7 @@ const PrintReportButton = () => {
           </Typography>
         )}
 
-        {activeStep === steps.length - 1 && !isReadOnly && canAdminReviewActions && (
+        {canAdminReviewMode && (
           <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
             <TextField
               label="Comentario de correccion"
@@ -1049,22 +1050,26 @@ const PrintReportButton = () => {
               onChange={(event) => setCorrectionComment(event.target.value)}
               sx={{ minWidth: 320, flex: 1 }}
             />
-            <Button
-              variant="contained"
-              color="success"
-              onClick={handleApproveCurrentForm}
-              disabled={revisionActionLoading}
-            >
-              Aprobar formulario
-            </Button>
-            <Button
-              variant="outlined"
-              color="warning"
-              onClick={handleSendCorrectionsCurrentForm}
-              disabled={revisionActionLoading}
-            >
-              Enviar con correcciones
-            </Button>
+            {canAdminReviewActions && (
+              <>
+                <Button
+                  variant="contained"
+                  color="success"
+                  onClick={handleApproveCurrentForm}
+                  disabled={revisionActionLoading}
+                >
+                  Aprobar formulario
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  onClick={handleSendCorrectionsCurrentForm}
+                  disabled={revisionActionLoading}
+                >
+                  Enviar con correcciones
+                </Button>
+              </>
+            )}
           </Box>
         )}
 
