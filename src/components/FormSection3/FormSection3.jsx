@@ -136,7 +136,21 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
   const normalizedReviewStatus = String(currentFormReviewStatus || '').trim().toLowerCase();
   const isLockedByRevision = !isAdminUser && (isSentToReviewStatus(currentFormReviewStatus) || isApprovedStatus(currentFormReviewStatus));
   const canUserSendReview = !isAdminUser && !isReadOnly && activeStep === steps.length - 1 && !isLockedByRevision && (isCompletedStatus(currentFormReviewStatus) || isCorrectionsStatus(currentFormReviewStatus) || normalizedReviewStatus === '' || normalizedReviewStatus === 'en progreso');
-  const canAdminReviewActions = isAdminUser && !isReadOnly && activeStep === steps.length - 1 && isSentToReviewStatus(currentFormReviewStatus);
+  const canAdminReviewMode = isAdminUser && !isReadOnly && isSentToReviewStatus(currentFormReviewStatus);
+  const canAdminReviewActions = canAdminReviewMode && activeStep === steps.length - 1;
+
+  const mergeApprovedStatuses = (estadoBase) => {
+    const revisionStatuses = revisionStatusData?.data?.estado_formularios || revisionStatusData?.estado_formularios || {};
+    const merged = { ...estadoBase };
+
+    Object.entries(revisionStatuses).forEach(([formKey, status]) => {
+      if (String(status || '').trim().toLowerCase() === 'aprobado') {
+        merged[String(formKey)] = 'Aprobado';
+      }
+    });
+
+    return merged;
+  };
 
   const handleSendCurrentFormToReview = async () => {
     if (!idSolicitud || !currentUserId) return;
@@ -559,12 +573,12 @@ const handleSubmit = async () => {
         id_solicitud: idSolicitud,
         etapa_actual: 3,
         paso_actual: 6, // Paso 6 completado
-        estado_formularios: {
+        estado_formularios: mergeApprovedStatuses({
           "1": "Completado",
           "2": "Completado", 
           "3": "Completado", // Marcar formulario 3 como completado
           "4": "En progreso"
-        }
+        })
       });
 
       // IMPORTANTE: Actualizar explícitamente los pasos completados para incluir el paso 5 (último paso en UI)
@@ -883,18 +897,18 @@ const PrintReportButton = () => {
         </Typography>
       )}
 
-      {activeStep === steps.length - 1 && !isReadOnly && (
+      {canAdminReviewMode && (
         <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <TextField
+            label="Comentario de correccion"
+            multiline
+            minRows={2}
+            value={correctionComment}
+            onChange={(event) => setCorrectionComment(event.target.value)}
+            sx={{ minWidth: 320, flex: 1 }}
+          />
           {canAdminReviewActions && (
             <>
-              <TextField
-                label="Comentario de correccion"
-                multiline
-                minRows={2}
-                value={correctionComment}
-                onChange={(event) => setCorrectionComment(event.target.value)}
-                sx={{ minWidth: 320, flex: 1 }}
-              />
               <Button
                 variant="contained"
                 color="success"
