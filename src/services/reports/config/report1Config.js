@@ -513,6 +513,19 @@ export const report1Config = {
     transformedData.observaciones_cambios = formData.observaciones_cambios || '';
     console.log(`✅ Campo observaciones_cambios: "${transformedData.observaciones_cambios}"`);
 
+    // Campos nuevos exclusivos del formulario (no se imprimen en XLSX)
+    [
+      'tipo_valor',
+      'valor_unitario',
+      'extension_solidaria',
+      'costo_extension_solidaria',
+      'pieza_grafica',
+      'personal_externo',
+      'archivo_fondo_comun',
+    ].forEach((field) => {
+      delete transformedData[field];
+    });
+
     // Imprimir datos finales transformados para depuración
     console.log("⭐ DATOS TRANSFORMADOS FINALES:", transformedData);
     return transformedData;

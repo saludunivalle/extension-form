@@ -1,21 +1,40 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Grid, Table, TableBody, TableCell, TableHead, TableRow, TextField, Box, IconButton, Typography, Collapse } from '@mui/material';
 import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
+import PropTypes from 'prop-types';
+
+const parseNumberOrFallback = (value, fallback) => {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
 
 function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
   const [observacionesExpanded, setObservacionesExpanded] = useState(true);
+  const isExtensionSolidaria = String(formData.extension_solidaria || '').trim().toLowerCase() === 'si';
+  const defaultSolidariaObservation = 'Actividad de extension solidaria sin recaudo por inscripcion.';
+
+  useEffect(() => {
+    if (!isExtensionSolidaria) return;
+
+    if (!String(formData.observaciones || '').trim()) {
+      handleInputChange({ target: { name: 'observaciones', value: defaultSolidariaObservation } });
+    }
+  }, [defaultSolidariaObservation, formData.observaciones, handleInputChange, isExtensionSolidaria]);
   
   // Calcular dinámicamente los totales según los datos en formData
-  const totalIngresos = (formData.ingresos_cantidad || 0) * (formData.ingresos_vr_unit || 0);
+  const totalIngresos = isExtensionSolidaria ? 0 : ((formData.ingresos_cantidad || 0) * (formData.ingresos_vr_unit || 0));
 
   // Porcentaje para el fondo común (ajustable por el usuario)
-  const fondoComunPorcentaje = formData.fondo_comun_porcentaje || 30;
+  const fondoComunPorcentaje = parseNumberOrFallback(formData.fondo_comun_porcentaje, 30);
 
   // Cálculo del fondo común, facultad y escuela/departamento
   const fondoComun = (fondoComunPorcentaje / 100) * totalIngresos;
-  const facultadInstitutoPorcentaje = formData.facultad_instituto_porcentaje || 5; // Ahora editable
+  const facultadInstitutoPorcentaje = 5;
   const facultadInstituto = totalIngresos * (facultadInstitutoPorcentaje / 100);
-  const escuelaDepartamento = ((formData.escuela_departamento_porcentaje || 0) / 100) * totalIngresos;
+  const escuelaDepartamentoPorcentaje = parseNumberOrFallback(formData.escuela_departamento_porcentaje, 0);
+  const escuelaDepartamento = (escuelaDepartamentoPorcentaje / 100) * totalIngresos;
+
+  const shouldShowArchivoFondoComun = fondoComunPorcentaje > 30;
 
   // Suma total de los aportes
   const totalAportesUnivalle = fondoComun + facultadInstituto + escuelaDepartamento;
@@ -96,17 +115,12 @@ function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
                     type="number"
                     name="facultad_instituto_porcentaje"
                     value={facultadInstitutoPorcentaje}
-                    onChange={(e) => {
-                      let value = parseFloat(e.target.value) || 0;
-                      if (value < 0) value = 0; // Limitar mínimo a 0%
-                      if (value > 100) value = 100; // Limitar máximo a 100%
-                      handleInputChange({ target: { name: 'facultad_instituto_porcentaje', value } });
-                    }}
+                    disabled
                     inputProps={{
                       inputMode: 'numeric',
                       pattern: '[0-9]*',
-                      min: 0,
-                      max: 100,
+                      min: 5,
+                      max: 5,
                       style: { width: '35px', height: '20px', fontSize: '12px', padding: '2px', textAlign: 'center'},
                     }}
                     size="small"
@@ -126,7 +140,7 @@ function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
                   <TextField
                     type="number"
                     name="escuela_departamento_porcentaje"
-                    value={formData.escuela_departamento_porcentaje || ''}
+                    value={escuelaDepartamentoPorcentaje}
                     onChange={(e) => {
                       let value = parseFloat(e.target.value) || 0;
                       if (value < 0) value = 0; // Limitar mínimo a 0%
@@ -158,6 +172,25 @@ function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
           </TableBody>
         </Table>
       </Grid>
+
+      {shouldShowArchivoFondoComun && (
+        <Grid item xs={12}>
+          <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Formato de Viavilidad y aportes al fondo comun, firmado por el jefe de la Sección de Presupuesto.
+            </Typography>
+            <TextField
+              fullWidth
+              label="Link del soporte fondo comun"
+              name="archivo_fondo_comun"
+              value={formData.archivo_fondo_comun || ''}
+              onChange={handleInputChange}
+              placeholder="https://..."
+              helperText="Ingrese la URL del soporte cuando el fondo comun sea mayor al 30%"
+            />
+          </Box>
+        </Grid>
+      )}
       
       {/* SECCIÓN DE OBSERVACIONES */}
       <Grid item xs={12}>
@@ -184,6 +217,11 @@ function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
           
           <Collapse in={observacionesExpanded}>
             <Box sx={{ p: 2 }}>
+              {isExtensionSolidaria && (
+                <Typography variant="caption" color="warning.main" sx={{ display: 'block', mb: 1 }}>
+                  Advertencia: al ser extension solidaria, los ingresos por inscripcion se mantienen en 0.
+                </Typography>
+              )}
               <TextField
                 fullWidth
                 multiline
@@ -204,3 +242,21 @@ function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
 }
 
 export default Step3FormSection2;
+
+Step3FormSection2.propTypes = {
+  formData: PropTypes.shape({
+    extension_solidaria: PropTypes.string,
+    ingresos_cantidad: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    ingresos_vr_unit: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    fondo_comun_porcentaje: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    facultad_instituto_porcentaje: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    escuela_departamento_porcentaje: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    archivo_fondo_comun: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.shape({ name: PropTypes.string }),
+    ]),
+    observaciones: PropTypes.string,
+  }).isRequired,
+  handleInputChange: PropTypes.func.isRequired,
+  totalGastos: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+};

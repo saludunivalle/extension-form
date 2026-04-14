@@ -11,7 +11,8 @@ function Step3({ formData, setFormData, errors  }) {
     if (formData.modalidad === "Presencial") {
       total = parseInt(formData.horas_trabajo_presencial) || 0;
     } else if (formData.modalidad === "Presencial asistida por tecnología") {
-      total = parseInt(formData.horas_trabajo_pat) || 0;
+      // Compatibilidad: historicamente PAT se persiste en horas_sincronicas.
+      total = parseInt(formData.horas_trabajo_pat || formData.horas_sincronicas) || 0;
     } else if (formData.modalidad === "Virtual") {
       total = parseInt(formData.horas_sincronicas) || 0;
     } else if (formData.modalidad === "Horas de trabajo independientes") {
@@ -29,7 +30,7 @@ function Step3({ formData, setFormData, errors  }) {
         total_horas: total
       }));
     }
-  }, [formData.modalidad, formData.horas_trabajo_presencial, formData.horas_trabajo_pat, formData.horas_sincronicas, formData.horas_trabajo_independiente, setFormData]);
+  }, [formData.modalidad, formData.horas_trabajo_presencial, formData.horas_trabajo_pat, formData.horas_sincronicas, formData.horas_trabajo_independiente, formData.total_horas, setFormData]);
 
   const handleCustomInputChange = (event) => {
     const { name, value } = event.target;
@@ -155,8 +156,15 @@ function Step3({ formData, setFormData, errors  }) {
                   label="Horas de trabajo PAT"
                   fullWidth
                   name="horas_trabajo_pat"
-                  value={formData.horas_trabajo_pat}
-                  onChange={handleCustomInputChange}
+                  value={formData.horas_trabajo_pat || formData.horas_sincronicas || ''}
+                  onChange={(event) => {
+                    const { value } = event.target;
+                    setFormData((prevData) => ({
+                      ...prevData,
+                      horas_trabajo_pat: value,
+                      horas_sincronicas: value,
+                    }));
+                  }}
                   error={!!errors.horas_trabajo_pat}
                   helperText={errors.horas_trabajo_pat}
                   type="number"

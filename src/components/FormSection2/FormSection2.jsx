@@ -21,15 +21,14 @@ import PropTypes from 'prop-types';
 import { config } from '../../config';
 import {
   getRevisionStatus,
-  sendFormsToRevision,
   approveForms,
   sendCorrections,
   getCurrentFormStatus,
-  getCurrentFormComment,
+  getCurrentStepComment,
+  buildLegacyFormCommentsPayloadForStep,
   isApprovedStatus,
   isSentToReviewStatus,
   isCorrectionsStatus,
-  isCompletedStatus,
 } from '../../services/revisionService';
 const API_URL = config.API_URL;
   /* 
@@ -157,12 +156,29 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   }, [loadRevisionStatus]);
 
   const currentFormReviewStatus = getCurrentFormStatus(revisionStatusData, formId);
-  const currentFormComment = getCurrentFormComment(revisionStatusData, formId);
-  const normalizedReviewStatus = String(currentFormReviewStatus || '').trim().toLowerCase();
+  const currentStepComment = getCurrentStepComment(revisionStatusData, formId, activeStep + 1);
   const isLockedByRevision = !isAdminUser && (isSentToReviewStatus(currentFormReviewStatus) || isApprovedStatus(currentFormReviewStatus));
-  const canUserSendReview = !isAdminUser && !isReadOnly && activeStep === steps.length - 1 && !isLockedByRevision && (isCompletedStatus(currentFormReviewStatus) || isCorrectionsStatus(currentFormReviewStatus) || normalizedReviewStatus === '' || normalizedReviewStatus === 'en progreso');
-  const canAdminReviewMode = isAdminUser && !isReadOnly && isSentToReviewStatus(currentFormReviewStatus);
-  const canAdminReviewActions = canAdminReviewMode && activeStep === steps.length - 1;
+  const canAdminReviewMode = isAdminUser && (isSentToReviewStatus(currentFormReviewStatus) || isCorrectionsStatus(currentFormReviewStatus));
+  const canAdminReviewActions = canAdminReviewMode;
+  const isExtensionSolidaria = String(formData.extension_solidaria || '').trim().toLowerCase() === 'si';
+
+  useEffect(() => {
+    if (!isExtensionSolidaria) return;
+
+    if (Number(formData.ingresos_cantidad || 0) !== 0) {
+      handleInputChange({ target: { name: 'ingresos_cantidad', value: 0 } });
+    }
+
+    if (Number(formData.ingresos_vr_unit || 0) !== 0) {
+      handleInputChange({ target: { name: 'ingresos_vr_unit', value: 0 } });
+    }
+  }, [formData.ingresos_cantidad, formData.ingresos_vr_unit, handleInputChange, isExtensionSolidaria]);
+
+  useEffect(() => {
+    if (Number(formData.facultad_instituto_porcentaje || 0) !== 5) {
+      handleInputChange({ target: { name: 'facultad_instituto_porcentaje', value: 5 } });
+    }
+  }, [formData.facultad_instituto_porcentaje, handleInputChange]);
 
   const mergeApprovedStatuses = (estadoBase) => {
     const revisionStatuses = revisionStatusData?.data?.estado_formularios || revisionStatusData?.estado_formularios || {};
@@ -175,30 +191,6 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
     });
 
     return merged;
-  };
-
-  const handleSendCurrentFormToReview = async () => {
-    if (!idSolicitud || !currentUserId) return;
-
-    setRevisionActionLoading(true);
-    try {
-      const response = await sendFormsToRevision({
-        id_solicitud: idSolicitud,
-        userId: currentUserId,
-        formularios: [formId],
-      });
-
-      if (response?.success) {
-        await loadRevisionStatus();
-        alert('Formulario enviado a revision correctamente.');
-        window.location.href = '/';
-      }
-    } catch (error) {
-      console.error('Error al enviar formulario 2 a revision:', error);
-      alert(error?.response?.data?.message || 'No se pudo enviar el formulario a revision.');
-    } finally {
-      setRevisionActionLoading(false);
-    }
   };
 
   const handleApproveCurrentForm = async () => {
@@ -234,14 +226,18 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
 
     setRevisionActionLoading(true);
     try {
+      const mergedStepComments = buildLegacyFormCommentsPayloadForStep(
+        revisionStatusData,
+        formId,
+        activeStep + 1,
+        correctionComment,
+      );
+
       const response = await sendCorrections({
         id_solicitud: idSolicitud,
         userId: currentUserId,
         formularios: [formId],
-        comentarios_por_formulario: {
-          [String(formId)]: correctionComment.trim(),
-        },
-        comentarios: correctionComment.trim(),
+        comentarios_por_formulario: mergedStepComments,
       });
 
       if (response?.success) {
@@ -374,7 +370,7 @@ useEffect(() => {
             
             gastos.forEach(gasto => {
               // Procesar gastos
-              if (gasto.id_conceptos.startsWith('8.')) {
+              if (gasto.id_conceptos.startsWith('14.')) {
                 // Es un gasto extra dinámico
                 serverExtraGastosList.push({
                   id: Date.now() + parseInt(gasto.id_conceptos.split('.')[1]),
@@ -605,7 +601,7 @@ const handleSaveGastos = async () => {
   const gastosExtras = extraExpenses
   .filter(isValidExpense)
   .map((expense, index) => {
-    const id_conceptos   = `8.${index + 1}`;
+    const id_conceptos   = `14.${index + 1}`;
     const cantidad       = parseFloat(expense.cantidad  || 0);
     const valor_unit     = parseFloat(expense.vr_unit    || 0);
     const descripcion    = expense.name || `Gasto Extra ${index + 1}`;
@@ -619,7 +615,7 @@ const handleSaveGastos = async () => {
       cantidad,
       valor_unit,
       valor_total: cantidad * valor_unit,
-      concepto_padre: '8'
+      concepto_padre: '14'
     };
   });
   
@@ -747,6 +743,8 @@ const handleNext = async () => {
     // Construir datos según el paso actual
     const hoja = 2; // Formulario 2
     let pasoData = {};
+    const ingresosCantidadValue = isExtensionSolidaria ? 0 : (parseInt(formData.ingresos_cantidad, 10) || 0);
+    const ingresosVrUnitValue = isExtensionSolidaria ? 0 : (parseInt(formData.ingresos_vr_unit, 10) || 0);
     
     switch (activeStep) {
       case 0:
@@ -780,8 +778,8 @@ const handleNext = async () => {
     }
     
     // 4. Preparar datos para SOLICITUDES2
-    const ingresos_cantidad = parseInt(formData.ingresos_cantidad) || 0;
-    const ingresos_vr_unit = parseInt(formData.ingresos_vr_unit) || 0;
+    const ingresos_cantidad = ingresosCantidadValue;
+    const ingresos_vr_unit = ingresosVrUnitValue;
     const total_ingresos = ingresos_cantidad * ingresos_vr_unit;
     
     // Calcular exactamente 3% para imprevistos
@@ -803,8 +801,8 @@ const handleNext = async () => {
     console.warn("Error al guardar gastos, continuando con datos básicos:", error);
     
     // Si falló, usar totalGastos como respaldo
-    const ingresos_cantidad = parseInt(formData.ingresos_cantidad) || 0;
-    const ingresos_vr_unit = parseInt(formData.ingresos_vr_unit) || 0;
+    const ingresos_cantidad = ingresosCantidadValue;
+    const ingresos_vr_unit = ingresosVrUnitValue;
     const total_ingresos = ingresos_cantidad * ingresos_vr_unit;
     
     // Calcular exactamente 3% para imprevistos
@@ -822,15 +820,16 @@ const handleNext = async () => {
     };
   }
   break;
-      case 2:
+      case 2: {
         // Datos del paso 3 (Aportes y Resumen Financiero)
-        const ingresos_cantidad_p3 = parseInt(formData.ingresos_cantidad) || 0;
-        const ingresos_vr_unit_p3 = parseInt(formData.ingresos_vr_unit) || 0;
+        const ingresos_cantidad_p3 = ingresosCantidadValue;
+        const ingresos_vr_unit_p3 = ingresosVrUnitValue;
         const total_ingresos_p3 = ingresos_cantidad_p3 * ingresos_vr_unit_p3;
         
         // Usar totalGastos calculado previamente para el subtotal
         const subtotal_gastos_p3 = totalGastos || 0;
-        const imprevistos_3_p3 = subtotal_gastos_p3 * 0.03;
+        const imprevistos_porcentaje = parseFloat(formData.imprevistos_porcentaje ?? formData.imprevistos_procentaje) || 3;
+        const imprevistos_3_p3 = subtotal_gastos_p3 * (imprevistos_porcentaje / 100);
         const total_gastos_imprevistos_p3 = subtotal_gastos_p3 + imprevistos_3_p3;
         
         // Calcular diferencia
@@ -838,7 +837,7 @@ const handleNext = async () => {
         
         // Obtener porcentajes del formulario
         const fondo_comun_porcentaje_p3 = parseFloat(formData.fondo_comun_porcentaje) || 30;
-        const facultad_instituto_porcentaje_p3 = parseFloat(formData.facultad_instituto_porcentaje) || 5;
+        const facultad_instituto_porcentaje_p3 = 5;
         const escuela_departamento_porcentaje_p3 = parseFloat(formData.escuela_departamento_porcentaje) || 0;
         
         // Calcular valores monetarios
@@ -863,6 +862,7 @@ const handleNext = async () => {
           observaciones: formData.observaciones || ''
         };
         break;
+      }
       default:
       break;
     }
@@ -958,23 +958,25 @@ const handleNext = async () => {
 
     try {
       // Resumen financiero
-      const ingresos_cantidad = parseInt(formData.ingresos_cantidad) || 0;
-      const ingresos_vr_unit = parseInt(formData.ingresos_vr_unit) || 0;
+        const ingresos_cantidad = isExtensionSolidaria ? 0 : (parseInt(formData.ingresos_cantidad, 10) || 0);
+        const ingresos_vr_unit = isExtensionSolidaria ? 0 : (parseInt(formData.ingresos_vr_unit, 10) || 0);
       const total_ingresos = ingresos_cantidad * ingresos_vr_unit;
       
       // Calcular 3% exacto para imprevistos
       const subtotal_gastos = totalGastos || 0;
-      const imprevistos_3 = subtotal_gastos * 0.03;
+      const imprevistos_porcentaje = parseFloat(formData.imprevistos_porcentaje ?? formData.imprevistos_procentaje) || 3;
+      const imprevistos_3 = subtotal_gastos * (imprevistos_porcentaje / 100);
       
       // Calcular valores monetarios basados en porcentajes
       const fondo_comun_porcentaje = parseFloat(formData.fondo_comun_porcentaje) || 30;
-      const facultad_instituto_porcentaje = parseFloat(formData.facultad_instituto_porcentaje) || 5; // Ahora editable
+      const facultad_instituto_porcentaje = 5;
       const escuela_departamento_porcentaje = parseFloat(formData.escuela_departamento_porcentaje) || 0;
       
       const fondo_comun = total_ingresos * (fondo_comun_porcentaje / 100);
       const facultad_instituto = total_ingresos * (facultad_instituto_porcentaje / 100);
       const escuela_departamento = total_ingresos * (escuela_departamento_porcentaje / 100);
       const total_recursos = fondo_comun + facultad_instituto + escuela_departamento;
+      const shouldIncludeArchivoFondoComun = fondo_comun_porcentaje > 30;
       
       // 1. Primero intentar con el endpoint específico para el paso 3
       try {
@@ -982,46 +984,45 @@ const handleNext = async () => {
           id_solicitud: idSolicitud,
           id_usuario: userData.id,
           name: userData.name,
-          
+
           // Porcentajes
-          fondo_comun_porcentaje: fondo_comun_porcentaje,
-          facultad_instituto_porcentaje: facultad_instituto_porcentaje,
-          escuela_departamento_porcentaje: escuela_departamento_porcentaje,
-          
+          fondo_comun_porcentaje,
+          facultad_instituto_porcentaje,
+          escuela_departamento_porcentaje,
+
           // Valores monetarios
-          fondo_comun: fondo_comun,
-          facultad_instituto: facultad_instituto,
-          escuela_departamento: escuela_departamento,
-          total_recursos: total_recursos,
-          
-          // Observaciones
+          fondo_comun,
+          facultad_instituto,
+          escuela_departamento,
+          total_recursos,
+
+          // Observaciones y soporte documental
           observaciones: formData.observaciones || '',
-          
-          // Datos adicionales para contexto (opcionales para el endpoint específico)
-          total_ingresos: total_ingresos,
+          archivo_fondo_comun: shouldIncludeArchivoFondoComun
+            ? (formData.archivo_fondo_comun || '')
+            : '',
+
+          // Datos adicionales para contexto
+          total_ingresos,
           ingresos_cantidad,
           ingresos_vr_unit,
-          subtotal_gastos: subtotal_gastos,
-          'imprevistos_3%': 3,
-          imprevistos_3: imprevistos_3,
+          subtotal_gastos,
+          imprevistos_porcentaje,
+          imprevistos_3,
           total_gastos_imprevistos: subtotal_gastos + imprevistos_3,
-          diferencia: total_ingresos - (subtotal_gastos + imprevistos_3) // Solo para contexto, no se guardará
+          diferencia: total_ingresos - (subtotal_gastos + imprevistos_3),
         });
-        
+
         console.log('Respuesta del endpoint específico:', paso3Response.data);
-        
+
         if (paso3Response.data && paso3Response.data.success) {
-          // Actualizar estado local
           localStorage.setItem(`form2_completed_${idSolicitud}`, 'true');
-          
-          // Mostrar modal de éxito
           setShowModal(true);
           setIsLoading(false);
           return;
         }
       } catch (endpointError) {
         console.warn('Error al usar endpoint específico, intentando con método general:', endpointError);
-        // Continuar con el método general si falla el específico
       }
       
       // 2. Si falla el endpoint específico, usar el método general
@@ -1038,17 +1039,21 @@ const handleNext = async () => {
         total_recursos: total_recursos,
         
         // Observaciones
-        observaciones: formData.observaciones || ''
+        observaciones: formData.observaciones || '',
+        archivo_fondo_comun: shouldIncludeArchivoFondoComun
+          ? (formData.archivo_fondo_comun || '')
+          : ''
       };
       
       // Envío final con todos los datos
-      const dataToSend = new FormData();
-      dataToSend.append('id_solicitud', idSolicitud);
-      dataToSend.append('paso', 3); // Paso final del formulario 2
-      dataToSend.append('hoja', 2);
-      dataToSend.append('formulario_completo', 'true');
-      dataToSend.append('id_usuario', userData.id);
-      dataToSend.append('name', userData.name);
+      const dataToSend = {
+        id_solicitud: idSolicitud,
+        paso: 3,
+        hoja: 2,
+        formulario_completo: true,
+        id_usuario: userData.id,
+        name: userData.name,
+      };
       
       // Añadir estado de formularios
       const nuevoEstadoFormularios = mergeApprovedStatuses({ 
@@ -1057,17 +1062,23 @@ const handleNext = async () => {
         "3": "En progreso",
         "4": "En progreso" 
       });
-      dataToSend.append('estado_formularios', JSON.stringify(nuevoEstadoFormularios));
+      dataToSend.estado_formularios = nuevoEstadoFormularios;
       
-      // Agregar todos los campos
-      Object.keys(pasoData).forEach(key => {
-        if (pasoData[key] !== undefined && pasoData[key] !== null) {
-          dataToSend.append(key, pasoData[key]);
-        }
-      });
+      Object.assign(dataToSend, pasoData);
       
       // Guardar datos finales
+      console.log('📤 Form2 guardarProgreso resumen:', {
+        id_solicitud: idSolicitud,
+        paso: 3,
+        hoja: 2,
+        fondo_comun_porcentaje,
+        facultad_instituto_porcentaje,
+        escuela_departamento_porcentaje,
+        archivo_fondo_comun: pasoData?.archivo_fondo_comun,
+      });
+
       const response = await axios.post(`${API_URL}/guardarProgreso`, dataToSend);
+      console.log('📥 Form2 guardarProgreso response:', response?.data);
       
       if (response.data && response.data.success) {
         // Actualizar estado local
@@ -1338,16 +1349,20 @@ const saveStep3Data = useCallback(() => {
   // Extraer solo los campos relevantes para el paso 3
   const step3Data = {
     fondo_comun_porcentaje: formData.fondo_comun_porcentaje,
+    facultad_instituto_porcentaje: formData.facultad_instituto_porcentaje,
     escuela_departamento_porcentaje: formData.escuela_departamento_porcentaje,
+    imprevistos_porcentaje: formData.imprevistos_porcentaje ?? formData.imprevistos_procentaje,
     observaciones: formData.observaciones,
-    responsable_financiero: formData.responsable_financiero
+    responsable_financiero: formData.responsable_financiero,
+    archivo_fondo_comun: typeof formData.archivo_fondo_comun === 'string' ? formData.archivo_fondo_comun : ''
   };
   
   // Guardar en localStorage
   localStorage.setItem(`solicitud2_step3_${idSolicitud}`, JSON.stringify(step3Data));
   console.log("Datos del paso 3 guardados localmente");
-}, [idSolicitud, formData.fondo_comun_porcentaje, formData.escuela_departamento_porcentaje, 
-    formData.observaciones, formData.responsable_financiero]);
+}, [idSolicitud, formData.fondo_comun_porcentaje, formData.facultad_instituto_porcentaje,
+  formData.escuela_departamento_porcentaje, formData.imprevistos_porcentaje, formData.imprevistos_procentaje,
+  formData.observaciones, formData.responsable_financiero, formData.archivo_fondo_comun]);
 
 // Llamar a saveStep3Data cuando cambien los campos específicos del paso 3
 useEffect(() => {
@@ -1397,13 +1412,13 @@ useEffect(() => {
       </Box>
     )}
     <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
-      {currentFormComment && (
+      {currentStepComment && (
         <Button
           size="small"
           variant="outlined"
           onClick={() => setCommentsDialogOpen(true)}
         >
-          Ver comentarios
+          Ver comentario del paso
         </Button>
       )}
     </Box>
@@ -1466,7 +1481,9 @@ useEffect(() => {
     </Stepper>
 
 
-      {renderStepContent(activeStep)}
+      <Box sx={{ pointerEvents: isReadOnly ? 'none' : 'auto', opacity: isReadOnly ? 0.85 : 1 }}>
+        {renderStepContent(activeStep)}
+      </Box>
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', marginBottom: '20px' }}>
         <Button disabled={activeStep === 0} onClick={handleBack}>
@@ -1482,10 +1499,10 @@ useEffect(() => {
         <Button variant="contained"
           color="primary" 
           onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext} 
-          disabled={isLoading || isLockedByRevision}
+          disabled={isLoading || isLockedByRevision || isReadOnly}
           startIcon={isLoading ? <CircularProgress size={20} /> : null}
           >
-          {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
+          {activeStep === steps.length - 1 ? 'Finalizar' : 'Siguiente'}
         </Button>
           <Dialog 
             open={showModal} 
@@ -1534,20 +1551,6 @@ useEffect(() => {
                 >
                   Volver al Inicio
                 </Button>
-                {canUserSendReview && (
-                  <Button
-                    onClick={handleSendCurrentFormToReview}
-                    color="secondary"
-                    variant="contained"
-                    disabled={revisionActionLoading}
-                    sx={{
-                      minWidth: '170px',
-                      height: '40px'
-                    }}
-                  >
-                    Enviar a revision
-                  </Button>
-                )}
               </Box>
               <Box sx={{ display: 'flex', gap: 2 }}> {/* Mayor espacio entre botones */}
                 <Button 
@@ -1635,9 +1638,29 @@ useEffect(() => {
       )}
 
       {canAdminReviewMode && (
-        <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 1,
+            mb: 2,
+            flexWrap: 'wrap',
+            alignItems: 'flex-start',
+            p: 2,
+            borderRadius: 2,
+            border: '1px solid #f59e0b',
+            backgroundColor: '#fff7ed',
+          }}
+        >
+          <Box sx={{ width: '100%' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#92400e' }}>
+              Revision administrativa por paso
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#7c2d12' }}>
+              Paso actual: {activeStep + 1} de {steps.length}
+            </Typography>
+          </Box>
           <TextField
-            label="Comentario de correccion"
+            label={`Comentario de correccion (paso ${activeStep + 1})`}
             multiline
             minRows={2}
             value={correctionComment}
@@ -1668,10 +1691,10 @@ useEffect(() => {
       )}
 
       <Dialog open={commentsDialogOpen} onClose={() => setCommentsDialogOpen(false)}>
-        <DialogTitle>Comentario del formulario</DialogTitle>
+        <DialogTitle>Comentario del paso {activeStep + 1}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            {currentFormComment || 'Este formulario no tiene comentarios.'}
+            {currentStepComment || 'Este paso no tiene comentarios.'}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -1690,6 +1713,7 @@ FormSection2.propTypes = {
   totalAportesUnivalle: PropTypes.number,
   currentStep: PropTypes.number.isRequired,
   validateStep: PropTypes.func.isRequired,
+  formId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
 };
 
 export default FormSection2;

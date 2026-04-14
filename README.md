@@ -133,3 +133,63 @@ npm run build
 - La autenticación es con Google OAuth
 - Los datos se almacenan en Google Sheets
 - El proyecto está optimizado para desarrollo local y producción
+## 📌 Cambios Recientes
+
+### Formulario 1
+
+- Se agregaron en el último paso (después de organización/otro):
+  - `extension_solidaria`
+  - `costo_extension_solidaria` (visible cuando `extension_solidaria = si`)
+  - `pieza_grafica` (subida de imagen)
+  - `personal_externo`
+- Se agregó la lógica de tipo de valor antes de `valor_inscripcion`:
+  - `tipo_valor` con dos opciones (`valor_unitario` o `cifra_pesos`)
+  - `valor_unitario` (SMMLV)
+  - cálculo bidireccional con `valor_inscripcion` usando SMMLV vigente: `1,750,905`
+
+### Formulario 2
+
+- Se ajustó la edición/cálculo de:
+  - `imprevistos_porcentaje`
+  - `fondo_comun_porcentaje`
+  - `facultad_instituto_porcentaje`
+- Se agregó `archivo_fondo_comun` (imagen/pdf) cuando `fondo_comun_porcentaje > 30`.
+- Se habilitaron/corrigieron filas dinámicas de gastos en SOLICITUDES2 como extras de la categoría 14.
+
+### Carga de datos (rehidratación)
+
+- Se añadieron normalizaciones para mostrar correctamente datos guardados en Sheet/backend aunque vengan en formato distinto:
+  - `periodicidad_oferta`
+  - `organizacion_actividad`
+  - `extension_solidaria`
+  - compatibilidad con typo histórico `imprevistos_procentaje`.
+
+### Reportes XLSX
+
+- Los campos nuevos del front se excluyen explícitamente de reportes (no se imprimen en archivos de reporte):
+  - `tipo_valor`
+  - `valor_unitario`
+  - `extension_solidaria`
+  - `costo_extension_solidaria`
+  - `pieza_grafica`
+  - `personal_externo`
+  - `archivo_fondo_comun`
+
+## 🧩 Nota de Backend / Google Sheets
+
+- Para `pieza_grafica` y `archivo_fondo_comun`, el frontend envía `multipart/form-data` cuando hay archivo nuevo.
+- El backend debe:
+  - recibir ambos campos de archivo,
+  - subirlos a Drive,
+  - guardar la URL resultante en la hoja correspondiente.
+- En Sheets, se recomienda tener columnas para:
+  - `pieza_grafica`
+  - `archivo_fondo_comun`
+  - `tipo_valor`
+  - `valor_unitario`
+  - `extension_solidaria`
+  - `costo_extension_solidaria`
+  - `personal_externo`
+
+
+

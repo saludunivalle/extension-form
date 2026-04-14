@@ -25,7 +25,8 @@ import {
   approveFullRequest,
   sendCorrections,
   getCurrentFormStatus,
-  getCurrentFormComment,
+  getCurrentStepComment,
+  buildLegacyFormCommentsPayloadForStep,
   isApprovedStatus,
   isSentToReviewStatus,
   isCorrectionsStatus,
@@ -125,12 +126,12 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
   }, [loadRevisionStatus]);
 
   const currentFormReviewStatus = getCurrentFormStatus(revisionStatusData, formId);
-  const currentFormComment = getCurrentFormComment(revisionStatusData, formId);
+  const currentStepComment = getCurrentStepComment(revisionStatusData, formId, activeStep + 1);
   const normalizedReviewStatus = String(currentFormReviewStatus || '').trim().toLowerCase();
   const isLockedByRevision = !isAdminUser && (isSentToReviewStatus(currentFormReviewStatus) || isApprovedStatus(currentFormReviewStatus));
   const canUserSendReview = !isAdminUser && !isReadOnly && activeStep === steps.length - 1 && !isLockedByRevision && (isCompletedStatus(currentFormReviewStatus) || isCorrectionsStatus(currentFormReviewStatus) || normalizedReviewStatus === '' || normalizedReviewStatus === 'en progreso');
-  const canAdminReviewMode = isAdminUser && !isReadOnly && isSentToReviewStatus(currentFormReviewStatus);
-  const canAdminReviewActions = canAdminReviewMode && activeStep === steps.length - 1;
+  const canAdminReviewMode = isAdminUser && (isSentToReviewStatus(currentFormReviewStatus) || isCorrectionsStatus(currentFormReviewStatus));
+  const canAdminReviewActions = canAdminReviewMode;
 
   const handleSendCurrentFormToReview = async () => {
     if (!idSolicitud || !currentUserId) return;
@@ -234,14 +235,18 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
 
     setRevisionActionLoading(true);
     try {
+      const mergedStepComments = buildLegacyFormCommentsPayloadForStep(
+        revisionStatusData,
+        formId,
+        activeStep + 1,
+        correctionComment,
+      );
+
       const response = await sendCorrections({
         id_solicitud: idSolicitud,
         userId: currentUserId,
         formularios: [formId],
-        comentarios_por_formulario: {
-          [String(formId)]: correctionComment.trim(),
-        },
-        comentarios: correctionComment.trim(),
+        comentarios_por_formulario: mergedStepComments,
       });
 
       if (response?.success) {
@@ -1097,13 +1102,13 @@ const PrintReportButton = () => {
     <Box sx={{ position: 'relative' }}>
     <PrintReportButton />
     <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
-      {currentFormComment && (
+      {currentStepComment && (
         <Button
           size="small"
           variant="outlined"
           onClick={() => setCommentsDialogOpen(true)}
         >
-          Ver comentarios
+          Ver comentario del paso
         </Button>
       )}
     </Box>
@@ -1165,7 +1170,9 @@ const PrintReportButton = () => {
       ))}
     </Stepper>
 
-      {renderStepContent(activeStep)}
+      <Box sx={{ pointerEvents: isReadOnly ? 'none' : 'auto', opacity: isReadOnly ? 0.85 : 1 }}>
+        {renderStepContent(activeStep)}
+      </Box>
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', marginBottom: '20px' }}>
         {activeStep === 0 ? (
@@ -1188,10 +1195,10 @@ const PrintReportButton = () => {
           variant="contained" 
           color="primary" 
           onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
-          disabled={isLoading || isLockedByRevision} 
+          disabled={isLoading || isLockedByRevision || isReadOnly} 
           startIcon={isLoading ? <CircularProgress size={20} /> : null}
         >
-          {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
+          {activeStep === steps.length - 1 ? 'Finalizar' : 'Siguiente'}
         </Button>
       </Box>
 
@@ -1202,9 +1209,29 @@ const PrintReportButton = () => {
       )}
 
       {canAdminReviewMode && (
-        <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 1,
+            mb: 2,
+            flexWrap: 'wrap',
+            alignItems: 'flex-start',
+            p: 2,
+            borderRadius: 2,
+            border: '1px solid #f59e0b',
+            backgroundColor: '#fff7ed',
+          }}
+        >
+          <Box sx={{ width: '100%' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#92400e' }}>
+              Revision administrativa por paso
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#7c2d12' }}>
+              Paso actual: {activeStep + 1} de {steps.length}
+            </Typography>
+          </Box>
           <TextField
-            label="Comentario de correccion"
+            label={`Comentario de correccion (paso ${activeStep + 1})`}
             multiline
             minRows={2}
             value={correctionComment}
@@ -1243,10 +1270,10 @@ const PrintReportButton = () => {
       )}
 
       <Dialog open={commentsDialogOpen} onClose={() => setCommentsDialogOpen(false)}>
-        <DialogTitle>Comentario del formulario</DialogTitle>
+        <DialogTitle>Comentario del paso {activeStep + 1}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            {currentFormComment || 'Este formulario no tiene comentarios.'}
+            {currentStepComment || 'Este paso no tiene comentarios.'}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -1331,26 +1358,6 @@ const PrintReportButton = () => {
               Volver al inicio
             </Button>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {canUserSendReview && (
-                <Button
-                  onClick={handleSendCurrentFormToReview}
-                  color="secondary"
-                  variant="contained"
-                  disabled={revisionActionLoading}
-                >
-                  Enviar a revision
-                </Button>
-              )}
-              {canUserSendReview && (
-                <Button
-                  onClick={handleSendFullRequestToReview}
-                  color="secondary"
-                  variant="outlined"
-                  disabled={revisionActionLoading}
-                >
-                  Enviar solicitud completa
-                </Button>
-              )}
               <Button 
                 onClick={async () => {
                   try {

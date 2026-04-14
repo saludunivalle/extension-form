@@ -13,15 +13,14 @@ import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { config } from '../../config';
 import {
   getRevisionStatus,
-  sendFormsToRevision,
   approveForms,
   sendCorrections,
   getCurrentFormStatus,
-  getCurrentFormComment,
+  getCurrentStepComment,
+  buildLegacyFormCommentsPayloadForStep,
   isApprovedStatus,
   isSentToReviewStatus,
   isCorrectionsStatus,
-  isCompletedStatus,
 } from '../../services/revisionService';
 const API_URL = config.API_URL;
 
@@ -132,12 +131,10 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
   }, [loadRevisionStatus]);
 
   const currentFormReviewStatus = getCurrentFormStatus(revisionStatusData, formId);
-  const currentFormComment = getCurrentFormComment(revisionStatusData, formId);
-  const normalizedReviewStatus = String(currentFormReviewStatus || '').trim().toLowerCase();
+  const currentStepComment = getCurrentStepComment(revisionStatusData, formId, activeStep + 1);
   const isLockedByRevision = !isAdminUser && (isSentToReviewStatus(currentFormReviewStatus) || isApprovedStatus(currentFormReviewStatus));
-  const canUserSendReview = !isAdminUser && !isReadOnly && activeStep === steps.length - 1 && !isLockedByRevision && (isCompletedStatus(currentFormReviewStatus) || isCorrectionsStatus(currentFormReviewStatus) || normalizedReviewStatus === '' || normalizedReviewStatus === 'en progreso');
-  const canAdminReviewMode = isAdminUser && !isReadOnly && isSentToReviewStatus(currentFormReviewStatus);
-  const canAdminReviewActions = canAdminReviewMode && activeStep === steps.length - 1;
+  const canAdminReviewMode = isAdminUser && (isSentToReviewStatus(currentFormReviewStatus) || isCorrectionsStatus(currentFormReviewStatus));
+  const canAdminReviewActions = canAdminReviewMode;
 
   const mergeApprovedStatuses = (estadoBase) => {
     const revisionStatuses = revisionStatusData?.data?.estado_formularios || revisionStatusData?.estado_formularios || {};
@@ -150,30 +147,6 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
     });
 
     return merged;
-  };
-
-  const handleSendCurrentFormToReview = async () => {
-    if (!idSolicitud || !currentUserId) return;
-
-    setRevisionActionLoading(true);
-    try {
-      const response = await sendFormsToRevision({
-        id_solicitud: idSolicitud,
-        userId: currentUserId,
-        formularios: [formId],
-      });
-
-      if (response?.success) {
-        await loadRevisionStatus();
-        alert('Formulario enviado a revision correctamente.');
-        navigate('/');
-      }
-    } catch (error) {
-      console.error('Error al enviar formulario 3 a revision:', error);
-      alert(error?.response?.data?.message || 'No se pudo enviar el formulario a revision.');
-    } finally {
-      setRevisionActionLoading(false);
-    }
   };
 
   const handleApproveCurrentForm = async () => {
@@ -209,14 +182,18 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
 
     setRevisionActionLoading(true);
     try {
+      const mergedStepComments = buildLegacyFormCommentsPayloadForStep(
+        revisionStatusData,
+        formId,
+        activeStep + 1,
+        correctionComment,
+      );
+
       const response = await sendCorrections({
         id_solicitud: idSolicitud,
         userId: currentUserId,
         formularios: [formId],
-        comentarios_por_formulario: {
-          [String(formId)]: correctionComment.trim(),
-        },
-        comentarios: correctionComment.trim(),
+        comentarios_por_formulario: mergedStepComments,
       });
 
       if (response?.success) {
@@ -801,13 +778,13 @@ const PrintReportButton = () => {
     <Box sx={{ position: 'relative' }}>
       <PrintReportButton />
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
-        {currentFormComment && (
+        {currentStepComment && (
           <Button
             size="small"
             variant="outlined"
             onClick={() => setCommentsDialogOpen(true)}
           >
-            Ver comentarios
+            Ver comentario del paso
           </Button>
         )}
       </Box>
@@ -869,7 +846,9 @@ const PrintReportButton = () => {
         ))}
       </Stepper>
 
-      {renderStepContent(activeStep, errors)}
+      <Box sx={{ pointerEvents: isReadOnly ? 'none' : 'auto', opacity: isReadOnly ? 0.85 : 1 }}>
+        {renderStepContent(activeStep, errors)}
+      </Box>
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
         <Button disabled={activeStep === 0} onClick={handleBack}>Atrás</Button>
@@ -884,10 +863,10 @@ const PrintReportButton = () => {
           variant="contained"
           color="primary"
           onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
-          disabled={isLoading || isLockedByRevision}
+          disabled={isLoading || isLockedByRevision || isReadOnly}
           startIcon={isLoading ? <CircularProgress size={20} /> : null}
         >
-          {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
+          {activeStep === steps.length - 1 ? 'Finalizar' : 'Siguiente'}
         </Button>
       </Box>
 
@@ -898,9 +877,29 @@ const PrintReportButton = () => {
       )}
 
       {canAdminReviewMode && (
-        <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 1,
+            mb: 2,
+            flexWrap: 'wrap',
+            alignItems: 'flex-start',
+            p: 2,
+            borderRadius: 2,
+            border: '1px solid #f59e0b',
+            backgroundColor: '#fff7ed',
+          }}
+        >
+          <Box sx={{ width: '100%' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#92400e' }}>
+              Revision administrativa por paso
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#7c2d12' }}>
+              Paso actual: {activeStep + 1} de {steps.length}
+            </Typography>
+          </Box>
           <TextField
-            label="Comentario de correccion"
+            label={`Comentario de correccion (paso ${activeStep + 1})`}
             multiline
             minRows={2}
             value={correctionComment}
@@ -931,10 +930,10 @@ const PrintReportButton = () => {
       )}
 
       <Dialog open={commentsDialogOpen} onClose={() => setCommentsDialogOpen(false)}>
-        <DialogTitle>Comentario del formulario</DialogTitle>
+        <DialogTitle>Comentario del paso {activeStep + 1}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            {currentFormComment || 'Este formulario no tiene comentarios.'}
+            {currentStepComment || 'Este paso no tiene comentarios.'}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -988,20 +987,6 @@ const PrintReportButton = () => {
             >
               Volver al Inicio
             </Button>
-            {canUserSendReview && (
-              <Button
-                onClick={handleSendCurrentFormToReview}
-                color="secondary"
-                variant="contained"
-                disabled={revisionActionLoading}
-                sx={{
-                  minWidth: '170px',
-                  height: '40px'
-                }}
-              >
-                Enviar a revision
-              </Button>
-            )}
           </Box>
           <Box sx={{ display: 'flex', gap: 2 }}> {/* Mayor espacio entre botones */}
             <Button 

@@ -19,7 +19,7 @@ export const report2Config = {
       'id_solicitud', 'nombre_actividad', 'fecha_solicitud', 'nombre_solicitante',
       'dia', 'mes', 'anio',
       'ingresos_cantidad', 'ingresos_vr_unit', 'total_ingresos',
-      'subtotal_gastos', 'imprevistos_3', 'imprevistos_3%', 'total_gastos_imprevistos',
+      'subtotal_gastos', 'imprevistos_porcentaje', 'imprevistos_3', 'total_gastos_imprevistos',
       'fondo_comun_porcentaje', 'fondo_comun','facultadad_instituto_porcentaje', 
       'escuela_departamento_porcentaje', 'escuela_departamento','total_recursos',
     ];
@@ -81,7 +81,7 @@ export const report2Config = {
         transformedData.mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
         transformedData.anio = fecha.getFullYear().toString();
         console.log(`✅ Fecha procesada: dia=${transformedData.dia}, mes=${transformedData.mes}, anio=${transformedData.anio}`);
-      } catch (error) {
+      } catch (_error) {
         console.warn("Error al formatear fecha, usando valores por defecto");
         const hoy = new Date();
         transformedData.dia = hoy.getDate().toString().padStart(2, '0');
@@ -105,16 +105,17 @@ export const report2Config = {
     // Formatear valores monetarios y asegurar cálculos correctos
     const subtotal_gastos = parseFloat(formData.subtotal_gastos) || 0;
     // Usar exactamente 3% para imprevistos
-    const imprevistos_valor = subtotal_gastos * 0.03;
+    const imprevistos_porcentaje = parseFloat(formData.imprevistos_porcentaje) || 3;
+    const imprevistos_valor = subtotal_gastos * (imprevistos_porcentaje / 100);
     const total_gastos_imprevistos = subtotal_gastos + imprevistos_valor;
 
     // Asignar los valores calculados
     transformedData.subtotal_gastos = formatCurrency(subtotal_gastos);
+    transformedData.imprevistos_porcentaje = imprevistos_porcentaje.toString();
     transformedData.imprevistos_3 = formatCurrency(imprevistos_valor);
-    transformedData['imprevistos_3%'] = '3'; // Fijar el porcentaje en 3%
     transformedData.total_gastos_imprevistos = formatCurrency(total_gastos_imprevistos);
     
-    console.log(`✅ Cálculos de gastos: subtotal=${subtotal_gastos}, imprevistos(3%)=${imprevistos_valor}, total=${total_gastos_imprevistos}`);
+    console.log(`✅ Cálculos de gastos: subtotal=${subtotal_gastos}, imprevistos(${imprevistos_porcentaje}%)=${imprevistos_valor}, total=${total_gastos_imprevistos}`);
     
     // Calcular los valores monetarios a partir de los porcentajes para fondos
     // Reutilizar el valor de total_ingresos ya calculado
@@ -193,8 +194,8 @@ export const report2Config = {
           valor_total_formatted: valorTotal_formatted
         };
         
-        // Determinar si es un gasto dinámico (ID que empieza por 8.)
-        if (gasto.id_conceptos.startsWith('8.')) {
+        // Determinar si es un gasto dinámico (ID que empieza por 14.)
+        if (gasto.id_conceptos.startsWith('14.')) {
           gastosDinamicos.push(gastoProcesado);
           console.log(`🔄 Gasto dinámico procesado: ID=${gasto.id_conceptos}, Total=${valorTotal_formatted}`);
         } else {
@@ -270,6 +271,19 @@ export const report2Config = {
       if (typeof value === 'string' && (value.includes('{{') || value.includes('}}'))) {
         transformedData[key] = '';
       }
+    });
+
+    // Campos nuevos exclusivos del formulario (no se imprimen en XLSX)
+    [
+      'tipo_valor',
+      'valor_unitario',
+      'extension_solidaria',
+      'costo_extension_solidaria',
+      'pieza_grafica',
+      'personal_externo',
+      'archivo_fondo_comun',
+    ].forEach((field) => {
+      delete transformedData[field];
     });
      
     console.log("✅ Datos de reporte 2 transformados:", JSON.stringify(transformedData, null, 2));
