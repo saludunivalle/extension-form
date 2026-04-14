@@ -11,6 +11,20 @@ function Step2FormSection2({
   extraExpenses,
   onExtraExpensesChange
 }) {
+  const isExtensionSolidaria = String(formData.extension_solidaria || '').trim().toLowerCase() === 'si';
+
+  useEffect(() => {
+    if (!isExtensionSolidaria) return;
+
+    if (Number(formData.ingresos_cantidad || 0) !== 0) {
+      handleNumberInputChange({ target: { name: 'ingresos_cantidad', value: 0 } });
+    }
+
+    if (Number(formData.ingresos_vr_unit || 0) !== 0) {
+      handleNumberInputChange({ target: { name: 'ingresos_vr_unit', value: 0 } });
+    }
+  }, [formData.ingresos_cantidad, formData.ingresos_vr_unit, handleNumberInputChange, isExtensionSolidaria]);
+
   // Estructura jerárquica de gastos (actualizada)
   const gastosStructure = [
     {
@@ -67,7 +81,7 @@ function Step2FormSection2({
         { label: '8,3. Escarapelas', key: '8,3' },
         { label: '8,4. Fotocopias', key: '8,4' },
       ],
-      //isCustomExpenses: true
+      isCustomExpenses: false
     },
      {
       label: '9. IMPRESOS',
@@ -107,7 +121,7 @@ function Step2FormSection2({
       label: '14. COSTOS ADMINISTRATIVOS DEL PROYECTO',
       key: '14',
       children: [],
-      //isCustomExpenses: true
+      isCustomExpenses: true
     },
   ];
 
@@ -122,7 +136,6 @@ function Step2FormSection2({
     return initialExpanded;
   });
   const [hiddenConcepts, setHiddenConcepts] = useState([]);
-  const [setExtraExpenses] = useState([]);
   const [isAddingExtraExpense, setIsAddingExtraExpense] = useState(false);
   const [loadingDeleteId, setLoadingDeleteId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -160,7 +173,6 @@ function Step2FormSection2({
     setLoadingDeleteId(key);
   
     setTimeout(() => {
-      setExtraExpenses((prevExpenses) => prevExpenses.filter(expense => expense.id !== key));
       setHiddenConcepts((prev) => [...prev, key]);
       setLoadingDeleteId(null);
     }, 500); // Simula una pequeña espera
@@ -171,7 +183,7 @@ function Step2FormSection2({
   };
 
   // Calcular dinámicamente el total de ingresos
-  const totalIngresos = (formData.ingresos_cantidad) * (formData.ingresos_vr_unit);
+  const totalIngresos = isExtensionSolidaria ? 0 : ((formData.ingresos_cantidad) * (formData.ingresos_vr_unit));
 
   // Calcular el subtotal de gastos
   const calculateSubtotalGastos = () => {
@@ -207,7 +219,10 @@ function Step2FormSection2({
 
   const subtotalGastos = calculateSubtotalGastos();
   // Calcular imprevistos como exactamente 3% del subtotal de gastos
-  const imprevistos = subtotalGastos * 0.03; // 3% fijo para los gastos
+  const imprevistosSource = formData.imprevistos_porcentaje ?? formData.imprevistos_procentaje;
+  const parsedImprevistosPorcentaje = parseFloat(imprevistosSource);
+  const imprevistos_porcentaje = Number.isFinite(parsedImprevistosPorcentaje) ? parsedImprevistosPorcentaje : 3;
+  const imprevistos = subtotalGastos * (imprevistos_porcentaje / 100);
   const totalGastosImprevistos = subtotalGastos + imprevistos;
   
   // Calcular la diferencia entre ingresos y gastos
@@ -251,7 +266,7 @@ function Step2FormSection2({
           name: '', 
           cantidad: '', 
           vr_unit: '',
-          key: `8.${extraExpenses.length + 1}`
+          key: `14.${extraExpenses.length + 1}`
         }
       ];
       onExtraExpensesChange(newExtraExpenses);
@@ -274,7 +289,7 @@ function Step2FormSection2({
         .filter(expense => expense.id !== id)
         .map((expense, idx) => ({
           ...expense,
-          key: `8.${idx + 1}`
+          key: `14.${idx + 1}`
         }));
       
       onExtraExpensesChange(updatedExpenses);
@@ -349,8 +364,9 @@ function Step2FormSection2({
             <TextField
               type="number"
               name="ingresos_cantidad"
-              value={formData.ingresos_cantidad}
+              value={isExtensionSolidaria ? 0 : formData.ingresos_cantidad}
               onChange={handleNumberInputChange}
+              disabled={isExtensionSolidaria}
               inputProps={numericInputProps}
               sx={{ 
                 width: 100, 
@@ -369,13 +385,14 @@ function Step2FormSection2({
               decimalSeparator=","
               prefix="$ "
               name="ingresos_vr_unit"
-              value={formData.ingresos_vr_unit}
+              value={isExtensionSolidaria ? 0 : formData.ingresos_vr_unit}
               onValueChange={(values) => handleCurrencyChange('ingresos_vr_unit', values)}
               onKeyPress={(e) => {
                 if (e.key === '.' || e.key === ',') e.preventDefault();
               }}
               inputProps={numericInputProps}
               allowNegative={false}
+              disabled={isExtensionSolidaria}
               sx={{
                 width: 150,
                 '& .MuiInputBase-input': {
@@ -403,6 +420,13 @@ function Step2FormSection2({
           </TableCell>
           <TableCell></TableCell>
         </TableRow>
+        {isExtensionSolidaria && (
+          <TableRow>
+            <TableCell colSpan={5} sx={{ color: 'warning.main', fontSize: '0.85rem' }}>
+              Extension solidaria activa: los ingresos por inscripciones se fijan en 0 y no se pueden editar.
+            </TableCell>
+          </TableRow>
+        )}
     
         {/* GASTOS HEADER */}
         <TableRow>
@@ -428,7 +452,9 @@ function Step2FormSection2({
         </TableRow>
     
         {/* GASTOS ITEMS */}
-        {gastosStructure.map(item => (
+        {gastosStructure
+        .filter(item => item.key !== '13')
+        .map(item => (
           !hiddenConcepts.includes(item.key) && (
             <React.Fragment key={item.key}>
               <TableRow>
@@ -525,7 +551,7 @@ function Step2FormSection2({
                         onChange={(e) => handleExtraExpenseChange(expense.id, 'name', e.target.value)}
                         sx={{ minWidth: 200 }}
                         InputProps={{
-                          startAdornment: <Typography variant="caption" sx={{ mr: 1, color: '#666' }}>8.{index+1}.</Typography>
+                          startAdornment: <Typography variant="caption" sx={{ mr: 1, color: '#666' }}>14.{index+1}.</Typography>
                         }}
                       />
                     </TableCell>
@@ -632,13 +658,36 @@ function Step2FormSection2({
 
         {/* Imprevistos (3%) */}
         <TableRow>
-          <TableCell colSpan={3} sx={{ fontWeight: 600 }}>
-            Imprevistos (3%)
+          <TableCell colSpan={3} sx={{ fontWeight: 600, borderTop: '1px solid #e0e0e0', pt: 2}}>
+            <span>Imprevistos</span>
+            <Box sx={{display:'inline-flex', alignItems:'center', ml: 1}}>
+                              (
+                              <TextField
+                                type="number"
+                                name="imprevistos_porcentaje"
+                                value={imprevistos_porcentaje}
+                                onChange={(e) => {
+                                  let value = parseFloat(e.target.value) || 0;
+                                  
+                                  if (value > 5) value = 5; // Limitar máximo a 5%
+                                  handleNumberInputChange({ target: { name: 'imprevistos_porcentaje', value } });
+                                }}
+                                inputProps={{
+                                  inputMode: 'numeric',
+                                  pattern: '[0-9]*',
+                                  min: 1,
+                                  max: 100,
+                                  style: { width: '35px', height: '20px', fontSize: '12px', padding: '2px', textAlign: 'center'},
+                                }}
+                                size="small"
+                              />
+                              %)
+                            </Box>
           </TableCell>
-          <TableCell align="right" sx={{ fontWeight: 600 }}>
+          <TableCell  align='right' sx={{ fontWeight: 600, borderTop: '1px solid #e0e0e0', pt: 2 }}>
             {formatCurrency(imprevistos)}
           </TableCell>
-          <TableCell></TableCell>
+          
         </TableRow>
 
         {/* Total Gastos + Imprevistos con color */}
@@ -684,11 +733,16 @@ function Step2FormSection2({
 
 Step2FormSection2.propTypes = {
   formData: PropTypes.shape({
+    extension_solidaria: PropTypes.string,
     ingresos_cantidad: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     ingresos_vr_unit: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    imprevistos_porcentaje: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    imprevistos_procentaje: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   }).isRequired,
   handleNumberInputChange: PropTypes.func.isRequired,
   updateTotalGastos: PropTypes.func.isRequired,
+  extraExpenses: PropTypes.array,
+  onExtraExpensesChange: PropTypes.func,
 };
 
 export default Step2FormSection2;

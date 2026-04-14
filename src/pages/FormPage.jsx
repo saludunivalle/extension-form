@@ -61,6 +61,62 @@ const hasUsefulText = (value) => {
   return normalized !== '' && normalized !== 'no';
 };
 
+const normalizePeriodicidadOferta = (value) => {
+  if (value === undefined || value === null) return value;
+  const normalized = String(value).trim().toLowerCase();
+
+  const map = {
+    anual: 'anual',
+    semestral: 'semestral',
+    permanente: 'permanente',
+    'solo una vez': 'solo una vez',
+    'solo_una_vez': 'solo una vez',
+  };
+
+  return map[normalized] || value;
+};
+
+const normalizeOrganizacionActividad = (value) => {
+  if (value === undefined || value === null) return value;
+  const normalized = String(value).trim().toLowerCase();
+
+  const map = {
+    ofi_ext: 'ofi_ext',
+    'oficina de extension': 'ofi_ext',
+    'oficina de extensión': 'ofi_ext',
+    unidad_acad: 'unidad_acad',
+    'unidad academica': 'unidad_acad',
+    'unidad académica': 'unidad_acad',
+    otro_act: 'otro_act',
+    otro: 'otro_act',
+  };
+
+  return map[normalized] || value;
+};
+
+const normalizeTipoValor = (value) => {
+  if (value === undefined || value === null) return value;
+  const normalized = String(value).trim().toLowerCase();
+
+  if (['valor_unitario', 'valor unitario', 'smmlv'].includes(normalized)) {
+    return 'valor_unitario';
+  }
+
+  if (['cifra_pesos', 'cifra en pesos', 'pesos', 'valor_inscripcion'].includes(normalized)) {
+    return 'cifra_pesos';
+  }
+
+  return value;
+};
+
+const normalizeSiNoLower = (value) => {
+  if (value === undefined || value === null) return value;
+  const normalized = String(value).trim().toLowerCase();
+  if (['si', 'sí', 's', 'true', '1', 'yes'].includes(normalized)) return 'si';
+  if (['no', 'n', 'false', '0'].includes(normalized)) return 'no';
+  return value;
+};
+
 const normalizeLoadedSolicitudData = (rawData) => {
   const data = { ...flattenSolicitudData(rawData) };
 
@@ -136,6 +192,81 @@ const normalizeLoadedSolicitudData = (rawData) => {
     if (preregistro.includes('google')) {
       data.preregistroGoogle = 'Sí';
     }
+  }
+
+  // Compatibilidad con typo historico del backend/sheet
+  if ((data.imprevistos_porcentaje === undefined || data.imprevistos_porcentaje === null || data.imprevistos_porcentaje === '')
+    && data.imprevistos_procentaje !== undefined) {
+    data.imprevistos_porcentaje = data.imprevistos_procentaje;
+  }
+
+  if (data.periodicidad_oferta !== undefined) {
+    data.periodicidad_oferta = normalizePeriodicidadOferta(data.periodicidad_oferta);
+  }
+
+  if (data.organizacion_actividad !== undefined) {
+    data.organizacion_actividad = normalizeOrganizacionActividad(data.organizacion_actividad);
+  }
+
+  if (data.extension_solidaria !== undefined) {
+    data.extension_solidaria = normalizeSiNoLower(data.extension_solidaria);
+  }
+
+  // Regla de negocio: porcentaje de facultad/instituto fijo en 5.
+  data.facultad_instituto_porcentaje = 5;
+
+  if (data.tipo_valor !== undefined) {
+    data.tipo_valor = normalizeTipoValor(data.tipo_valor);
+  }
+
+  if (typeof data.valor_unitario === 'string') {
+    const parsedValorUnitario = parseFloat(data.valor_unitario.replace(',', '.'));
+    if (Number.isFinite(parsedValorUnitario)) {
+      data.valor_unitario = parsedValorUnitario;
+    }
+  }
+
+  if (typeof data.costo_extension_solidaria === 'string') {
+    const parsedCosto = parseFloat(data.costo_extension_solidaria.replace(/[^0-9.]/g, ''));
+    if (Number.isFinite(parsedCosto)) {
+      data.costo_extension_solidaria = parsedCosto;
+    }
+  }
+
+  if (!data.tipo_valor && Number(data.valor_inscripcion) > 0) {
+    data.tipo_valor = 'cifra_pesos';
+  }
+
+  if (typeof data.valor_inscripcion === 'string') {
+    const parsedInscripcion = parseInt(data.valor_inscripcion.replace(/[^0-9]/g, ''), 10);
+    if (Number.isFinite(parsedInscripcion)) {
+      data.valor_inscripcion = parsedInscripcion;
+    }
+  }
+
+  if (data.extension_solidaria === 'si') {
+    data.ingresos_cantidad = 0;
+    data.ingresos_vr_unit = 0;
+
+    if (!String(data.observaciones || '').trim()) {
+      data.observaciones = 'Actividad de extension solidaria sin recaudo por inscripcion.';
+    }
+  }
+
+  // Compatibilidad de horas PAT: en registros viejos suele venir solo en horas_sincronicas.
+  if (data.modalidad === 'Presencial asistida por tecnología' && !data.horas_trabajo_pat && data.horas_sincronicas) {
+    data.horas_trabajo_pat = data.horas_sincronicas;
+  }
+
+  if ((!data.total_horas || Number(data.total_horas) === 0) && data.modalidad) {
+    const horasPresencial = Number(data.horas_trabajo_presencial || 0);
+    const horasSync = Number(data.horas_sincronicas || 0);
+    const horasPat = Number(data.horas_trabajo_pat || data.horas_sincronicas || 0);
+
+    if (data.modalidad === 'Presencial') data.total_horas = horasPresencial;
+    else if (data.modalidad === 'Presencial asistida por tecnología') data.total_horas = horasPat;
+    else if (data.modalidad === 'Virtual') data.total_horas = horasSync;
+    else if (['Mixta', 'Semipresencial', 'Todas las anteriores'].includes(data.modalidad)) data.total_horas = horasPresencial + horasSync;
   }
 
   return data;
@@ -376,18 +507,20 @@ useEffect(() => {
     profesor_participante: '', nombre_coordinador: '', correo_coordinador: '',
     tel_coordinador: '', perfil_competencia: '', formas_evaluacion: '',
     certificado_solicitado: '', calificacion_minima: '', razon_no_certificado: '',
-    valor_inscripcion: '', becas_convenio: '', becas_estudiantes: '',
+    tipo_valor: '', valor_unitario: '', valor_inscripcion: '',
+    extension_solidaria: '', costo_extension_solidaria: '', pieza_grafica: '', personal_externo: '',
+    becas_convenio: '', becas_estudiantes: '',
     becas_docentes: '', becas_egresados: '', becas_funcionarios: '',
     becas_otros: '', becas_total: '', periodicidad_oferta: '', fechas_actividad: '',
     organizacion_actividad: '', otro_tipo_act: '', fecha_por_meses: '',
-    fecha_inicio: '', fecha_final: ''
-   , observaciones_cambios: '',
+    fecha_inicio: '', fecha_final: '',
+    observaciones_cambios: '',
   // Hoja SOLICITUDES3
     ingresos_cantidad: '', ingresos_vr_unit: '',
     personal_universidad_cantidad: '', personal_universidad_vr_unit: '',
     honorarios_docentes_cantidad: '', honorarios_docentes_vr_unit: '',
     otro_personal_cantidad: '', otro_personal_vr_unit: '',
-    escuela_departamento_porcentaje: '', escuela_departamento: '',
+    escuela_departamento: '',
     total_recursos: '', coordinador_actividad: '', visto_bueno_unidad: '',
     total_ingresos: '', total_costos_personal: '',
     total_personal_universidad: '', total_honorarios_docentes: '',
@@ -400,7 +533,9 @@ useEffect(() => {
     total_escarapelas: '', total_fotocopias: '', total_estacion_cafe: '',
     total_transporte_mensaje: '', total_refrigerios: '',
     total_infraestructura_fisica: '', total_gastos_generales: '',
-    total_infraestructura_universitaria: '', imprevistos: '', total_aportes_univalle: '',
+    total_infraestructura_universitaria: '', imprevistos: '', imprevistos_porcentaje: '3', imprevistos_procentaje: '', total_aportes_univalle: '',
+    fondo_comun_porcentaje: '30', facultad_instituto_porcentaje: '5', escuela_departamento_porcentaje: '0',
+    archivo_fondo_comun: '',
     // Hoja SOLICITUDES4
     descripcionPrograma: '', identificacionNecesidades: '', atributosBasicos: '',
     atributosDiferenciadores: '', competencia: '', programa: '',
@@ -435,8 +570,31 @@ useEffect(() => {
           params: { id_solicitud: solicitudId }
         });
 
+        console.log('📥 getSolicitud raw (campos clave):', {
+          id_solicitud: response?.data?.id_solicitud,
+          modalidad: response?.data?.modalidad,
+          horas_trabajo_presencial: response?.data?.horas_trabajo_presencial,
+          horas_trabajo_pat: response?.data?.horas_trabajo_pat,
+          horas_sincronicas: response?.data?.horas_sincronicas,
+          total_horas: response?.data?.total_horas,
+          valor_inscripcion: response?.data?.valor_inscripcion,
+          pieza_grafica: response?.data?.pieza_grafica,
+          archivo_fondo_comun: response?.data?.archivo_fondo_comun,
+        });
+
         const normalizedData = normalizeLoadedSolicitudData(response.data);
         if (Object.keys(normalizedData).length === 0) return;
+
+        console.log('🧩 getSolicitud normalizado (campos clave):', {
+          modalidad: normalizedData?.modalidad,
+          horas_trabajo_presencial: normalizedData?.horas_trabajo_presencial,
+          horas_trabajo_pat: normalizedData?.horas_trabajo_pat,
+          horas_sincronicas: normalizedData?.horas_sincronicas,
+          total_horas: normalizedData?.total_horas,
+          valor_inscripcion: normalizedData?.valor_inscripcion,
+          pieza_grafica: normalizedData?.pieza_grafica,
+          archivo_fondo_comun: normalizedData?.archivo_fondo_comun,
+        });
 
         setFormData((prev) => ({
           ...prev,
@@ -771,6 +929,7 @@ useEffect(() => {
             formData={formData} 
             setFormData={setFormData} 
             handleInputChange={handleInputChange} 
+            handleFileChange={handleFileChange}
             setCurrentSection={handleSectionChange} 
             currentStep={currentStep} 
             validateStep={validateStep}

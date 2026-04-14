@@ -1,12 +1,58 @@
+import { useEffect } from 'react';
 import { Grid, TextField, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, FormHelperText } from '@mui/material';
 import PropTypes from 'prop-types';
+
+const SMMLV = 1750905;
 
 const validateEmail = (email) => {
   // Usamos test() en lugar de intentar convertir el regex a string
   return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
 };
 
+const formatCop = (value) => {
+  const numeric = Number(value || 0);
+  if (!numeric) return '';
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(numeric);
+};
+
 function Step4({ formData, handleInputChange, errors }) {
+  useEffect(() => {
+    if (formData.tipo_valor === 'valor_unitario') {
+      const unitValue = Number(formData.valor_unitario || 0);
+      const calculatedPesos = Math.round(unitValue * SMMLV);
+      const currentPesos = Number(formData.valor_inscripcion || 0);
+
+      if (!Number.isNaN(unitValue) && calculatedPesos !== currentPesos) {
+        handleInputChange({
+          target: {
+            name: 'valor_inscripcion',
+            value: calculatedPesos,
+          },
+        });
+      }
+    }
+
+    if (formData.tipo_valor === 'cifra_pesos') {
+      const pesos = Number(formData.valor_inscripcion || 0);
+      const calculatedUnitValue = pesos === 0 ? 0 : parseFloat((pesos / SMMLV).toFixed(4));
+      const currentUnitValue = Number(formData.valor_unitario || 0);
+
+      if (!Number.isNaN(pesos) && calculatedUnitValue !== currentUnitValue) {
+        handleInputChange({
+          target: {
+            name: 'valor_unitario',
+            value: calculatedUnitValue,
+          },
+        });
+      }
+    }
+  }, [formData.tipo_valor, formData.valor_unitario, formData.valor_inscripcion, handleInputChange]);
+
   return (
     <Grid container spacing={2}>
       <Grid item xs={12}>
@@ -173,29 +219,82 @@ function Step4({ formData, handleInputChange, errors }) {
       )}
 
       <Grid item xs={12}>
+        <FormControl component="fieldset" required error={!!errors.tipo_valor}>
+          <FormLabel component="legend">Tipo de valor a registrar</FormLabel>
+          <RadioGroup
+            row
+            name="tipo_valor"
+            value={formData.tipo_valor || ''}
+            onChange={handleInputChange}
+          >
+            <FormControlLabel value="valor_unitario" control={<Radio />} label="Valor unitario (SMMLV)" />
+            <FormControlLabel value="cifra_pesos" control={<Radio />} label="Cifra en pesos (COP)" />
+          </RadioGroup>
+          {errors.tipo_valor && <FormHelperText>{errors.tipo_valor}</FormHelperText>}
+        </FormControl>
+      </Grid>
+
+      <Grid item xs={12}>
         <TextField
-          label="Valor unitario del programa EC expresado en SMMLV *"
+          label="Valor unitario (SMMLV)"
+          fullWidth
+          name="valor_unitario"
+          value={formData.valor_unitario ?? ''}
+          onChange={(e) => {
+            const rawValue = String(e.target.value || '').trim();
+
+            if (rawValue === '') {
+              handleInputChange({ target: { name: 'valor_unitario', value: '' } });
+              handleInputChange({ target: { name: 'valor_inscripcion', value: 0 } });
+              return;
+            }
+
+            if (!/^\d{0,2}([.,]\d{0,2})?$/.test(rawValue)) {
+              return;
+            }
+
+            const unitValue = parseFloat(rawValue.replace(',', '.'));
+            if (Number.isNaN(unitValue)) return;
+
+            handleInputChange({ target: { name: 'valor_unitario', value: unitValue } });
+            handleInputChange({ target: { name: 'valor_inscripcion', value: Math.round(unitValue * SMMLV) } });
+          }}
+          placeholder="Ej: 10,5"
+          disabled={formData.tipo_valor !== 'valor_unitario'}
+          error={!!errors.valor_unitario}
+          helperText={
+            formData.tipo_valor === 'valor_unitario'
+              ? `SMMLV vigente: ${new Intl.NumberFormat('es-CO').format(SMMLV)} COP`
+              : 'Seleccione "Valor unitario" para editar este campo'
+          }
+        />
+      </Grid>
+
+      <Grid item xs={12}>
+        <TextField
+          label="Valor de inscripción (COP) *"
           fullWidth
           name="valor_inscripcion"
-          value={
-            formData.valor_inscripcion && formData.valor_inscripcion > 0
-              ? new Intl.NumberFormat('es-CO', { 
-                  style: 'currency', 
-                  currency: 'COP', 
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0 
-                }).format(formData.valor_inscripcion)
-              : ''
-          }
+          value={formatCop(formData.valor_inscripcion)}
           onChange={(e) => {
             // Eliminar todos los caracteres no numéricos excepto números
             const rawValue = e.target.value.replace(/[^0-9]/g, '');
             const numericValue = rawValue === '' ? 0 : parseInt(rawValue, 10);
+
+            const calculatedUnitValue = numericValue === 0 ? 0 : parseFloat((numericValue / SMMLV).toFixed(4));
+
             handleInputChange({
               target: {
                 name: e.target.name,
                 value: numericValue
               }
+            });
+
+            handleInputChange({
+              target: {
+                name: 'valor_unitario',
+                value: calculatedUnitValue,
+              },
             });
           }}
           inputProps={{
@@ -203,9 +302,14 @@ function Step4({ formData, handleInputChange, errors }) {
             pattern: "[0-9]*"
           }}
           placeholder="0"
+          disabled={formData.tipo_valor === 'valor_unitario'}
           error={!!errors.valor_inscripcion}
           helperText={
-            formData.valor_inscripcion === 0 ? "El programa es sin costo" : ""
+            formData.tipo_valor === 'cifra_pesos'
+              ? `Equivale a ${Number(formData.valor_unitario || 0).toFixed(4)} SMMLV`
+              : formData.valor_inscripcion === 0
+                ? "El programa es sin costo"
+                : "Calculado automaticamente segun valor unitario"
           }
         />
       </Grid>
@@ -223,6 +327,8 @@ Step4.propTypes = {
     certificado_solicitado: PropTypes.string,
     calificacion_minima: PropTypes.string,
     razon_no_certificado: PropTypes.string,
+    tipo_valor: PropTypes.string,
+    valor_unitario: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     valor_inscripcion: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
   }).isRequired,
   handleInputChange: PropTypes.func.isRequired,
@@ -235,6 +341,8 @@ Step4.propTypes = {
     certificado_solicitado: PropTypes.string,
     calificacion_minima: PropTypes.string,
     razon_no_certificado: PropTypes.string,
+    tipo_valor: PropTypes.string,
+    valor_unitario: PropTypes.string,
     valor_inscripcion: PropTypes.string
   }).isRequired,
 };

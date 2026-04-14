@@ -175,7 +175,7 @@ function Step3FormSection4({ formData, handleInputChange, errors = {} }) {
 
       {/* Grupo 3: Estrategias de sondeo */}
       <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-        ¿Cuál de las siguientes estrategias han utilizado para sondear previamente el interés de las personas?
+        ¿Cuál(es) de las siguientes estrategias han utilizado para sondear previamente el interés de las personas?
       </Typography>
       <FormControlLabel
         control={

@@ -23,15 +23,14 @@ import api from '../../services/api';
 import {config} from '../../config';
 import {
   getRevisionStatus,
-  sendFormsToRevision,
   approveForms,
   sendCorrections,
   getCurrentFormStatus,
-  getCurrentFormComment,
+  getCurrentStepComment,
+  buildLegacyFormCommentsPayloadForStep,
   isApprovedStatus,
   isSentToReviewStatus,
   isCorrectionsStatus,
-  isCompletedStatus,
 } from '../../services/revisionService';
 const API_URL = config.API_URL;
   /* 
@@ -91,7 +90,6 @@ const API_URL = config.API_URL;
     departamentos, 
     secciones, 
     programas, 
-    entradas_diseño,
     oficinas, 
     userData, 
     currentStep,
@@ -262,16 +260,33 @@ const API_URL = config.API_URL;
               stepErrors.razon_no_certificado = "Este campo es obligatorio";
           }
       }  
-          if (formData.valor_inscripcion === 0) {
-            // Valor válido, no hacer nada
-        } else if (!formData.valor_inscripcion) {
-            stepErrors.valor_inscripcion = "Este campo es obligatorio";
-        } else if (typeof formData.valor_inscripcion !== 'number' || formData.valor_inscripcion < 0) {
-            stepErrors.valor_inscripcion = "Debe ser un valor numérico válido";
+        if (!formData.tipo_valor) {
+          stepErrors.tipo_valor = "Debe seleccionar una opción";
+        }
+
+        if (formData.tipo_valor === 'valor_unitario') {
+          const valorUnitario = Number(formData.valor_unitario);
+          if (Number.isNaN(valorUnitario) || valorUnitario <= 0) {
+            stepErrors.valor_unitario = "Ingrese un valor unitario válido";
+          }
+        }
+
+        if (formData.tipo_valor === 'cifra_pesos') {
+          const valorInscripcion = Number(formData.valor_inscripcion);
+          if (Number.isNaN(valorInscripcion) || valorInscripcion < 0) {
+            stepErrors.valor_inscripcion = "Debe ser un valor en pesos válido";
+          }
         }
       } else if (activeStep === 4) {
         if (!formData.periodicidad_oferta) stepErrors.periodicidad_oferta = "Debe seleccionar una periodicidad";
         if (!formData.organizacion_actividad) stepErrors.organizacion_actividad = "Debe seleccionar una opción";
+        if (!formData.extension_solidaria) stepErrors.extension_solidaria = "Debe seleccionar una opción";
+        if (formData.extension_solidaria === 'si') {
+          const costoSolidaria = Number(formData.costo_extension_solidaria);
+          if (Number.isNaN(costoSolidaria) || costoSolidaria < 0) {
+            stepErrors.costo_extension_solidaria = "Ingrese un valor de costo válido";
+          }
+        }
 
         }
     
@@ -303,36 +318,10 @@ const API_URL = config.API_URL;
     }, [loadRevisionStatus]);
 
     const currentFormReviewStatus = getCurrentFormStatus(revisionStatusData, formId);
-    const currentFormComment = getCurrentFormComment(revisionStatusData, formId);
-    const normalizedReviewStatus = String(currentFormReviewStatus || '').trim().toLowerCase();
+    const currentStepComment = getCurrentStepComment(revisionStatusData, formId, activeStep + 1);
     const isLockedByRevision = !isAdminUser && (isSentToReviewStatus(currentFormReviewStatus) || isApprovedStatus(currentFormReviewStatus));
-    const canUserSendReview = !isAdminUser && !isReadOnly && activeStep === steps.length - 1 && !isLockedByRevision && (isCompletedStatus(currentFormReviewStatus) || isCorrectionsStatus(currentFormReviewStatus) || normalizedReviewStatus === '' || normalizedReviewStatus === 'en progreso');
-    const canAdminReviewMode = isAdminUser && !isReadOnly && isSentToReviewStatus(currentFormReviewStatus);
-    const canAdminReviewActions = canAdminReviewMode && activeStep === steps.length - 1;
-
-    const handleSendCurrentFormToReview = async () => {
-      if (!idSolicitud || !currentUserId) return;
-
-      setRevisionActionLoading(true);
-      try {
-        const response = await sendFormsToRevision({
-          id_solicitud: idSolicitud,
-          userId: currentUserId,
-          formularios: [formId],
-        });
-
-        if (response?.success) {
-          await loadRevisionStatus();
-          alert('Formulario enviado a revision correctamente.');
-          navigate('/');
-        }
-      } catch (error) {
-        console.error('Error al enviar formulario 1 a revision:', error);
-        alert(error?.response?.data?.message || 'No se pudo enviar el formulario a revision.');
-      } finally {
-        setRevisionActionLoading(false);
-      }
-    };
+    const canAdminReviewMode = isAdminUser && (isSentToReviewStatus(currentFormReviewStatus) || isCorrectionsStatus(currentFormReviewStatus));
+    const canAdminReviewActions = canAdminReviewMode;
 
     const handleApproveCurrentForm = async () => {
       if (!idSolicitud || !currentUserId) return;
@@ -367,14 +356,18 @@ const API_URL = config.API_URL;
 
       setRevisionActionLoading(true);
       try {
+        const mergedStepComments = buildLegacyFormCommentsPayloadForStep(
+          revisionStatusData,
+          formId,
+          activeStep + 1,
+          correctionComment,
+        );
+
         const response = await sendCorrections({
           id_solicitud: idSolicitud,
           userId: currentUserId,
           formularios: [formId],
-          comentarios_por_formulario: {
-            [String(formId)]: correctionComment.trim(),
-          },
-          comentarios: correctionComment.trim(),
+          comentarios_por_formulario: mergedStepComments,
         });
 
         if (response?.success) {
@@ -467,7 +460,7 @@ const API_URL = config.API_URL;
                       metodologia: formData.metodologia || '',
                   };
                   break;
-              case 2:
+                case 2: {
                   // Lógica especial para mapear horas según modalidad
                   let horasPresenciales = '0';
                   let horasSincronicas = '0';
@@ -511,7 +504,8 @@ const API_URL = config.API_URL;
                     creditos: pasoData.creditos
                   });
                   console.log('  pasoData completo:', pasoData);
-                  break;
+                    break;
+                  }
               case 3:
                   pasoData = {
                       nombre_coordinador: formData.nombre_coordinador || '',
@@ -522,6 +516,8 @@ const API_URL = config.API_URL;
                       certificado_solicitado: formData.certificado_solicitado || '',
                       calificacion_minima: formData.calificacion_minima || '',
                       razon_no_certificado: formData.razon_no_certificado || '',
+                        tipo_valor: formData.tipo_valor || '',
+                        valor_unitario: formData.valor_unitario || '0',
                       valor_inscripcion: formData.valor_inscripcion || '0',
                   };
                   break;
@@ -562,6 +558,10 @@ const API_URL = config.API_URL;
                       // Campos de organización normales
                       organizacion_actividad: formData.organizacion_actividad || '',
                       otro_tipo_act: formData.organizacion_actividad === 'otro_act' ? (formData.otro_tipo_act || '') : '',
+                      extension_solidaria: formData.extension_solidaria || '',
+                      costo_extension_solidaria: formData.extension_solidaria === 'si' ? (formData.costo_extension_solidaria || '0') : '0',
+                      personal_externo: formData.personal_externo || '',
+                      pieza_grafica: typeof formData.pieza_grafica === 'string' ? formData.pieza_grafica : '',
                       
                       
                       observaciones_cambios: formData.observaciones_cambios || '',
@@ -591,56 +591,33 @@ const API_URL = config.API_URL;
                   break;
           }
 
-          let dataToSend;
-
-          if (formData.pieza_grafica && activeStep === 4) {
-              dataToSend = new FormData();
-              dataToSend.append('id_solicitud', idSolicitud);
-              dataToSend.append('paso', activeStep + 1);
-              dataToSend.append('hoja', hoja);
-              dataToSend.append('id_usuario', userData.id);
-              dataToSend.append('name', userData.name);
-
-              Object.keys(pasoData).forEach((key) => {
-                  dataToSend.append(key, pasoData[key]);
-              });
-              dataToSend.append('pieza_grafica', formData.pieza_grafica);
-          } else {
-              dataToSend = {
-                id_solicitud: idSolicitud,
-                paso: activeStep + 1,
-                hoja: hoja,
-                id_usuario: userData?.id || '',  // Usar operador opcional para prevenir errores
-                name: userData?.name || '',
-                ...pasoData,
-              };
-          }
+          const dataToSend = {
+            id_solicitud: idSolicitud,
+            paso: activeStep + 1,
+            hoja,
+            id_usuario: userData?.id || '',
+            name: userData?.name || '',
+            ...pasoData,
+          };
 
           try {
             console.log("Enviando Datos:", dataToSend);
-            if (formData.pieza_grafica && activeStep === 4) {
-              await axios.post(`${API_URL}/guardarProgreso`, dataToSend, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-                timeout: 30000, // 30 segundos de timeout
-              });
-            } else {
-              try {
-                await axios.post(`${API_URL}/guardarProgreso`, dataToSend, {
-                  timeout: 30000, // 30 segundos de timeout
-                });
-                setCompletedSteps((prev) => [...prev, activeStep]);
-              } catch (error) {
-                console.error('Error al guardar el progreso:', error);
-                if (error.code === 'ECONNABORTED' || error.response?.status === 504) {
-                  alert('El servidor está tardando en responder. Por favor, intenta nuevamente en unos momentos.');
-                } else {
-                  alert('Hubo un problema al guardar los datos. Por favor, inténtalo de nuevo.');
-                }
-              } finally {
-                setIsLoading(false);
-              }
-            }
-            setIsLoading(false);
+            console.log('📤 Form1 guardarProgreso resumen:', {
+              paso: activeStep + 1,
+              hoja,
+              tipo_valor: pasoData?.tipo_valor,
+              valor_unitario: pasoData?.valor_unitario,
+              valor_inscripcion: pasoData?.valor_inscripcion,
+              extension_solidaria: pasoData?.extension_solidaria,
+              costo_extension_solidaria: pasoData?.costo_extension_solidaria,
+              pieza_grafica: pasoData?.pieza_grafica,
+              personal_externo: pasoData?.personal_externo,
+            });
+            const saveResponse = await axios.post(`${API_URL}/guardarProgreso`, dataToSend, {
+              timeout: 30000,
+            });
+            console.log('📥 Form1 guardarProgreso response (json):', saveResponse?.data);
+
             setCompletedSteps((prevCompleted) => {
               const newCompleted = [...prevCompleted];
               if (!newCompleted.includes(activeStep)) {
@@ -653,6 +630,13 @@ const API_URL = config.API_URL;
           } catch (error) {
             console.error('Error al guardar el progreso:', error);
             if (error.response) console.error('Detalles del error:', error.response.data);
+            if (error.code === 'ECONNABORTED' || error.response?.status === 504) {
+              alert('El servidor está tardando en responder. Por favor, intenta nuevamente en unos momentos.');
+            } else {
+              alert('Hubo un problema al guardar los datos. Por favor, inténtalo de nuevo.');
+            }
+          } finally {
+            setIsLoading(false);
           }
         }
       };
@@ -720,6 +704,10 @@ const API_URL = config.API_URL;
             // Campos de organización normales
             organizacion_actividad: formData.organizacion_actividad || '',
             otro_tipo_act: formData.organizacion_actividad === 'otro_act' ? (formData.otro_tipo_act || '') : '',
+            extension_solidaria: formData.extension_solidaria || '',
+            costo_extension_solidaria: formData.extension_solidaria === 'si' ? (formData.costo_extension_solidaria || '0') : '0',
+            personal_externo: formData.personal_externo || '',
+            pieza_grafica: typeof formData.pieza_grafica === 'string' ? formData.pieza_grafica : '',
             
             
             observaciones_cambios: formData.observaciones_cambios || '',
@@ -733,30 +721,30 @@ const API_URL = config.API_URL;
           
         });
 
-        let dataToSend = new FormData();
-        dataToSend.append('id_solicitud', idSolicitud);
-        dataToSend.append('paso', activeStep + 1);
-        dataToSend.append('hoja', hoja);
-        dataToSend.append('id_usuario', userData.id);
-        dataToSend.append('name', userData.name);
-
-        Object.keys(pasoData).forEach((key) => {
-            if (pasoData[key] !== undefined && pasoData[key] !== null) {
-                dataToSend.append(key, pasoData[key]);
-            }
-        });
-
-        dataToSend.append('pieza_grafica', formData.pieza_grafica ? formData.pieza_grafica : '');
+        const dataToSend = {
+          id_solicitud: idSolicitud,
+          paso: activeStep + 1,
+          hoja,
+          id_usuario: userData?.id || '',
+          name: userData?.name || '',
+          ...pasoData,
+        };
 
         try {
             console.log("Enviando Datos:", dataToSend);
+          console.log('📤 Form1 submit resumen:', {
+            paso: activeStep + 1,
+            hoja,
+            valor_inscripcion: pasoData?.valor_inscripcion,
+            pieza_grafica: pasoData?.pieza_grafica,
+            extension_solidaria: pasoData?.extension_solidaria,
+          });
 
-            await axios.post(`${API_URL}/guardarProgreso`, dataToSend, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-                timeout: 30000, // 30 segundos de timeout
-            });
+          const saveResponse = await axios.post(`${API_URL}/guardarProgreso`, dataToSend, {
+            timeout: 30000,
+          });
+
+          console.log('📥 Form1 submit response:', saveResponse?.data);
 
             updateMaxAllowedStep(activeStep + 1);
 
@@ -932,13 +920,13 @@ const PrintReportButton = () => {
 
       <PrintReportButton />
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
-        {currentFormComment && (
+        {currentStepComment && (
           <Button
             size="small"
             variant="outlined"
             onClick={() => setCommentsDialogOpen(true)}
           >
-            Ver comentarios
+            Ver comentario del paso
           </Button>
         )}
       </Box>
@@ -1002,7 +990,9 @@ const PrintReportButton = () => {
         ))}
       </Stepper>
 
-        {renderStepContent(activeStep, errors)}
+        <Box sx={{ pointerEvents: isReadOnly ? 'none' : 'auto', opacity: isReadOnly ? 0.85 : 1 }}>
+          {renderStepContent(activeStep, errors)}
+        </Box>
 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', flexDirection: isSmallScreen ? 'column' : 'row', marginTop: '20px', marginBottom: '20px' }}>
           <Button disabled={activeStep === 0} onClick={handleBack} variant="outlined" sx={{ 
@@ -1026,11 +1016,11 @@ const PrintReportButton = () => {
             variant="contained"
             color="primary"
             onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
-            disabled={isLoading || isLockedByRevision} 
+            disabled={isLoading || isLockedByRevision || isReadOnly} 
             startIcon={isLoading ? <CircularProgress size={20} /> : null}
             sx={{ width: isSmallScreen ? '100%' : 'auto' }} 
           >
-            {activeStep === steps.length - 1 ? 'Enviar' : 'Siguiente'}
+            {activeStep === steps.length - 1 ? 'Finalizar' : 'Siguiente'}
           </Button>
         </Box>
 
@@ -1041,9 +1031,29 @@ const PrintReportButton = () => {
         )}
 
         {canAdminReviewMode && (
-          <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              mb: 2,
+              flexWrap: 'wrap',
+              alignItems: 'flex-start',
+              p: 2,
+              borderRadius: 2,
+              border: '1px solid #f59e0b',
+              backgroundColor: '#fff7ed',
+            }}
+          >
+            <Box sx={{ width: '100%' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#92400e' }}>
+                Revision administrativa por paso
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#7c2d12' }}>
+                Paso actual: {activeStep + 1} de {steps.length}
+              </Typography>
+            </Box>
             <TextField
-              label="Comentario de correccion"
+              label={`Comentario de correccion (paso ${activeStep + 1})`}
               multiline
               minRows={2}
               value={correctionComment}
@@ -1074,10 +1084,10 @@ const PrintReportButton = () => {
         )}
 
         <Dialog open={commentsDialogOpen} onClose={() => setCommentsDialogOpen(false)}>
-          <DialogTitle>Comentario del formulario</DialogTitle>
+          <DialogTitle>Comentario del paso {activeStep + 1}</DialogTitle>
           <DialogContent>
             <DialogContentText>
-              {currentFormComment || 'Este formulario no tiene comentarios.'}
+              {currentStepComment || 'Este paso no tiene comentarios.'}
             </DialogContentText>
           </DialogContent>
           <DialogActions>
@@ -1132,20 +1142,6 @@ const PrintReportButton = () => {
               >
                 Volver al Inicio
               </Button>
-              {canUserSendReview && (
-                <Button
-                  onClick={handleSendCurrentFormToReview}
-                  color="secondary"
-                  variant="contained"
-                  disabled={revisionActionLoading}
-                  sx={{
-                    minWidth: '170px',
-                    height: '40px'
-                  }}
-                >
-                  Enviar a revision
-                </Button>
-              )}
             </Box>
             <Box sx={{ display: 'flex', gap: 2 }}> {/* Mayor espacio entre botones */}
               <Button 
@@ -1206,6 +1202,7 @@ const PrintReportButton = () => {
     oficinas: PropTypes.array,
     userData: PropTypes.object,
     currentStep: PropTypes.number.isRequired,
+    formId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
     handleFileChange: PropTypes.func,
   };
 

@@ -1,8 +1,8 @@
-import { Grid, TextField, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, Box, FormHelperText  } from '@mui/material';
+import { Grid, TextField, RadioGroup, FormControlLabel, Radio, FormControl, FormLabel, Box, FormHelperText } from '@mui/material';
 import PropTypes from 'prop-types';
 import { useEffect } from 'react';
 
-function Step5({ formData, handleInputChange, handleFileChange, errors, setFormData}) {
+function Step5({ formData, handleInputChange, errors, setFormData}) {
 
   // useEffect para calcular automáticamente el total de becas
   useEffect(() => {
@@ -31,7 +31,7 @@ function Step5({ formData, handleInputChange, handleFileChange, errors, setFormD
     });
 
   }, [formData.becas_convenio, formData.becas_estudiantes, formData.becas_docentes, 
-      formData.becas_egresados, formData.becas_funcionarios, formData.becas_otros, setFormData]);
+      formData.becas_egresados, formData.becas_funcionarios, formData.becas_otros, formData.becas_total, setFormData]);
 
   return (
     <Grid container spacing={2}>
@@ -228,14 +228,76 @@ function Step5({ formData, handleInputChange, handleFileChange, errors, setFormD
           )}
         </FormControl>
       </Grid>
-      {/* "Es extensión solidaria?" campo */}
-      
 
-      {/* Si es extensión solidaria, preguntar el costo del curso */}
-      
+      <Grid item xs={12}>
+        <FormControl component="fieldset" required error={!!errors.extension_solidaria}>
+          <FormLabel component="legend">¿Es Extension Solidaria?</FormLabel>
+          <RadioGroup
+            name="extension_solidaria"
+            value={formData.extension_solidaria || ''}
+            onChange={handleInputChange}
+          >
+            <FormControlLabel value="si" control={<Radio />} label="Si" />
+            <FormControlLabel value="no" control={<Radio />} label="No" />
+          </RadioGroup>
+          {errors.extension_solidaria && (<FormHelperText>{errors.extension_solidaria}</FormHelperText>)}
+        </FormControl>
+      </Grid>
 
-      {/* "Tiene pieza gráfica?" campo de subida de archivos */}
-     
+      {formData.extension_solidaria === 'si' && (
+        <Grid item xs={12}>
+          <TextField
+            label="Si se cobrase el curso, ¿cuanto costaria? (COP)"
+            fullWidth
+            name="costo_extension_solidaria"
+            type="number"
+            value={formData.costo_extension_solidaria ?? ''}
+            onChange={(e) => {
+              const rawValue = e.target.value.replace(/[^0-9]/g, '');
+              const numericValue = rawValue === '' ? 0 : parseInt(rawValue, 10);
+              handleInputChange({
+                target: {
+                  name: e.target.name,
+                  value: numericValue,
+                },
+              });
+            }}
+            inputProps={{
+              inputMode: 'numeric',
+              pattern: '[0-9]*',
+            }}
+            error={!!errors.costo_extension_solidaria}
+            helperText={
+              formData.costo_extension_solidaria === 0
+                ? 'El programa es sin costo'
+                : `Valor estimado: $${new Intl.NumberFormat('es-CO').format(formData.costo_extension_solidaria || 0)} COP`
+            }
+          />
+        </Grid>
+      )}
+
+      <Grid item xs={12}>
+        <TextField
+          label="Link pieza grafica"
+          fullWidth
+          name="pieza_grafica"
+          value={formData.pieza_grafica || ''}
+          onChange={handleInputChange}
+          placeholder="https://..."
+          helperText="Ingrese la URL de la pieza grafica"
+        />
+      </Grid>
+
+      <Grid item xs={12}>
+        <TextField
+          label="Personal Externo Asignado"
+          fullWidth
+          name="personal_externo"
+          value={formData.personal_externo || ''}
+          onChange={handleInputChange}
+          placeholder="Detalles del personal externo (opcional)"
+        />
+      </Grid>
 
       {/* "Personal Externo" campo */}
       <Grid item xs={12}>
@@ -257,7 +319,6 @@ function Step5({ formData, handleInputChange, handleFileChange, errors, setFormD
 Step5.propTypes = {
   formData: PropTypes.object.isRequired,
   handleInputChange: PropTypes.func.isRequired,
-  handleFileChange: PropTypes.func.isRequired,
   errors: PropTypes.object.isRequired,
   setFormData: PropTypes.func.isRequired,
 };

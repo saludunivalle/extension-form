@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { downloadFormReport } from '../services/reportServices';
-import { Button, Typography, List, ListItem, ListItemText, CircularProgress, Tooltip } from '@mui/material';
+import { Button, Typography, List, ListItem, ListItemText, CircularProgress, Tooltip, Checkbox } from '@mui/material';
 import {config} from '../config';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { Print } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import PropTypes from "prop-types";
+import { sendFormsToRevision } from '../services/revisionService';
 const API_URL = config.API_URL;
 
 const flattenSolicitudResponse = (data) => {
@@ -44,7 +45,44 @@ const parseEstadoFormularios = (value) => {
   return {};
 };
 
-const normalizeFormStatus = (value) => String(value || '').trim().toLowerCase();
+const getLegacyEstadoValue = (source, formNumber) => {
+  if (!source || typeof source !== 'object') return '';
+
+  return (
+    source[`estado_formulario_${formNumber}`]
+    || source[`estado_formulario${formNumber}`]
+    || source[`estadoFormulario_${formNumber}`]
+    || source[`estadoFormulario${formNumber}`]
+    || ''
+  );
+};
+
+const extractEstadoFormularios = (request) => {
+  const estados = {
+    ...parseEstadoFormularios(
+      request?.estadoFormularios
+      || request?.estado_formularios
+      || request?.SOLICITUDES?.estadoFormularios
+      || request?.SOLICITUDES?.estado_formularios
+    ),
+  };
+
+  for (let formNumber = 1; formNumber <= 4; formNumber += 1) {
+    const legacyState =
+      getLegacyEstadoValue(request, formNumber)
+      || getLegacyEstadoValue(request?.SOLICITUDES, formNumber);
+
+    if (legacyState && !estados[String(formNumber)]) {
+      estados[String(formNumber)] = legacyState;
+    }
+  }
+
+  return estados;
+};
+
+const resolveFormStatus = (request, formNumber) => {
+  return request?.estadoFormularios?.[String(formNumber)] || getLegacyEstadoValue(request, formNumber) || '';
+};
 
 const normalizeStatusForMatch = (value) => {
   return String(value || '')
@@ -87,6 +125,11 @@ const normalizeRequest = (request) => {
       estadoFormulariosRaw,
     ] = request;
 
+    const estados = parseEstadoFormularios(estadoFormulariosRaw);
+    if (formulario && estado && !estados[String(formulario)]) {
+      estados[String(formulario)] = estado;
+    }
+
     return {
       idSolicitud: idSolicitud || null,
       id_usuario: idUsuario || null,
@@ -97,7 +140,7 @@ const normalizeRequest = (request) => {
       nombre_actividad: nombreActividad || '',
       paso: Number(paso) || 0,
       etapa_actual: Number(formulario) || 0,
-      estadoFormularios: parseEstadoFormularios(estadoFormulariosRaw),
+      estadoFormularios: estados,
     };
   }
 
@@ -110,7 +153,7 @@ const normalizeRequest = (request) => {
     fecha_solicitud: request.fecha_solicitud || request.fechaSolicitud || '',
     etapa_actual: Number(request.etapa_actual || request.formulario) || 0,
     paso: Number(request.paso) || 0,
-    estadoFormularios: parseEstadoFormularios(request.estadoFormularios),
+    estadoFormularios: extractEstadoFormularios(request),
   };
 };
 
@@ -158,7 +201,7 @@ const normalizeRevisionRequest = (request) => {
     nombre_actividad: request.nombre_actividad || request.nombreActividad || request.solicitud || request.actividad || request.titulo || '',
     etapa_actual: Number(request.etapa_actual || request.formulario) || 0,
     paso: Number(request.paso) || 0,
-    estadoFormularios: parseEstadoFormularios(request.estado_formularios || request.estadoFormularios),
+    estadoFormularios: extractEstadoFormularios(request),
   };
 };
 
@@ -168,6 +211,8 @@ function Dashboard({ userData }) {
   const [isAdmin, setIsAdmin] = useState(userData?.role?.toLowerCase() === 'admin');
   const [loading, setLoading] = useState(true);
   const [loadingReports, setLoadingReports] = useState({});
+  const [selectedFormsByRequest, setSelectedFormsByRequest] = useState({});
+  const [bulkReviewLoadingByRequest, setBulkReviewLoadingByRequest] = useState({});
   const navigate = useNavigate();
 
   const theme = createTheme({
@@ -368,38 +413,6 @@ function Dashboard({ userData }) {
     }
 };
 
-const handleContinueRequest = async (request, { readOnly = false } = {}) => {
-  try {
-    console.log(`🔎 Buscando datos actualizados para la solicitud con ID: ${request.idSolicitud}`);
-    const response = await axios.get(`${API_URL}/getSolicitud`, {
-      params: { id_solicitud: request.idSolicitud }
-    });
-    
-    // Aplanar todas las hojas para conservar los campos de todos los formularios
-    const solicitudData = flattenSolicitudResponse(response.data);
-    const solicitudMeta = response.data?.SOLICITUDES || solicitudData;
-
-    console.log("Estado de formularios:", {
-      form1: solicitudMeta.estado_formulario_1,
-      form2: solicitudMeta.estado_formulario_2,
-      form3: solicitudMeta.estado_formulario_3,
-      form4: solicitudMeta.estado_formulario_4
-    });
-    
-    // Extraer etapa_actual y paso de los datos de SOLICITUDES
-    const etapa_actual = solicitudMeta.etapa_actual || request.formulario;
-    const paso = solicitudMeta.paso || 0;
-    
-    localStorage.setItem('id_solicitud', solicitudData.id_solicitud);
-    localStorage.setItem('formData', JSON.stringify(solicitudData));
-    
-    navigate(`/formulario/${etapa_actual}?solicitud=${request.idSolicitud}&paso=${paso}${readOnly ? '&readOnly=1' : ''}`);
-  } catch (error) {
-    console.error('🚨 Error al continuar la solicitud:', error);
-    alert('Hubo un problema al cargar los datos de la solicitud. Inténtalo de nuevo.');
-  }
-};
-  
 const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
   try {
     const { idSolicitud } = request;
@@ -417,11 +430,15 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
     if (response.status === 200 && response.data) {
       // Guardar los datos actualizados en localStorage
       const solicitudData = flattenSolicitudResponse(response.data);
+      const solicitudMeta = response.data?.SOLICITUDES || solicitudData;
+      const etapaActual = Number(solicitudMeta?.etapa_actual || 0);
+      const pasoActual = Number(solicitudMeta?.paso || 0);
+      const pasoDestino = formNumber === etapaActual ? pasoActual : 0;
       localStorage.setItem('formData', JSON.stringify(solicitudData));
       console.log(`✅ Datos cargados correctamente para solicitud ${idSolicitud}`);
       
       // Navegar al formulario
-      navigate(`/formulario/${formNumber}?solicitud=${idSolicitud}&paso=0${readOnly ? '&readOnly=1' : ''}`);
+      navigate(`/formulario/${formNumber}?solicitud=${idSolicitud}&paso=${pasoDestino}${readOnly ? '&readOnly=1' : ''}`);
     } else {
       throw new Error('No se encontraron datos para esta solicitud');
     }
@@ -443,12 +460,13 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
     const currentForm = formNumber === currentStage;
     
     // Verificar el estado específico de este formulario
-    const formStatus = request.estadoFormularios?.[formNumber.toString()] || "En progreso";
+    const formStatus = resolveFormStatus(request, formNumber) || 'En progreso';
     const normalizedStatus = normalizeStatusForMatch(formStatus);
     const isThisFormCompleted = normalizedStatus === "completado" || normalizedStatus === "Completado";
     const isApproved = normalizedStatus === 'aprobado';
     const isInReview = normalizedStatus === 'enviado a revision';
     const isCorrections = isCorrectionsStatus(formStatus);
+    const isInProgress = normalizedStatus === 'en progreso';
 
     const blockedForOwner = !isAdmin && !isReceived && isLockedForOwner(formStatus);
 
@@ -484,6 +502,17 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
         progress: 100
       };
     }
+
+    if (isInProgress) {
+      return {
+        formEnabled: true,
+        reportEnabled: false,
+        formColor: '#90caf9',
+        reportColor: '#e0e0e0',
+        cursor: 'pointer',
+        progress: 50,
+      };
+    }
     
     const isCurrentFormComplete = isFormCompleted(request, formNumber);
     const isPast = formNumber < currentStage;
@@ -500,29 +529,36 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
         progress: 100 
       };
     } else if (currentForm) {
-      // La etapa en progreso debe estar deshabilitada pero con color distintivo
+      // Permitir continuar desde el boton del formulario en curso.
       return { 
-        formEnabled: false, 
+        formEnabled: true, 
         reportEnabled: false,
         formColor: '#90caf9', 
         reportColor: '#e0e0e0',
-        cursor: 'not-allowed', 
+        cursor: 'pointer', 
         progress: 50 
       };
     } else {
-      // Etapas futuras deshabilitadas
+      const allowDirectFormAccess = !isReceived;
+
+      // Permitir acceso directo por boton de formulario cuando es solicitud propia.
       return { 
-        formEnabled: false, 
+        formEnabled: allowDirectFormAccess,
         reportEnabled: false,
-        formColor: '#e0e0e0', 
+        formColor: allowDirectFormAccess ? '#bcd7f6' : '#e0e0e0',
         reportColor: '#e0e0e0',
-        cursor: 'not-allowed', 
-        progress: 0 
+        cursor: allowDirectFormAccess ? 'pointer' : 'not-allowed',
+        progress: allowDirectFormAccess ? 10 : 0,
       };
     }
   };
 
   function isFormCompleted(request, formNumber) {
+    const normalizedStatus = normalizeStatusForMatch(resolveFormStatus(request, formNumber));
+    if (normalizedStatus === 'completado' || normalizedStatus === 'aprobado') {
+      return true;
+    }
+
     // 1. Verificar primero si está marcado explícitamente como completado
     if (request[`estado_formulario_${formNumber}`] === "Completado") {
       return true;
@@ -565,6 +601,132 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
     }
   };
 
+  const getRequestTotalHours = async (request) => {
+    const directHours = Number(request?.total_horas ?? request?.totalHoras ?? request?.SOLICITUDES?.total_horas);
+    if (!Number.isNaN(directHours) && directHours > 0) {
+      return directHours;
+    }
+
+    try {
+      const response = await axios.get(`${API_URL}/getSolicitud`, {
+        params: { id_solicitud: request.idSolicitud }
+      });
+      const solicitudData = flattenSolicitudResponse(response.data);
+      const fetchedHours = Number(solicitudData?.total_horas ?? solicitudData?.totalHoras);
+      return Number.isNaN(fetchedHours) ? 0 : fetchedHours;
+    } catch (error) {
+      console.warn('No fue posible obtener total_horas para validacion de revision:', error);
+      return 0;
+    }
+  };
+
+  const isFormSelectableForReview = (request, formNumber) => {
+    const formStatus = resolveFormStatus(request, formNumber);
+    const normalized = normalizeStatusForMatch(formStatus);
+    if (normalized === 'aprobado' || normalized === 'enviado a revision') {
+      return false;
+    }
+
+    if (isCorrectionsStatus(formStatus)) {
+      return true;
+    }
+
+    return isFormCompleted(request, formNumber) || normalized === 'completado';
+  };
+
+  const toggleFormSelection = (requestId, formNumber) => {
+    setSelectedFormsByRequest((prev) => {
+      const currentRequestSelection = prev[requestId] || {};
+      return {
+        ...prev,
+        [requestId]: {
+          ...currentRequestSelection,
+          [formNumber]: !currentRequestSelection[formNumber],
+        },
+      };
+    });
+  };
+
+  const handleSendSelectedFormsToReview = async (request) => {
+    const requestId = request.idSolicitud;
+    const selectedMap = selectedFormsByRequest[requestId] || {};
+    const selectedForms = Object.entries(selectedMap)
+      .filter(([formNumber, isSelected]) => {
+        if (!isSelected) return false;
+        return isFormSelectableForReview(request, Number(formNumber));
+      })
+      .map(([formNumber]) => Number(formNumber));
+
+    if (selectedForms.length === 0) {
+      alert('Seleccione al menos un formulario para enviar a revision.');
+      return;
+    }
+
+    const normalizedStatus1 = normalizeStatusForMatch(resolveFormStatus(request, 1));
+    const normalizedStatus2 = normalizeStatusForMatch(resolveFormStatus(request, 2));
+    const normalizedStatus3 = normalizeStatusForMatch(resolveFormStatus(request, 3));
+
+    const isAlreadySatisfied = (normalizedStatus) => (
+      normalizedStatus === 'aprobado' || normalizedStatus === 'enviado a revision'
+    );
+
+    const form1Satisfied = selectedForms.includes(1) || isAlreadySatisfied(normalizedStatus1);
+    const form2Satisfied = selectedForms.includes(2) || isAlreadySatisfied(normalizedStatus2);
+
+    if (!form1Satisfied || !form2Satisfied) {
+      if (!form1Satisfied && !form2Satisfied) {
+        alert('Para enviar a revision debe incluir los formularios 1 y 2, salvo que ya esten aprobados o enviados a revision.');
+      } else if (!form1Satisfied) {
+        alert('Para enviar a revision debe incluir el formulario 1, salvo que ya este aprobado o enviado a revision.');
+      } else {
+        alert('Para enviar a revision debe incluir el formulario 2, salvo que ya este aprobado o enviado a revision.');
+      }
+      return;
+    }
+
+    const totalHoras = await getRequestTotalHours(request);
+    const form3Satisfied = selectedForms.includes(3) || isAlreadySatisfied(normalizedStatus3);
+    if (totalHoras >= 16 && !form3Satisfied) {
+      alert('Como el total de horas de la actividad es mayor o igual a 16, el formulario 3 es obligatorio para enviar a revision.');
+      return;
+    }
+
+    setBulkReviewLoadingByRequest((prev) => ({ ...prev, [requestId]: true }));
+    try {
+      const response = await sendFormsToRevision({
+        id_solicitud: requestId,
+        userId: userData.id,
+        formularios: selectedForms,
+      });
+
+      if (response?.success) {
+        setOwnRequests((prev) => prev.map((item) => {
+          if (String(item.idSolicitud) !== String(requestId)) {
+            return item;
+          }
+
+          const nextStatuses = { ...(item.estadoFormularios || {}) };
+          selectedForms.forEach((formNumber) => {
+            nextStatuses[String(formNumber)] = 'Enviado a revision';
+          });
+
+          return {
+            ...item,
+            estadoFormularios: nextStatuses,
+          };
+        }));
+
+        setSelectedFormsByRequest((prev) => ({ ...prev, [requestId]: {} }));
+        alert('Formularios seleccionados enviados a revision correctamente.');
+      }
+    } catch (error) {
+      console.error('Error al enviar formularios seleccionados a revision:', error);
+      alert(error?.response?.data?.message || 'No se pudieron enviar los formularios seleccionados a revision.');
+    } finally {
+      setBulkReviewLoadingByRequest((prev) => ({ ...prev, [requestId]: false }));
+    }
+  };
+
   if (!userData || !userData.id) {
     return <div>Cargando...</div>;
   }
@@ -579,19 +741,11 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
     );
   }
 
-  const isRequestCompleted = (request) => {
-    if (request?.estadoFormularios && typeof request.estadoFormularios === 'object') {
-      return Object.values(request.estadoFormularios).every((estado) => estado === 'Completado');
-    }
-
-    return [1, 2, 3, 4].every((formNumber) => isFormCompleted(request, formNumber));
-  };
-
   const renderFormNamesHeader = () => {
     return (
-      <div style={{ display: 'flex', marginTop: '10px', marginLeft: '42%' }}>
-        <div style={{ width: '120px' }}></div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '280px 510px 210px', marginTop: '10px', alignItems: 'center' }}>
+        <div></div>
+        <div style={{ display: 'flex', gap: '10px', width: '510px' }}>
           {formNames.map((name, index) => (
             <div
               key={`form-name-${index}`}
@@ -618,6 +772,7 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
             </div>
           ))}
         </div>
+        <div></div>
       </div>
     );
   };
@@ -625,7 +780,10 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
   const renderRequestList = ({ requests, readOnlyMode = false, isReceived = false }) => (
     <List>
       {requests.map((request) => (
-        <ListItem key={`${readOnlyMode ? 'readonly' : 'own'}-${request.idSolicitud}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <ListItem
+          key={`${readOnlyMode ? 'readonly' : 'own'}-${request.idSolicitud}`}
+          style={{ display: 'grid', gridTemplateColumns: '280px 510px 210px', alignItems: 'center', columnGap: '12px' }}
+        >
           {(() => {
             const waitingCorrections = hasCorrectionsInRequest(request);
             const titleText = isReceived
@@ -634,6 +792,7 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
 
             return (
               <ListItemText
+                sx={{ m: 0 }}
                 primary={
                   <span>
                     {titleText}
@@ -648,20 +807,7 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
             );
           })()}
 
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={() => {
-              const currentFormStatus = request.estadoFormularios?.[String(request.etapa_actual)] || '';
-              const shouldReadOnly = readOnlyMode || (!isAdmin && isLockedForOwner(currentFormStatus));
-              handleContinueRequest(request, { readOnly: shouldReadOnly });
-            }}
-            style={{ marginRight: '15px', marginLeft: '15px' }}
-          >
-            {readOnlyMode || isReceived || isRequestCompleted(request) ? 'Ver formulario' : 'Continuar'}
-          </Button>
-
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px', width: '510px' }}>
             {[1, 2, 3, 4].map((formNumber) => {
               if (readOnlyMode) {
                 return (
@@ -682,11 +828,22 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
 
               const { formEnabled, reportEnabled, formColor, reportColor } = getButtonState(request, formNumber, { isReceived });
 
-              const formStatus = request.estadoFormularios?.[String(formNumber)] || '';
-              const shouldReadOnly = !isAdmin && isLockedForOwner(formStatus);
+              const formStatus = resolveFormStatus(request, formNumber);
+              const shouldReadOnly = isReceived || (!isAdmin && isLockedForOwner(formStatus));
+              const canSelectForReview = !readOnlyMode && !isReceived && !isAdmin && isFormSelectableForReview(request, formNumber);
+              const isSelected = Boolean(selectedFormsByRequest[request.idSolicitud]?.[formNumber]);
 
               return (
                 <div key={`container-${request.idSolicitud}-${formNumber}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '120px' }}>
+                  {!readOnlyMode && !isReceived && !isAdmin && (
+                    <Checkbox
+                      size="small"
+                      checked={isSelected}
+                      onChange={() => toggleFormSelection(request.idSolicitud, formNumber)}
+                      disabled={!canSelectForReview || bulkReviewLoadingByRequest[request.idSolicitud]}
+                      sx={{ p: 0.5 }}
+                    />
+                  )}
                   <div style={{ display: 'flex', width: '100%', height: '36px' }}>
                     <Button
                       variant="contained"
@@ -756,6 +913,18 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
               );
             })}
           </div>
+
+          {!readOnlyMode && !isReceived && !isAdmin && (
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => handleSendSelectedFormsToReview(request)}
+              disabled={Boolean(bulkReviewLoadingByRequest[request.idSolicitud])}
+              style={{ minWidth: '190px', justifySelf: 'start' }}
+            >
+              {bulkReviewLoadingByRequest[request.idSolicitud] ? 'Enviando...' : 'Enviar seleccionados a revision'}
+            </Button>
+          )}
         </ListItem>
       ))}
     </List>

@@ -389,8 +389,21 @@ export const downloadFormReport = async (solicitudId, formNumber) => {
       { solicitudId, formNumber },
       { responseType: 'blob' }
     );
-    // Obtener nombre sugerido del header o usar uno por defecto
-    let fileName = `Reporte_Formulario_${formNumber}.xlsx`;
+    // Obtener nombre desde el numero del formulario
+    let fileName = '';
+    if(formNumber==1){
+      fileName = `Aprobación - Formulario F-05-MP-05-01-01.xlsx`
+    }
+    else if(formNumber==2){
+      fileName = `Presupuesto - Formulario F-06-MP-05-01-01.xlsx`
+    }
+    else if(formNumber==3){
+      fileName = `Riesgos Potenciales - Formulario F-08-MP-05-01-01.xlsx`
+    }
+    else if(formNumber==4){
+      fileName = `Identificación de Mercadeo - Formulario F-07-MP-05-01-01.xlsx`
+    }
+    
     const disposition = response.headers['content-disposition'];
     if (disposition && disposition.indexOf('filename=') !== -1) {
       const match = disposition.match(/filename="?([^";]+)"?/);
