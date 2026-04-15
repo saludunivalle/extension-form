@@ -6,31 +6,18 @@ function Step3({ formData, setFormData, errors  }) {
 
   // useEffect para recalcular el total de horas automáticamente
   useEffect(() => {
-    let total = 0;
-
-    if (formData.modalidad === "Presencial") {
-      total = parseInt(formData.horas_trabajo_presencial) || 0;
-    } else if (formData.modalidad === "Presencial asistida por tecnología") {
-      // Compatibilidad: historicamente PAT se persiste en horas_sincronicas.
-      total = parseInt(formData.horas_trabajo_pat || formData.horas_sincronicas) || 0;
-    } else if (formData.modalidad === "Virtual") {
-      total = parseInt(formData.horas_sincronicas) || 0;
-    } else if (formData.modalidad === "Horas de trabajo independientes") {
-      total = parseInt(formData.horas_trabajo_independiente) || 0;
-    } else if (["Mixta", "Todas las anteriores"].includes(formData.modalidad)) {
-      total =
-        (parseInt(formData.horas_trabajo_presencial) || 0) +
-        (parseInt(formData.horas_sincronicas) || 0);
-    }
+    const horasDependientes = parseInt(formData.horas_trabajo_presencial, 10) || 0;
+    const horasIndependientes = parseInt(formData.horas_sincronicas, 10) || 0;
+    const total = horasDependientes + horasIndependientes;
 
     // Solo actualizar si el total es diferente al actual
-    if (total !== formData.total_horas) {
+    if (total !== (parseInt(formData.total_horas, 10) || 0)) {
       setFormData(prev => ({
         ...prev,
         total_horas: total
       }));
     }
-  }, [formData.modalidad, formData.horas_trabajo_presencial, formData.horas_trabajo_pat, formData.horas_sincronicas, formData.horas_trabajo_independiente, formData.total_horas, setFormData]);
+  }, [formData.horas_trabajo_presencial, formData.horas_sincronicas, formData.total_horas, setFormData]);
 
   const handleCustomInputChange = (event) => {
     const { name, value } = event.target;
@@ -128,7 +115,7 @@ function Step3({ formData, setFormData, errors  }) {
         <Grid item xs={12}>
           <Grid container spacing={2}>
             {/* Input para horas presenciales */}
-            {(formData.modalidad === "Presencial" || formData.modalidad === "Mixta" || formData.modalidad === "Todas las anteriores") && (
+            {(formData.modalidad === "Presencial" || formData.modalidad === "Presencial asistida por tecnología" || formData.modalidad === "Virtual" || formData.modalidad === "Mixta"  || formData.modalidad === "Todas las anteriores" ) && (
               <Grid item xs={3.5}>
                 <TextField
                   label={formData.modalidad === "Presencial" ? "Horas de trabajo dependiente" : "Horas de trabajo dependiente"}
@@ -150,7 +137,7 @@ function Step3({ formData, setFormData, errors  }) {
             )}
 
             {/* Input para horas PAT */}
-            {(formData.modalidad === "Presencial asistida por tecnología") && (
+            {/*(formData.modalidad === "Presencial asistida por tecnología") && (
               <Grid item xs={3.5}>
                 <TextField
                   label="Horas de trabajo PAT"
@@ -176,10 +163,10 @@ function Step3({ formData, setFormData, errors  }) {
                   }}
                 />
               </Grid>
-            )}
+            )*/}
 
             {/* Input para horas sincrónicas */}
-            {(formData.modalidad === "Virtual" || formData.modalidad === "Mixta" || formData.modalidad === "Todas las anteriores") && (
+            {(formData.modalidad === "Presencial" || formData.modalidad === "Presencial asistida por tecnología" || formData.modalidad === "Virtual" || formData.modalidad === "Mixta"  || formData.modalidad === "Todas las anteriores" ) && (
               <Grid item xs={3.5}>
                 <TextField
                   label="Horas de trabajo independiente"
@@ -211,7 +198,7 @@ function Step3({ formData, setFormData, errors  }) {
                 value={formData.creditos}
                 type="number" 
                 inputProps={{
-                  min: 1,
+                  min: 0,
                   max: 50,
                   onKeyPress: (e) => {
                     if (e.key === '-') e.preventDefault();
@@ -222,7 +209,7 @@ function Step3({ formData, setFormData, errors  }) {
                   // Limitar máximo a 50
                   if (value > 50) value = 50;
                   // Convertir a número y validar
-                  const numericValue = Math.max(1, Math.min(50, parseInt(value)));
+                  const numericValue = Math.max(0, Math.min(50, parseInt(value)));
                   handleCustomInputChange({
                     target: {
                       name: "creditos",

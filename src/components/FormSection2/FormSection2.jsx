@@ -90,7 +90,6 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   const [totalGastos, setTotalGastos] = useState(0);
   const [previewData, setPreviewData] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [localFormData, setLocalFormData] = useState({...formData});
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const isReadOnly = new URLSearchParams(location.search).get('readOnly') === '1';
   const currentUserId = userData?.id || userData?.id_usuario || '';
@@ -102,21 +101,21 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
 
   // Define setFormData as a function that updates formData through handleInputChange
   const setFormData = (newDataOrCallback) => {
+    const currentData = formData || {};
+
     // Handle both function and object parameter styles
     if (typeof newDataOrCallback === 'function') {
-      const newData = newDataOrCallback(localFormData);
-      setLocalFormData(newData);
+      const newData = newDataOrCallback(currentData);
       // Apply each field individually through handleInputChange
       Object.entries(newData).forEach(([key, value]) => {
-        if (key in formData || !(key in localFormData) || formData[key] !== value) {
+        if (currentData[key] !== value) {
           handleInputChange({ target: { name: key, value } });
         }
       });
     } else {
-      setLocalFormData(prevData => ({...prevData, ...newDataOrCallback}));
       // Apply each field individually through handleInputChange
       Object.entries(newDataOrCallback).forEach(([key, value]) => {
-        if (key in formData || !(key in localFormData) || formData[key] !== value) {
+        if (currentData[key] !== value) {
           handleInputChange({ target: { name: key, value } });
         }
       });
