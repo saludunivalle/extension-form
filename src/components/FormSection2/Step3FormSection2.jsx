@@ -8,6 +8,21 @@ const parseNumberOrFallback = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const parseNumericInput = (value) => {
+  if (value === undefined || value === null || value === '') return NaN;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+
+  const normalized = String(value)
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/\.(?=\d{3}(?:\D|$))/g, '')
+    .replace(',', '.')
+    .replace(/[^0-9.-]/g, '');
+
+  const parsed = parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : NaN;
+};
+
 function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
   const [observacionesExpanded, setObservacionesExpanded] = useState(true);
   const isExtensionSolidaria = String(formData.extension_solidaria || '').trim().toLowerCase() === 'si';
@@ -22,7 +37,17 @@ function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
   }, [defaultSolidariaObservation, formData.observaciones, handleInputChange, isExtensionSolidaria]);
   
   // Calcular dinámicamente los totales según los datos en formData
-  const totalIngresos = isExtensionSolidaria ? 0 : ((formData.ingresos_cantidad || 0) * (formData.ingresos_vr_unit || 0));
+  const ingresosCantidad = parseNumericInput(formData.ingresos_cantidad);
+  const ingresosVrUnit = parseNumericInput(formData.ingresos_vr_unit);
+  const totalIngresosFromInputs = (Number.isFinite(ingresosCantidad) && Number.isFinite(ingresosVrUnit))
+    ? ingresosCantidad * ingresosVrUnit
+    : NaN;
+  const totalIngresosFallback = parseNumericInput(formData.total_ingresos);
+  const totalIngresos = isExtensionSolidaria
+    ? 0
+    : (Number.isFinite(totalIngresosFromInputs)
+      ? totalIngresosFromInputs
+      : (Number.isFinite(totalIngresosFallback) ? totalIngresosFallback : 0));
 
   // Porcentaje para el fondo común (ajustable por el usuario)
   const fondoComunPorcentaje = parseNumberOrFallback(formData.fondo_comun_porcentaje, 30);
@@ -248,6 +273,7 @@ Step3FormSection2.propTypes = {
     extension_solidaria: PropTypes.string,
     ingresos_cantidad: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     ingresos_vr_unit: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    total_ingresos: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     fondo_comun_porcentaje: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     facultad_instituto_porcentaje: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     escuela_departamento_porcentaje: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),

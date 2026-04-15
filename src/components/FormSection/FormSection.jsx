@@ -218,9 +218,11 @@ const API_URL = config.API_URL;
         }
         if (!formData.programCont) stepErrors.programCont = "Este campo es obligatorio";
         if (!formData.dirigidoa) stepErrors.dirigidoa = "Este campo es obligatorio";
-        if (!formData.creditos) stepErrors.creditos = "Este campo es obligatorio";
-        if (!formData.creditos || formData.creditos < 1 || formData.creditos > 50) {
-          stepErrors.creditos = "Debe ser entre 1 y 50 créditos";
+        if (formData.creditos === undefined || formData.creditos === null) {
+          stepErrors.creditos = "Este campo es obligatorio";
+        }
+        if (  formData.creditos > 50) {
+          stepErrors.creditos = "El máximo de creditos es 50";
         }
         if (!formData.cupo_min) stepErrors.cupo_min = "Este campo es obligatorio";
         if (!formData.cupo_max) stepErrors.cupo_max = "Este campo es obligatorio";
