@@ -114,6 +114,81 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
   const [revisionActionLoading, setRevisionActionLoading] = useState(false);
   const [correctionComment, setCorrectionComment] = useState('');
   const [commentsDialogOpen, setCommentsDialogOpen] = useState(false);
+  const NEXT_COOLDOWN_SECONDS = 60;
+  const cooldownStorageKey = `form${formId}_nextCooldownUntil_${idSolicitud}`;
+  const [nextCooldownRemaining, setNextCooldownRemaining] = useState(0);
+
+  const startNextCooldown = useCallback(() => {
+    const cooldownUntil = Date.now() + (NEXT_COOLDOWN_SECONDS * 1000);
+    localStorage.setItem(cooldownStorageKey, String(cooldownUntil));
+    setNextCooldownRemaining(NEXT_COOLDOWN_SECONDS);
+  }, [NEXT_COOLDOWN_SECONDS, cooldownStorageKey]);
+
+  const formatCooldown = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = String(seconds % 60).padStart(2, '0');
+    return `${mins}:${secs}`;
+  };
+
+  const isNextButtonBlocked = nextCooldownRemaining > 0;
+
+  useEffect(() => {
+    const syncCooldown = () => {
+      const storedCooldownUntil = Number(localStorage.getItem(cooldownStorageKey) || 0);
+      const diffSeconds = Math.ceil((storedCooldownUntil - Date.now()) / 1000);
+
+      if (diffSeconds > 0) {
+        setNextCooldownRemaining(diffSeconds);
+      } else {
+        setNextCooldownRemaining(0);
+        localStorage.removeItem(cooldownStorageKey);
+      }
+    };
+
+    syncCooldown();
+    const intervalId = setInterval(syncCooldown, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [cooldownStorageKey]);
+
+  const getPersistedFormData = useCallback(() => {
+    try {
+      const scopedData = localStorage.getItem(`solicitud3_data_${idSolicitud}`);
+      if (scopedData) return JSON.parse(scopedData);
+      return JSON.parse(localStorage.getItem('formData') || '{}');
+    } catch (error) {
+      console.warn('No fue posible leer datos persistidos de Formulario 3:', error);
+      return {};
+    }
+  }, [idSolicitud]);
+
+  const isBlankValue = (value) => {
+    if (value === undefined || value === null) return true;
+    if (typeof value === 'string') return value.trim() === '';
+    return false;
+  };
+
+  const mergeWithPersistedStepData = useCallback((stepData = {}) => {
+    const persisted = getPersistedFormData();
+    const merged = { ...stepData };
+
+    Object.keys(merged).forEach((key) => {
+      const value = merged[key];
+      const rawCurrent = formData?.[key];
+      const isPlaceholder =
+        isBlankValue(value) ||
+        ((value === 'No' || value === 'N/A' || value === '0') && isBlankValue(rawCurrent));
+
+      if (!isPlaceholder) return;
+
+      const persistedValue = persisted?.[key];
+      if (!isBlankValue(persistedValue)) {
+        merged[key] = persistedValue;
+      }
+    });
+
+    return merged;
+  }, [formData, getPersistedFormData]);
 
   const loadRevisionStatus = useCallback(async () => {
     if (!idSolicitud || !currentUserId) return;
@@ -381,6 +456,10 @@ const validateStep = () => {
   */
   
   const handleNext = async () => {
+    if (nextCooldownRemaining > 0) {
+      return;
+    }
+
     if (!validateStep()) {
       console.log("Errores en los campos: ", errors); 
       return; 
@@ -453,12 +532,14 @@ const validateStep = () => {
               break;
       }
 
-      const pasoDataCompleto = completarValoresConNo(pasoData);
+        const pasoDataCompleto = completarValoresConNo(pasoData);
+        const pasoDataSafe = mergeWithPersistedStepData(pasoDataCompleto);
 
       try {
+          startNextCooldown();
           await axios.post(`${API_URL}/guardarProgreso`, {
               id_solicitud: idSolicitud,
-              ...pasoDataCompleto, // Desestructurar pasoDataCompleto para que cada campo sea una clave separada
+            ...pasoDataSafe, // Desestructurar pasoDataCompleto para que cada campo sea una clave separada
               paso: activeStep + 1,
               hoja,
               id_usuario: userData.id_usuario, // Asegurar que se pase directamente id_usuario
@@ -485,11 +566,17 @@ const validateStep = () => {
 
 // Modificado para manejar tanto el paso 4 (Cierre) como el paso 5 (Otros)
 const handleSubmit = async () => {
+  if (nextCooldownRemaining > 0) {
+    return;
+  }
+
   // Validar campos si es necesario
   if (!validateStep()) {
     console.log("Errores en los campos: ", errors); 
     return; 
   }
+
+  startNextCooldown();
 
   setIsLoading(true); // Iniciar el loading
 
@@ -512,11 +599,12 @@ const handleSubmit = async () => {
     };
 
     const pasoDataCompleto = completarValoresConNo(pasoData);
+    const pasoDataSafe = mergeWithPersistedStepData(pasoDataCompleto);
 
     try {
       await axios.post(`${API_URL}/guardarProgreso`, {
         id_solicitud: idSolicitud,
-        ...pasoDataCompleto,
+        ...pasoDataSafe,
         paso: 5,
         hoja,
         id_usuario,
@@ -654,49 +742,7 @@ const handleSubmit = async () => {
   // Modificar la función PrintReportButton en todos los componentes de formulario
 
 const PrintReportButton = () => {
-  // Verificar el estado del formulario con el backend
-  const [isFormCompletedBackend, setIsFormCompletedBackend] = useState(false);
-  
-  useEffect(() => {
-    const checkFormCompletion = async () => {
-      if (!idSolicitud) return;
-      
-      try {
-        const response = await axios.post(`${API_URL}/progreso-actual`, {
-          id_solicitud: idSolicitud,
-          etapa_destino: formId || 3,
-          paso_destino: 6 // Explícitamente verificar el paso 6
-        });
-        
-        if (response.data.success && response.data.estado?.estadoFormularios) {
-          // Comprobar si este formulario está marcado como "Completado"
-          const formStatus = response.data.estado.estadoFormularios[formId.toString()];
-          setIsFormCompletedBackend(formStatus === 'Completado');
-          
-          // Verificar si estamos en el paso 6 y se ha completado
-          const isPaso6Completed = response.data.estado.etapaActual === 3 && 
-                                 response.data.estado.pasoActual >= 6;
-          
-          if (isPaso6Completed) {
-            // Actualizar completedSteps para incluir el paso 5 (último en UI)
-            setCompletedSteps(prev => {
-              if (!prev.includes(5)) { // El paso 6 es índice 5 en la UI
-                return [...prev, 5];
-              }
-              return prev;
-            });
-          }
-          
-          console.log(`Estado del formulario ${formId} según backend: ${formStatus}`);
-          console.log(`Paso 6 completado: ${isPaso6Completed}`);
-        }
-      } catch (error) {
-        console.error('Error al verificar estado del formulario:', error);
-      }
-    };
-    
-    checkFormCompletion();
-  }, [idSolicitud]);
+  const isFormCompletedBackend = estadoFormularios?.[String(formId)] === 'Completado';
   
   // MODIFICACIÓN: Ahora verificamos específicamente si el paso 6 está completado
   const isLastStepCompleted = (
@@ -850,7 +896,7 @@ const PrintReportButton = () => {
         {renderStepContent(activeStep, errors)}
       </Box>
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', flexWrap: 'wrap' }}>
         <Button disabled={activeStep === 0} onClick={handleBack}>Atrás</Button>
         <Button
           variant="outlined"
@@ -863,11 +909,19 @@ const PrintReportButton = () => {
           variant="contained"
           color="primary"
           onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
-          disabled={isLoading || isLockedByRevision || isReadOnly}
+          disabled={isLoading || isLockedByRevision || isReadOnly || isNextButtonBlocked}
           startIcon={isLoading ? <CircularProgress size={20} /> : null}
         >
-          {activeStep === steps.length - 1 ? 'Finalizar' : 'Siguiente'}
+          {activeStep === steps.length - 1
+            ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
+            : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
         </Button>
+
+        {nextCooldownRemaining > 0 && (
+          <Typography variant="caption" color="warning.main" sx={{ width: '100%', textAlign: 'right', mt: 1 }}>
+            Esperar por un minuto para evitar errores con el servidor
+          </Typography>
+        )}
       </Box>
 
       {isLockedByRevision && (
@@ -1017,6 +1071,7 @@ const PrintReportButton = () => {
               }} 
               color="primary" 
               variant="contained"
+              disabled={isGeneratingReport}
               sx={{ 
                 minWidth: '150px', 
                 height: '40px' 

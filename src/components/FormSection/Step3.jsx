@@ -109,7 +109,7 @@ function Step3({ formData, setFormData, errors  }) {
       </Grid>
 
       <Grid item xs={12}>
-        <Typography variant="h6">Intensidad Horaria</Typography>
+        <Typography variant="h6">Intensidad Horaria *</Typography>
       </Grid>
       {(formData.modalidad === "Presencial" || formData.modalidad === "Presencial asistida por tecnología" || formData.modalidad === "Virtual" || formData.modalidad === "Mixta" || formData.modalidad === "Semipresencial" || formData.modalidad === "Todas las anteriores" || formData.modalidad === "Horas de trabajo independientes") && (
         <Grid item xs={12}>
@@ -118,7 +118,7 @@ function Step3({ formData, setFormData, errors  }) {
             {(formData.modalidad === "Presencial" || formData.modalidad === "Presencial asistida por tecnología" || formData.modalidad === "Virtual" || formData.modalidad === "Mixta"  || formData.modalidad === "Todas las anteriores" ) && (
               <Grid item xs={3.5}>
                 <TextField
-                  label={formData.modalidad === "Presencial" ? "Horas de trabajo dependiente" : "Horas de trabajo dependiente"}
+                  label={formData.modalidad === "Presencial" ? "Horas de trabajo dependiente *" : "Horas de trabajo dependiente *"}
                   fullWidth
                   name="horas_trabajo_presencial"
                   value={formData.horas_trabajo_presencial}
@@ -127,7 +127,7 @@ function Step3({ formData, setFormData, errors  }) {
                   helperText={errors.horas_trabajo_presencial}
                   type="number"
                   inputProps={{ 
-                    min: 1,
+                    min: 0,
                     onKeyPress: (e) => {
                       if (e.key === '-') e.preventDefault();
                     }
@@ -169,7 +169,7 @@ function Step3({ formData, setFormData, errors  }) {
             {(formData.modalidad === "Presencial" || formData.modalidad === "Presencial asistida por tecnología" || formData.modalidad === "Virtual" || formData.modalidad === "Mixta"  || formData.modalidad === "Todas las anteriores" ) && (
               <Grid item xs={3.5}>
                 <TextField
-                  label="Horas de trabajo independiente"
+                  label="Horas de trabajo independiente *"
                   fullWidth
                   name="horas_sincronicas"
                   value={formData.horas_sincronicas}
@@ -178,7 +178,7 @@ function Step3({ formData, setFormData, errors  }) {
                   helperText={errors.horas_sincronicas}
                   type="number"
                   inputProps={{ 
-                    min: 1,
+                    min: 0,
                     onKeyPress: (e) => {
                       if (e.key === '-') e.preventDefault();
                     }

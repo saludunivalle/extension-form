@@ -256,7 +256,7 @@ function RiesgosDinamicos({ idSolicitud, userData }) {
         }
       } catch (err) {
         console.error("Error cargando datos:", err);
-        setError("Hubo un problema al cargar los riesgos. Por favor, intente nuevamente.");
+        setError('Se presentan dificultados con las peticiones al servidor. Por favor comunicate con el administrador del sistema.');
       } finally {
         setLoading(false);
       }

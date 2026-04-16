@@ -98,6 +98,9 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   const [revisionActionLoading, setRevisionActionLoading] = useState(false);
   const [correctionComment, setCorrectionComment] = useState('');
   const [commentsDialogOpen, setCommentsDialogOpen] = useState(false);
+  const NEXT_COOLDOWN_SECONDS = 60;
+  const cooldownStorageKey = `form${formId}_nextCooldownUntil_${idSolicitud}`;
+  const [nextCooldownRemaining, setNextCooldownRemaining] = useState(0);
 
   // Define setFormData as a function that updates formData through handleInputChange
   const setFormData = (newDataOrCallback) => {
@@ -128,11 +131,85 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
     error: navError, 
     isStepAllowed, 
     updateMaxAllowedStep,
+    formularioCompleto,
+    estadoFormularios,
   } = useInternalNavigationGoogleSheets(idSolicitud, 2, steps.length);
 
   const handleUpdateTotalGastos = (total) => {
     setTotalGastos(total); 
   };
+
+  const startNextCooldown = useCallback(() => {
+    const cooldownUntil = Date.now() + (NEXT_COOLDOWN_SECONDS * 1000);
+    localStorage.setItem(cooldownStorageKey, String(cooldownUntil));
+    setNextCooldownRemaining(NEXT_COOLDOWN_SECONDS);
+  }, [NEXT_COOLDOWN_SECONDS, cooldownStorageKey]);
+
+  const formatCooldown = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = String(seconds % 60).padStart(2, '0');
+    return `${mins}:${secs}`;
+  };
+
+  const isNextButtonBlocked = nextCooldownRemaining > 0;
+
+  useEffect(() => {
+    const syncCooldown = () => {
+      const storedCooldownUntil = Number(localStorage.getItem(cooldownStorageKey) || 0);
+      const diffSeconds = Math.ceil((storedCooldownUntil - Date.now()) / 1000);
+
+      if (diffSeconds > 0) {
+        setNextCooldownRemaining(diffSeconds);
+      } else {
+        setNextCooldownRemaining(0);
+        localStorage.removeItem(cooldownStorageKey);
+      }
+    };
+
+    syncCooldown();
+    const intervalId = setInterval(syncCooldown, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [cooldownStorageKey]);
+
+  const getPersistedFormData = useCallback(() => {
+    try {
+      const scopedData = localStorage.getItem(`solicitud2_data_${idSolicitud}`);
+      if (scopedData) return JSON.parse(scopedData);
+      return JSON.parse(localStorage.getItem('formData') || '{}');
+    } catch (error) {
+      console.warn('No fue posible leer datos persistidos de Formulario 2:', error);
+      return {};
+    }
+  }, [idSolicitud]);
+
+  const isBlankValue = (value) => {
+    if (value === undefined || value === null) return true;
+    if (typeof value === 'string') return value.trim() === '';
+    return false;
+  };
+
+  const mergeWithPersistedStepData = useCallback((stepData = {}) => {
+    const persisted = getPersistedFormData();
+    const merged = { ...stepData };
+
+    Object.keys(merged).forEach((key) => {
+      const value = merged[key];
+      const rawCurrent = formData?.[key];
+      const isPlaceholder =
+        isBlankValue(value) ||
+        ((value === 'No' || value === 'N/A' || value === '0') && isBlankValue(rawCurrent));
+
+      if (!isPlaceholder) return;
+
+      const persistedValue = persisted?.[key];
+      if (!isBlankValue(persistedValue)) {
+        merged[key] = persistedValue;
+      }
+    });
+
+    return merged;
+  }, [formData, getPersistedFormData]);
 
   useEffect(() => {
     console.log('Formulario data recibido: ', formData);
@@ -731,6 +808,10 @@ const todosLosGastos = [...gastosRegulares, ...gastosExtras];
   
     // 4. Optimizar handleNext para reducir llamadas y manejar errores adecuadamente
 const handleNext = async () => {
+  if (nextCooldownRemaining > 0) {
+    return;
+  }
+
   if (!validateStep()) {
     console.log("Errores en los campos");
     return;
@@ -874,14 +955,18 @@ const handleNext = async () => {
     if (cachedResponse) {
       console.log("Usando respuesta en caché para evitar duplicados");
     } else {
+      const pasoDataSafe = mergeWithPersistedStepData(pasoData);
+
       console.log(`Enviando datos para el paso ${activeStep + 1}:`, {
         id_solicitud: idSolicitud,
         paso: activeStep + 1,
         hoja: hoja,
         id_usuario: userData?.id || '',
         name: userData?.name || '',
-        ...pasoData
+        ...pasoDataSafe
       });
+
+      startNextCooldown();
       
       // Enviar datos al servidor
       const response = await axios.post(`${API_URL}/guardarProgreso`, {
@@ -890,7 +975,7 @@ const handleNext = async () => {
         hoja: hoja,
         id_usuario: userData?.id || '',
         name: userData?.name || '',
-        ...pasoData
+        ...pasoDataSafe
       });
       
       // Guardar respuesta en caché
@@ -948,10 +1033,16 @@ const handleNext = async () => {
   };
 
   const handleSubmit = async () => {
+    if (nextCooldownRemaining > 0) {
+      return;
+    }
+
     if (!validateStep()) {
       console.log("Errores en la validación del paso final");
       return;
     }
+
+    startNextCooldown();
 
     setIsLoading(true);
 
@@ -976,6 +1067,20 @@ const handleNext = async () => {
       const escuela_departamento = total_ingresos * (escuela_departamento_porcentaje / 100);
       const total_recursos = fondo_comun + facultad_instituto + escuela_departamento;
       const shouldIncludeArchivoFondoComun = fondo_comun_porcentaje > 30;
+
+      const basePaso3Data = mergeWithPersistedStepData({
+        fondo_comun_porcentaje,
+        facultad_instituto_porcentaje,
+        escuela_departamento_porcentaje,
+        fondo_comun,
+        facultad_instituto,
+        escuela_departamento,
+        total_recursos,
+        observaciones: formData.observaciones || '',
+        archivo_fondo_comun: shouldIncludeArchivoFondoComun
+          ? (formData.archivo_fondo_comun || '')
+          : '',
+      });
       
       // 1. Primero intentar con el endpoint específico para el paso 3
       try {
@@ -985,21 +1090,19 @@ const handleNext = async () => {
           name: userData.name,
 
           // Porcentajes
-          fondo_comun_porcentaje,
-          facultad_instituto_porcentaje,
-          escuela_departamento_porcentaje,
+          fondo_comun_porcentaje: basePaso3Data.fondo_comun_porcentaje,
+          facultad_instituto_porcentaje: basePaso3Data.facultad_instituto_porcentaje,
+          escuela_departamento_porcentaje: basePaso3Data.escuela_departamento_porcentaje,
 
           // Valores monetarios
-          fondo_comun,
-          facultad_instituto,
-          escuela_departamento,
-          total_recursos,
+          fondo_comun: basePaso3Data.fondo_comun,
+          facultad_instituto: basePaso3Data.facultad_instituto,
+          escuela_departamento: basePaso3Data.escuela_departamento,
+          total_recursos: basePaso3Data.total_recursos,
 
           // Observaciones y soporte documental
-          observaciones: formData.observaciones || '',
-          archivo_fondo_comun: shouldIncludeArchivoFondoComun
-            ? (formData.archivo_fondo_comun || '')
-            : '',
+          observaciones: basePaso3Data.observaciones,
+          archivo_fondo_comun: basePaso3Data.archivo_fondo_comun,
 
           // Datos adicionales para contexto
           total_ingresos,
@@ -1027,22 +1130,22 @@ const handleNext = async () => {
       // 2. Si falla el endpoint específico, usar el método general
       const pasoData = {
         // Porcentajes
-        fondo_comun_porcentaje: fondo_comun_porcentaje,
-        facultad_instituto_porcentaje: facultad_instituto_porcentaje,
-        escuela_departamento_porcentaje: escuela_departamento_porcentaje,
+        fondo_comun_porcentaje: basePaso3Data.fondo_comun_porcentaje,
+        facultad_instituto_porcentaje: basePaso3Data.facultad_instituto_porcentaje,
+        escuela_departamento_porcentaje: basePaso3Data.escuela_departamento_porcentaje,
         
         // Valores monetarios
-        fondo_comun: fondo_comun,
-        facultad_instituto: facultad_instituto,
-        escuela_departamento: escuela_departamento,
-        total_recursos: total_recursos,
+        fondo_comun: basePaso3Data.fondo_comun,
+        facultad_instituto: basePaso3Data.facultad_instituto,
+        escuela_departamento: basePaso3Data.escuela_departamento,
+        total_recursos: basePaso3Data.total_recursos,
         
         // Observaciones
-        observaciones: formData.observaciones || '',
-        archivo_fondo_comun: shouldIncludeArchivoFondoComun
-          ? (formData.archivo_fondo_comun || '')
-          : ''
+        observaciones: basePaso3Data.observaciones,
+        archivo_fondo_comun: basePaso3Data.archivo_fondo_comun,
       };
+
+      const pasoDataSafe = mergeWithPersistedStepData(pasoData);
       
       // Envío final con todos los datos
       const dataToSend = {
@@ -1063,7 +1166,7 @@ const handleNext = async () => {
       });
       dataToSend.estado_formularios = nuevoEstadoFormularios;
       
-      Object.assign(dataToSend, pasoData);
+      Object.assign(dataToSend, pasoDataSafe);
       
       // Guardar datos finales
       console.log('📤 Form2 guardarProgreso resumen:', {
@@ -1073,7 +1176,7 @@ const handleNext = async () => {
         fondo_comun_porcentaje,
         facultad_instituto_porcentaje,
         escuela_departamento_porcentaje,
-        archivo_fondo_comun: pasoData?.archivo_fondo_comun,
+        archivo_fondo_comun: pasoDataSafe?.archivo_fondo_comun,
       });
 
       const response = await axios.post(`${API_URL}/guardarProgreso`, dataToSend);
@@ -1087,7 +1190,7 @@ const handleNext = async () => {
         setShowModal(true);
       } else {
         console.error("Error en respuesta del servidor:", response.data);
-        alert("Hubo un problema al guardar los datos. Por favor, inténtelo de nuevo.");
+        alert('Se presentan dificultados con las peticiones al servidor. Por favor comunicate con el administrador del sistema.');
       }
     } catch (error) {
       console.error('Error al guardar el progreso:', error);
@@ -1140,80 +1243,9 @@ const handleNext = async () => {
 
 // 5. Optimizar PrintReportButton para reducir llamadas al verificar estado
 const PrintReportButton = () => {
-  const [isFormCompletedBackend, setIsFormCompletedBackend] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
-  const [lastCheckTime, setLastCheckTime] = useState(0);
-  const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
-  
-  useEffect(() => {
-    const checkFormCompletion = async () => {
-      if (!idSolicitud) return;
-      
-      // Check if we have a recent cached result to avoid unnecessary API calls
-      const now = Date.now();
-      const cacheKey = `form${formId}_completed_check_${idSolicitud}`;
-      const cachedResult = localStorage.getItem(cacheKey);
-      
-      // Use cached result if it's recent enough
-      if (cachedResult && now - lastCheckTime < CACHE_TTL) {
-        const parsedResult = JSON.parse(cachedResult);
-        setIsFormCompletedBackend(parsedResult.isCompleted);
-        console.log("Using cached form completion status");
-        return;
-      }
-      
-      // Only proceed with API call if not already checking
-      if (isChecking) return;
-      
-      setIsChecking(true);
-      
-      try {
-        // First try to use cached value from localStorage, even if outdated
-        const localStatus = localStorage.getItem(`form${formId}_completed_${idSolicitud}`);
-        if (localStatus === 'true') {
-          setIsFormCompletedBackend(true);
-        }
-        
-        // Then try to get an updated status from the server
-        const response = await axios.post(`${API_URL}/progreso-actual`, {
-          id_solicitud: idSolicitud,
-          etapa_destino: formId || 2,
-          paso_destino: 1
-        });
-        
-        if (response.data.success && response.data.estado?.estadoFormularios) {
-          const formStatus = response.data.estado.estadoFormularios[formId.toString()];
-          const isCompleted = formStatus === 'Completado';
-          
-          // Update state and cache the result
-          setIsFormCompletedBackend(isCompleted);
-          setLastCheckTime(now);
-          
-          localStorage.setItem(cacheKey, JSON.stringify({
-            isCompleted,
-            timestamp: now
-          }));
-          
-          // Also update the simpler cache
-          localStorage.setItem(`form${formId}_completed_${idSolicitud}`, isCompleted.toString());
-        }
-      } catch (error) {
-        console.error('Error al verificar estado del formulario:', error);
-        // Usar estado local si el servidor no responde
-        const localStatus = localStorage.getItem(`form${formId}_completed_${idSolicitud}`);
-        setIsFormCompletedBackend(localStatus === 'true');
-      } finally {
-        setIsChecking(false);
-      }
-    };
-    
-    checkFormCompletion();
-    
-    // Set up a periodic check with a reasonable interval
-    const checkInterval = setInterval(checkFormCompletion, CACHE_TTL);
-    
-    return () => clearInterval(checkInterval);
-  }, [idSolicitud, formId, isChecking, lastCheckTime]);
+  const isFormCompletedBackend =
+    formularioCompleto ||
+    estadoFormularios?.[String(formId)] === 'Completado';
   
   // NUEVA LÓGICA: Si el formulario no está completado según el backend,
   // el botón solo se habilita en el último paso Y después de enviar los datos
@@ -1221,13 +1253,16 @@ const PrintReportButton = () => {
     // Estamos exactamente en el último paso
     activeStep === steps.length - 1 && 
     // El servidor ha registrado la finalización del último paso
-    maxAllowedStep >= steps.length
+    maxAllowedStep >= steps.length - 1
   );
   
   // El botón se activa si:
   // 1. El formulario está completado según el backend, O
   // 2. Se ha completado el último paso (según las condiciones de arriba)
-  const isButtonEnabled = isFormCompletedBackend || isLastStepCompleted;
+  const isButtonEnabled =
+    isFormCompletedBackend ||
+    isLastStepCompleted ||
+    (activeStep === steps.length - 1 && completedSteps.includes(activeStep));
   
   const handleGenerateReport = async () => {
     try {
@@ -1253,7 +1288,7 @@ const PrintReportButton = () => {
       marginLeft: '20px',
       marginRight: '-70px',
     }}>
-      {(navLoading || isChecking) && (
+      {navLoading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
           <CircularProgress size={24} />
         </Box>
@@ -1484,7 +1519,7 @@ useEffect(() => {
         {renderStepContent(activeStep)}
       </Box>
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', marginBottom: '20px' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <Button disabled={activeStep === 0} onClick={handleBack}>
           Atrás
         </Button>
@@ -1498,11 +1533,20 @@ useEffect(() => {
         <Button variant="contained"
           color="primary" 
           onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext} 
-          disabled={isLoading || isLockedByRevision || isReadOnly}
+          disabled={isLoading || isLockedByRevision || isReadOnly || isNextButtonBlocked}
           startIcon={isLoading ? <CircularProgress size={20} /> : null}
           >
-          {activeStep === steps.length - 1 ? 'Finalizar' : 'Siguiente'}
+          {activeStep === steps.length - 1
+            ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
+            : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
         </Button>
+
+        {nextCooldownRemaining > 0 && (
+          <Typography variant="caption" color="warning.main" sx={{ width: '100%', textAlign: 'right', mt: 1 }}>
+            Esperar por un minuto para evitar errores con el servidor
+          </Typography>
+        )}
+
           <Dialog 
             open={showModal} 
             onClose={() => setShowModal(false)}
@@ -1617,6 +1661,7 @@ useEffect(() => {
                   }} 
                   color="primary" 
                   variant="contained"
+                  disabled={isGeneratingReport}
                   sx={{ 
                     minWidth: '150px', 
                     height: '40px' 
