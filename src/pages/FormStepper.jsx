@@ -95,7 +95,7 @@ const FormStepper = ({
       }
     } catch (error) {
       console.error('Error al validar navegación:', error);
-      alert('Hubo un problema al verificar si puede avanzar. Por favor, inténtelo de nuevo.');
+      alert('Se presentan dificultados con las peticiones al servidor. Por favor comunicate con el administrador del sistema.');
     }
   };
 

@@ -191,5 +191,14 @@ npm run build
   - `costo_extension_solidaria`
   - `personal_externo`
 
+## ⏱️ Recomendaciones para Cuota de Google Sheets
+
+- Implementar reintentos con backoff exponencial en backend cuando la API responda 429 (Too many requests).
+- Centralizar guardado por lote (batch) de cambios para reducir llamadas individuales por campo.
+- Evitar lecturas repetidas de progreso en el mismo paso usando caché de corta duración (por ejemplo 30-60 segundos).
+- Agregar un mecanismo de cola en backend para serializar escrituras y suavizar picos de tráfico.
+- Medir y registrar métricas de llamadas por endpoint para identificar qué rutas consumen más cuota.
+- Priorizar lecturas desde estado local cuando no haya cambios recientes y refrescar en segundo plano.
+
 
 

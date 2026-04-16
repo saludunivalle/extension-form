@@ -122,13 +122,88 @@ const API_URL = config.API_URL;
     const [revisionActionLoading, setRevisionActionLoading] = useState(false);
     const [correctionComment, setCorrectionComment] = useState('');
     const [commentsDialogOpen, setCommentsDialogOpen] = useState(false);
+    const NEXT_COOLDOWN_SECONDS = 60;
+    const cooldownStorageKey = `form${formId}_nextCooldownUntil_${idSolicitud}`;
+    const [nextCooldownRemaining, setNextCooldownRemaining] = useState(0);
 
     const { 
       maxAllowedStep, 
       loading: navLoading, 
       isStepAllowed, 
-      updateMaxAllowedStep  // Añade esta función a la destructuración
+      updateMaxAllowedStep,  // Añade esta función a la destructuración
+      formularioCompleto,
+      estadoFormularios,
     } = useInternalNavigationGoogleSheets(idSolicitud, 1, steps.length);
+
+    const startNextCooldown = useCallback(() => {
+      const cooldownUntil = Date.now() + (NEXT_COOLDOWN_SECONDS * 1000);
+      localStorage.setItem(cooldownStorageKey, String(cooldownUntil));
+      setNextCooldownRemaining(NEXT_COOLDOWN_SECONDS);
+    }, [NEXT_COOLDOWN_SECONDS, cooldownStorageKey]);
+
+    const formatCooldown = (seconds) => {
+      const mins = Math.floor(seconds / 60);
+      const secs = String(seconds % 60).padStart(2, '0');
+      return `${mins}:${secs}`;
+    };
+
+    const isNextButtonBlocked = nextCooldownRemaining > 0;
+
+    useEffect(() => {
+      const syncCooldown = () => {
+        const storedCooldownUntil = Number(localStorage.getItem(cooldownStorageKey) || 0);
+        const diffSeconds = Math.ceil((storedCooldownUntil - Date.now()) / 1000);
+
+        if (diffSeconds > 0) {
+          setNextCooldownRemaining(diffSeconds);
+        } else {
+          setNextCooldownRemaining(0);
+          localStorage.removeItem(cooldownStorageKey);
+        }
+      };
+
+      syncCooldown();
+      const intervalId = setInterval(syncCooldown, 1000);
+
+      return () => clearInterval(intervalId);
+    }, [cooldownStorageKey]);
+
+    const getPersistedFormData = useCallback(() => {
+      try {
+        return JSON.parse(localStorage.getItem('formData') || '{}');
+      } catch (error) {
+        console.warn('No fue posible leer formData persistido:', error);
+        return {};
+      }
+    }, []);
+
+    const isBlankValue = (value) => {
+      if (value === undefined || value === null) return true;
+      if (typeof value === 'string') return value.trim() === '';
+      return false;
+    };
+
+    const mergeWithPersistedStepData = useCallback((stepData = {}) => {
+      const persisted = getPersistedFormData();
+      const merged = { ...stepData };
+
+      Object.keys(merged).forEach((key) => {
+        const value = merged[key];
+        const rawCurrent = formData?.[key];
+        const isPlaceholder =
+          isBlankValue(value) ||
+          ((value === 'No' || value === 'N/A' || value === '0') && isBlankValue(rawCurrent));
+
+        if (!isPlaceholder) return;
+
+        const persistedValue = persisted?.[key];
+        if (!isBlankValue(persistedValue)) {
+          merged[key] = persistedValue;
+        }
+      });
+
+      return merged;
+    }, [formData, getPersistedFormData]);
 
     
     
@@ -172,49 +247,19 @@ const API_URL = config.API_URL;
         if (!formData.tipo) stepErrors.tipo = "Debe seleccionar un tipo";
         if (!formData.modalidad) stepErrors.modalidad = "Debe seleccionar una modalidad";
 
-        // Validación para modalidad Presencial asistida por tecnología (PAT)
-        if (formData.modalidad === "Presencial asistida por tecnología") {
-          if (!formData.horas_trabajo_pat) {
-            stepErrors.horas_trabajo_pat = "Debe ingresar las horas de trabajo PAT";
-          } else if (formData.horas_trabajo_pat <= 0) {
-            stepErrors.horas_trabajo_pat = "Debe ser mayor a 0";
-          }
+        const horasDependientes = Number(formData.horas_trabajo_presencial);
+        const horasIndependientes = Number(formData.horas_sincronicas);
+
+        if (Number.isNaN(horasDependientes) ) {
+          stepErrors.horas_trabajo_presencial = "Debe ingresar las horas dependientes y debe ser mayor a 0";
         }
 
-        // Validación para modalidad Presencial
-        if (formData.modalidad === "Presencial") {
-          if (!formData.horas_trabajo_presencial) {
-            stepErrors.horas_trabajo_presencial = "Debe ingresar las horas presenciales";
-          } else if (formData.horas_trabajo_presencial <= 0) {
-            stepErrors.horas_trabajo_presencial = "Debe ser mayor a 0";
-          }
+        if (Number.isNaN(horasIndependientes) ) {
+          stepErrors.horas_sincronicas = "Debe ingresar las horas independientes y debe ser mayor a 0";
         }
 
-        // Validación para modalidad Virtual
-        if (formData.modalidad === "Virtual") {
-          if (!formData.horas_sincronicas) {
-            stepErrors.horas_sincronicas = "Debe ingresar las horas sincrónicas";
-          } else if (formData.horas_sincronicas <= 0) {
-            stepErrors.horas_sincronicas = "Debe ser mayor a 0";
-          }
-        }
-
-        // Validación para modalidades mixtas (Semipresencial, Mixta, Todas)
-        if (["Semipresencial", "Mixta", "Todas las anteriores"].includes(formData.modalidad)) {
-          if (!formData.horas_trabajo_presencial) {
-            stepErrors.horas_trabajo_presencial = "Debe ingresar las horas presenciales";
-          } else if (formData.horas_trabajo_presencial <= 0) {
-            stepErrors.horas_trabajo_presencial = "Debe ser mayor a 0";
-          }
-          
-          if (!formData.horas_sincronicas) {
-            stepErrors.horas_sincronicas = "Debe ingresar las horas sincrónicas";
-          } else if (formData.horas_sincronicas <= 0) {
-            stepErrors.horas_sincronicas = "Debe ser mayor a 0";
-          }
-        }
-        if (!formData.total_horas) {
-          stepErrors.total_horas = "Debe ingresar el total de horas";
+        if ((Number(formData.total_horas) || 0) <= 0) {
+          stepErrors.total_horas = "El total de horas debe ser mayor a 0";
         }
         if (!formData.programCont) stepErrors.programCont = "Este campo es obligatorio";
         if (!formData.dirigidoa) stepErrors.dirigidoa = "Este campo es obligatorio";
@@ -425,6 +470,9 @@ const API_URL = config.API_URL;
           alert("La información del usuario no está disponible. Por favor, inicia sesión nuevamente.");
           return; // o bien redirigir o mostrar un mensaje de error
         }
+        if (nextCooldownRemaining > 0) {
+          return;
+        }
         if (!validateStep()) {
           console.log("Errores en los campos: ", errors);
           return;
@@ -463,22 +511,9 @@ const API_URL = config.API_URL;
                   };
                   break;
                 case 2: {
-                  // Lógica especial para mapear horas según modalidad
-                  let horasPresenciales = '0';
-                  let horasSincronicas = '0';
-                  
-                  if (formData.modalidad === 'Presencial asistida por tecnología') {
-                      // Para PAT, las horas van a horas_sincronicas
-                      horasSincronicas = formData.horas_trabajo_pat || '0';
-                  } else if (formData.modalidad === 'Presencial') {
-                      horasPresenciales = formData.horas_trabajo_presencial || '0';
-                  } else if (formData.modalidad === 'Virtual') {
-                      horasSincronicas = formData.horas_sincronicas || '0';
-                  } else if (['Semipresencial', 'Mixta', 'Todas las anteriores'].includes(formData.modalidad)) {
-                      horasPresenciales = formData.horas_trabajo_presencial || '0';
-                      horasSincronicas = formData.horas_sincronicas || '0';
-                  }
-                  
+                  const horasPresenciales = formData.horas_trabajo_presencial || '0';
+                  const horasSincronicas = formData.horas_sincronicas || '0';
+
                   pasoData = {
                       tipo: formData.tipo || '',
                       otro_tipo: formData.otro_tipo || '',
@@ -593,27 +628,30 @@ const API_URL = config.API_URL;
                   break;
           }
 
+          const pasoDataSafe = mergeWithPersistedStepData(pasoData);
+
           const dataToSend = {
             id_solicitud: idSolicitud,
             paso: activeStep + 1,
             hoja,
             id_usuario: userData?.id || '',
             name: userData?.name || '',
-            ...pasoData,
+            ...pasoDataSafe,
           };
 
           try {
+            startNextCooldown();
             console.log("Enviando Datos:", dataToSend);
             console.log('📤 Form1 guardarProgreso resumen:', {
               paso: activeStep + 1,
               hoja,
-              tipo_valor: pasoData?.tipo_valor,
-              valor_unitario: pasoData?.valor_unitario,
-              valor_inscripcion: pasoData?.valor_inscripcion,
-              extension_solidaria: pasoData?.extension_solidaria,
-              costo_extension_solidaria: pasoData?.costo_extension_solidaria,
-              pieza_grafica: pasoData?.pieza_grafica,
-              personal_externo: pasoData?.personal_externo,
+              tipo_valor: pasoDataSafe?.tipo_valor,
+              valor_unitario: pasoDataSafe?.valor_unitario,
+              valor_inscripcion: pasoDataSafe?.valor_inscripcion,
+              extension_solidaria: pasoDataSafe?.extension_solidaria,
+              costo_extension_solidaria: pasoDataSafe?.costo_extension_solidaria,
+              pieza_grafica: pasoDataSafe?.pieza_grafica,
+              personal_externo: pasoDataSafe?.personal_externo,
             });
             const saveResponse = await axios.post(`${API_URL}/guardarProgreso`, dataToSend, {
               timeout: 30000,
@@ -635,7 +673,7 @@ const API_URL = config.API_URL;
             if (error.code === 'ECONNABORTED' || error.response?.status === 504) {
               alert('El servidor está tardando en responder. Por favor, intenta nuevamente en unos momentos.');
             } else {
-              alert('Hubo un problema al guardar los datos. Por favor, inténtalo de nuevo.');
+              alert('Se presentan dificultados con las peticiones al servidor. Por favor comunicate con el administrador del sistema.');
             }
           } finally {
             setIsLoading(false);
@@ -663,10 +701,16 @@ const API_URL = config.API_URL;
     */
 
     const handleSubmit = async () => {
+        if (nextCooldownRemaining > 0) {
+          return;
+        }
+
         if (!validateStep()) {
           console.log("Errores en los campos: ", errors); 
           return; 
         }
+
+        startNextCooldown();
 
         setIsLoading(true); 
         const hoja = 1;
@@ -723,13 +767,15 @@ const API_URL = config.API_URL;
           
         });
 
+        const pasoDataSafe = mergeWithPersistedStepData(pasoData);
+
         const dataToSend = {
           id_solicitud: idSolicitud,
           paso: activeStep + 1,
           hoja,
           id_usuario: userData?.id || '',
           name: userData?.name || '',
-          ...pasoData,
+          ...pasoDataSafe,
         };
 
         try {
@@ -737,9 +783,9 @@ const API_URL = config.API_URL;
           console.log('📤 Form1 submit resumen:', {
             paso: activeStep + 1,
             hoja,
-            valor_inscripcion: pasoData?.valor_inscripcion,
-            pieza_grafica: pasoData?.pieza_grafica,
-            extension_solidaria: pasoData?.extension_solidaria,
+            valor_inscripcion: pasoDataSafe?.valor_inscripcion,
+            pieza_grafica: pasoDataSafe?.pieza_grafica,
+            extension_solidaria: pasoDataSafe?.extension_solidaria,
           });
 
           const saveResponse = await axios.post(`${API_URL}/guardarProgreso`, dataToSend, {
@@ -762,7 +808,7 @@ const API_URL = config.API_URL;
             if (error.code === 'ECONNABORTED' || error.response?.status === 504) {
                 alert('El servidor está tardando en responder. Por favor, intenta nuevamente en unos momentos.');
             } else {
-                alert('Hubo un problema al guardar los datos. Por favor, inténtalo de nuevo.');
+                alert('Se presentan dificultados con las peticiones al servidor. Por favor comunicate con el administrador del sistema.');
             }
             setIsLoading(false);
         }
@@ -807,33 +853,9 @@ const API_URL = config.API_URL;
     // Modificar la función PrintReportButton en todos los componentes de formulario
 
 const PrintReportButton = () => {
-  // Verificar el estado del formulario con el backend
-  const [isFormCompletedBackend, setIsFormCompletedBackend] = useState(false);
-  
-  useEffect(() => {
-    const checkFormCompletion = async () => {
-      if (!idSolicitud) return;
-      
-      try {
-        const response = await axios.post(`${API_URL}/progreso-actual`, {
-          id_solicitud: idSolicitud,
-          etapa_destino: formId || 1, // Usar el formId correspondiente (1, 2, 3 o 4)
-          paso_destino: 1
-        });
-        
-        if (response.data.success && response.data.estado?.estadoFormularios) {
-          // Comprobar si este formulario está marcado como "Completado"
-          const formStatus = response.data.estado.estadoFormularios[formId.toString()];
-          setIsFormCompletedBackend(formStatus === 'Completado');
-          console.log(`Estado del formulario ${formId} según backend: ${formStatus}`);
-        }
-      } catch (error) {
-        console.error('Error al verificar estado del formulario:', error);
-      }
-    };
-    
-    checkFormCompletion();
-  }, [idSolicitud]);
+  const isFormCompletedBackend =
+    formularioCompleto ||
+    estadoFormularios?.[String(formId)] === 'Completado';
   
   // NUEVA LÓGICA: Si el formulario no está completado según el backend,
   // el botón solo se habilita en el último paso Y después de enviar los datos
@@ -841,13 +863,16 @@ const PrintReportButton = () => {
     // Estamos exactamente en el último paso
     activeStep === steps.length - 1 && 
     // El servidor ha registrado la finalización del último paso
-    maxAllowedStep >= steps.length
+    maxAllowedStep >= steps.length - 1
   );
   
   // El botón se activa si:
   // 1. El formulario está completado según el backend, O
   // 2. Se ha completado el último paso (según las condiciones de arriba)
-  const isButtonEnabled = isFormCompletedBackend || isLastStepCompleted;
+  const isButtonEnabled =
+    isFormCompletedBackend ||
+    isLastStepCompleted ||
+    (activeStep === steps.length - 1 && completedSteps.includes(activeStep));
   
   const handleGenerateReport = async () => {
     try {
@@ -1018,13 +1043,21 @@ const PrintReportButton = () => {
             variant="contained"
             color="primary"
             onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
-            disabled={isLoading || isLockedByRevision || isReadOnly} 
+            disabled={isLoading || isLockedByRevision || isReadOnly || isNextButtonBlocked} 
             startIcon={isLoading ? <CircularProgress size={20} /> : null}
             sx={{ width: isSmallScreen ? '100%' : 'auto' }} 
           >
-            {activeStep === steps.length - 1 ? 'Finalizar' : 'Siguiente'}
+            {activeStep === steps.length - 1
+              ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
+              : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
           </Button>
         </Box>
+
+        {nextCooldownRemaining > 0 && (
+          <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: -1, mb: 2, textAlign: 'right' }}>
+            Esperar por un minuto para evitar errores con el servidor
+          </Typography>
+        )}
 
         {isLockedByRevision && (
           <Typography variant="body2" color="warning.main" sx={{ mb: 2 }}>
@@ -1174,6 +1207,7 @@ const PrintReportButton = () => {
                 }} 
                 color="primary" 
                 variant="contained"
+                disabled={isGeneratingReport}
                 sx={{ 
                   minWidth: '150px', 
                   height: '40px' 

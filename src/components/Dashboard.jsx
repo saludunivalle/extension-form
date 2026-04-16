@@ -403,6 +403,10 @@ function Dashboard({ userData }) {
         nombre_dependencia: ''
       });
 
+      // Bloquea el primer "Siguiente" durante 1 minuto tras crear la solicitud.
+      const initialCooldownUntil = Date.now() + (60 * 1000);
+      localStorage.setItem(`form1_nextCooldownUntil_${nuevoId}`, String(initialCooldownUntil));
+
       console.log(`✅ Nueva solicitud guardada con ID: ${nuevoId}`);
   
       //Redirigir al usuario al formulario de la solicitud creada

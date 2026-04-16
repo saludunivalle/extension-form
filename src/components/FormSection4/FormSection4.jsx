@@ -109,6 +109,79 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
   const [revisionActionLoading, setRevisionActionLoading] = useState(false);
   const [correctionComment, setCorrectionComment] = useState('');
   const [commentsDialogOpen, setCommentsDialogOpen] = useState(false);
+  const NEXT_COOLDOWN_SECONDS = 60;
+  const cooldownStorageKey = `form${formId}_nextCooldownUntil_${idSolicitud}`;
+  const [nextCooldownRemaining, setNextCooldownRemaining] = useState(0);
+
+  const startNextCooldown = useCallback(() => {
+    const cooldownUntil = Date.now() + (NEXT_COOLDOWN_SECONDS * 1000);
+    localStorage.setItem(cooldownStorageKey, String(cooldownUntil));
+    setNextCooldownRemaining(NEXT_COOLDOWN_SECONDS);
+  }, [NEXT_COOLDOWN_SECONDS, cooldownStorageKey]);
+
+  const formatCooldown = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = String(seconds % 60).padStart(2, '0');
+    return `${mins}:${secs}`;
+  };
+
+  const isNextButtonBlocked = nextCooldownRemaining > 0;
+
+  useEffect(() => {
+    const syncCooldown = () => {
+      const storedCooldownUntil = Number(localStorage.getItem(cooldownStorageKey) || 0);
+      const diffSeconds = Math.ceil((storedCooldownUntil - Date.now()) / 1000);
+
+      if (diffSeconds > 0) {
+        setNextCooldownRemaining(diffSeconds);
+      } else {
+        setNextCooldownRemaining(0);
+        localStorage.removeItem(cooldownStorageKey);
+      }
+    };
+
+    syncCooldown();
+    const intervalId = setInterval(syncCooldown, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [cooldownStorageKey]);
+
+  const getPersistedFormData = useCallback(() => {
+    try {
+      return JSON.parse(localStorage.getItem('formData') || '{}');
+    } catch (error) {
+      console.warn('No fue posible leer datos persistidos de Formulario 4:', error);
+      return {};
+    }
+  }, []);
+
+  const isBlankValue = (value) => {
+    if (value === undefined || value === null) return true;
+    if (typeof value === 'string') return value.trim() === '';
+    return false;
+  };
+
+  const mergeWithPersistedStepData = useCallback((stepData = {}) => {
+    const persisted = getPersistedFormData();
+    const merged = { ...stepData };
+
+    Object.keys(merged).forEach((key) => {
+      const value = merged[key];
+      const rawCurrent = formData?.[key];
+      const isPlaceholder =
+        isBlankValue(value) ||
+        ((value === 'No' || value === 'N/A' || value === '0') && isBlankValue(rawCurrent));
+
+      if (!isPlaceholder) return;
+
+      const persistedValue = persisted?.[key];
+      if (!isBlankValue(persistedValue)) {
+        merged[key] = persistedValue;
+      }
+    });
+
+    return merged;
+  }, [formData, getPersistedFormData]);
 
   const loadRevisionStatus = useCallback(async () => {
     if (!idSolicitud || !currentUserId) return;
@@ -475,6 +548,10 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
     - Si el envío es exitoso, marca el paso como completado, avanza al siguiente y actualiza el estado del progreso.
   */
   const handleNext = async () => {
+    if (nextCooldownRemaining > 0) {
+      return;
+    }
+
     if (!validateStep()) {
       console.log("Errores en los campos: ", errors); // Opcional: Depuración
       return; // Detén el avance si hay errores
@@ -713,6 +790,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
       }
 
       const pasoDataCompleto = completarValoresConNo(pasoData);
+      const pasoDataSafe = mergeWithPersistedStepData(pasoDataCompleto);
 
       try {
           // Ver todos los datos que se enviarán al servidor
@@ -728,18 +806,20 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
           
           console.log('Enviando datos al servidor:', {
             id_solicitud: idSolicitud,
-            ...pasoDataCompleto,
+            ...pasoDataSafe,
             paso: activeStep + 1,
             hoja: 4,
             id_usuario: userData.id_usuario,
             name: userData.name,
           });
+
+          startNextCooldown();
           
           // Use retry logic for API calls to prevent rate limiting
           await retryWithBackoff(() => 
             axios.post(`${API_URL}/guardarProgreso`, {
               id_solicitud: idSolicitud,
-              ...pasoDataCompleto,
+              ...pasoDataSafe,
               paso: activeStep + 1,
               hoja: 4,
               id_usuario: userData.id_usuario,
@@ -776,6 +856,13 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (nextCooldownRemaining > 0) {
+      return;
+    }
+
+    startNextCooldown();
+
     setValidationErrors({});
 
     try {
@@ -1174,7 +1261,7 @@ const PrintReportButton = () => {
         {renderStepContent(activeStep)}
       </Box>
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', marginBottom: '20px' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', marginBottom: '20px', flexWrap: 'wrap' }}>
         {activeStep === 0 ? (
           <Button onClick={handleExitClick}>
             Salir
@@ -1195,11 +1282,19 @@ const PrintReportButton = () => {
           variant="contained" 
           color="primary" 
           onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
-          disabled={isLoading || isLockedByRevision || isReadOnly} 
+          disabled={isLoading || isLockedByRevision || isReadOnly || isNextButtonBlocked} 
           startIcon={isLoading ? <CircularProgress size={20} /> : null}
         >
-          {activeStep === steps.length - 1 ? 'Finalizar' : 'Siguiente'}
+          {activeStep === steps.length - 1
+            ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
+            : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
         </Button>
+
+        {nextCooldownRemaining > 0 && (
+          <Typography variant="caption" color="warning.main" sx={{ width: '100%', textAlign: 'right', mt: 1 }}>
+            Esperar por un minuto para evitar errores con el servidor
+          </Typography>
+        )}
       </Box>
 
       {isLockedByRevision && (
