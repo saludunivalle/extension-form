@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Stepper, Step, StepLabel, Button, Box, CircularProgress, TextField, useMediaQuery,  } from '@mui/material';
 import Step1 from './Step1'; 
 import Step2 from './Step2';
@@ -122,6 +122,8 @@ const API_URL = config.API_URL;
     const [revisionActionLoading, setRevisionActionLoading] = useState(false);
     const [correctionComment, setCorrectionComment] = useState('');
     const [commentsDialogOpen, setCommentsDialogOpen] = useState(false);
+    const [exitDialogOpen, setExitDialogOpen] = useState(false);
+    const initialFormDataRef = useRef(JSON.stringify(formData || {}));
     const NEXT_COOLDOWN_SECONDS = 60;
     const cooldownStorageKey = `form${formId}_nextCooldownUntil_${idSolicitud}`;
     const [nextCooldownRemaining, setNextCooldownRemaining] = useState(0);
@@ -148,6 +150,42 @@ const API_URL = config.API_URL;
     };
 
     const isNextButtonBlocked = nextCooldownRemaining > 0;
+    const hasUnsavedChanges = JSON.stringify(formData || {}) !== initialFormDataRef.current;
+
+    const handleSaveAndExit = async () => {
+      setExitDialogOpen(false);
+      try {
+        const previousStatus = estadoFormularios?.[String(formId)] || '';
+        const wasCompleted = formularioCompleto || ['completado', 'aprobado'].includes(String(previousStatus).toLowerCase());
+        if (activeStep === steps.length - 1) {
+          await handleSubmit();
+        } else {
+          await handleNext();
+        }
+        if (wasCompleted) await axios.post(`${API_URL}/actualizacion-progreso`, {
+          id_solicitud: idSolicitud,
+          etapa_actual: 1,
+          paso_actual: steps.length,
+          estado_formularios: { ...estadoFormularios, '1': previousStatus || 'Completado' },
+        });
+        window.location.href = '/';
+      } catch (error) {
+        console.error('No se pudieron guardar los cambios antes de salir:', error);
+      }
+    };
+
+    const handleExitWithoutSaving = () => {
+      setExitDialogOpen(false);
+      window.location.href = '/';
+    };
+
+    const handleExit = () => {
+      if (isReadOnly || !hasUnsavedChanges) {
+        window.location.href = '/';
+        return;
+      }
+      setExitDialogOpen(true);
+    };
 
     useEffect(() => {
       const syncCooldown = () => {
@@ -1031,7 +1069,7 @@ const PrintReportButton = () => {
           <Button
             variant="outlined"
             color="secondary"
-            onClick={() => window.location.href = '/'}
+            onClick={handleExit}
             sx={{
               width: isSmallScreen ? '100%' : 'auto',
               marginBottom: isSmallScreen ? '10px' : '0'
@@ -1052,6 +1090,22 @@ const PrintReportButton = () => {
               : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
           </Button>
         </Box>
+
+        <Dialog open={exitDialogOpen} onClose={() => setExitDialogOpen(false)}>
+          <DialogTitle>Hay cambios sin guardar</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              ¿Qué deseas hacer con los cambios realizados en este formulario?
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setExitDialogOpen(false)}>Cancelar</Button>
+            <Button color="warning" onClick={handleExitWithoutSaving}>Salir sin guardar</Button>
+            <Button variant="contained" onClick={handleSaveAndExit} disabled={isLoading || isReadOnly}>
+              Guardar y salir
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         {nextCooldownRemaining > 0 && (
           <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: -1, mb: 2, textAlign: 'right' }}>

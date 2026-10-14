@@ -120,6 +120,20 @@ const normalizeSiNoLower = (value) => {
 const normalizeLoadedSolicitudData = (rawData) => {
   const data = { ...flattenSolicitudData(rawData) };
 
+  // El nombre oficial pertenece a SOLICITUDES (Formulario 1). Las hojas
+  // posteriores pueden contener copias antiguas y no deben sobrescribirlo.
+  const nombreActividadPrincipal =
+    rawData?.SOLICITUDES?.nombre_actividad ||
+    rawData?.SOLICITUDES?.nombreActividad ||
+    rawData?.SOLICITUDES1?.nombre_actividad ||
+    rawData?.SOLICITUDES1?.nombreActividad ||
+    rawData?.nombre_actividad ||
+    rawData?.nombreActividad;
+
+  if (nombreActividadPrincipal !== undefined && nombreActividadPrincipal !== null) {
+    data.nombre_actividad = nombreActividadPrincipal;
+  }
+
   const yesNoFields = [
     'personasInteresChecked',
     'personasMatriculadasChecked',

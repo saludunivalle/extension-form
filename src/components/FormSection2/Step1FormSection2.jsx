@@ -24,12 +24,10 @@ function Step1FormSection2({ formData, handleInputChange }) {
 
   useEffect(() => {
     const fetchNombreActividad = async () => {
-      // Skip fetching if we already have the activity name
-      if (formData.nombre_actividad) {
-        return;
-      }
+      // Siempre consultar el backend: el nombre puede haber sido editado en el
+      // Formulario 1 después de que se cargó esta vista.
       
-      // Check localStorage cache first
+      /* Check localStorage cache first
       const cacheKey = `solicitud_nombre_${formData.id_solicitud}`;
       const cachedData = localStorage.getItem(cacheKey);
       
@@ -50,7 +48,7 @@ function Step1FormSection2({ formData, handleInputChange }) {
           // If parsing fails, continue with API request
           console.error("Error parsing cached data:", e);
         }
-      }
+      } */
       
       setIsLoading(true);
       setFetchError(null);
@@ -99,20 +97,15 @@ function Step1FormSection2({ formData, handleInputChange }) {
           }
         }
 
-        if (response && response.data && response.data.nombre_actividad) {
-          // Save to localStorage cache
-          localStorage.setItem(cacheKey, JSON.stringify({
-            nombre_actividad: response.data.nombre_actividad,
-            timestamp: Date.now()
-          }));
-          
-          // Also save name separately for fallback
-          localStorage.setItem(`solicitud_name_${formData.id_solicitud}`, response.data.nombre_actividad);
+        const responseData = response?.data?.SOLICITUDES || response?.data || {};
+        const nombreActividad = responseData.nombre_actividad || responseData.nombreActividad;
+        if (nombreActividad) {
+          localStorage.setItem(`solicitud_name_${formData.id_solicitud}`, nombreActividad);
           
           handleInputChange({
             target: {
               name: 'nombre_actividad',
-              value: response.data.nombre_actividad
+              value: nombreActividad
             }
           });
         }
@@ -127,7 +120,7 @@ function Step1FormSection2({ formData, handleInputChange }) {
     if (formData.id_solicitud) {
       fetchNombreActividad();
     }
-  }, [formData.id_solicitud, formData.nombre_actividad, handleInputChange]);
+  }, [formData.id_solicitud]);
 
   return (
     <Grid container spacing={2}>

@@ -1,4 +1,20 @@
+
 # Extension Form
+
+## ¿Qué es este sistema?
+
+**Extension Form** es una aplicación web desarrollada para la Universidad del Valle que permite la gestión, diligenciamiento y seguimiento de formularios relacionados con actividades de extensión universitaria. El sistema facilita la recolección de información, la autenticación segura mediante Google, y la integración con Google Sheets para el almacenamiento y procesamiento de datos.
+
+### ¿Para qué sirve?
+
+- Digitaliza y centraliza el proceso de inscripción y reporte de actividades de extensión.
+- Permite a los usuarios autenticarse con su cuenta institucional de Google para mayor seguridad y trazabilidad.
+- Automatiza el almacenamiento de datos en Google Sheets, facilitando la gestión y análisis posterior.
+- Incluye validaciones, cálculos automáticos y lógica de negocio específica para los procesos de extensión.
+- Permite la carga de archivos (imágenes, PDFs) asociados a los formularios.
+- Genera reportes y exportaciones en formatos como XLSX, excluyendo campos sensibles o internos.
+- Optimiza el flujo de trabajo tanto para usuarios como para administradores, reduciendo errores y tiempos de procesamiento.
+
 
 Aplicación de formularios con autenticación de Google para la Universidad del Valle.
 
@@ -199,6 +215,50 @@ npm run build
 - Agregar un mecanismo de cola en backend para serializar escrituras y suavizar picos de tráfico.
 - Medir y registrar métricas de llamadas por endpoint para identificar qué rutas consumen más cuota.
 - Priorizar lecturas desde estado local cuando no haya cambios recientes y refrescar en segundo plano.
+
+## Flujo funcional: administración, riesgos y aprobación
+
+### ¿Existe una vista de administración?
+
+Sí. La vista administrativa se activa cuando el usuario tiene el rol `admin` (obtenido desde la sesión/API). En el panel, el administrador puede:
+
+- Consultar sus propias solicitudes.
+- Consultar las solicitudes de otros usuarios que están **Enviado a revisión** o que fueron devueltas con correcciones.
+- Abrir los formularios recibidos y revisar la información por pasos.
+- Aprobar un formulario individual o aprobar la solicitud completa.
+- Devolver uno o varios formularios con correcciones y comentarios por formulario/paso.
+
+Los usuarios que no tienen rol administrativo solo gestionan sus propias solicitudes. Un formulario enviado a revisión o aprobado queda bloqueado para edición por el propietario, mientras que el administrador conserva el acceso de revisión.
+
+### ¿Cuándo se requiere la matriz de riesgos?
+
+En el envío de formularios a revisión:
+
+- Los formularios 1 (**Aprobación**) y 2 (**Presupuesto**) son obligatorios.
+- Si el campo `total_horas` es mayor o igual a **16**, el formulario 3 (**Matriz de riesgos**) también es obligatorio.
+- Si `total_horas` es menor que 16, el código no obliga a seleccionar el formulario 3 para enviar a revisión.
+
+La validación se realiza con el valor numérico de `total_horas`, recuperándolo desde la solicitud o consultándolo nuevamente en el backend cuando no está disponible en el panel.
+
+### Reapertura de un formulario terminado e impresión
+
+El comportamiento implementado para un formulario terminado es:
+
+- Se puede volver a abrir y navegar por sus pasos ya completados.
+- El botón de reporte/impresión se habilita cuando el formulario está marcado como `Completado` (o cuando se terminó el último paso y el backend registró el progreso).
+- El reporte se genera como archivo XLSX mediante el servicio de reportes; no depende de imprimir directamente la pantalla del navegador.
+
+Por lo tanto, un formulario terminado no debería volver a solicitar todos los campos ni impedir la generación del reporte. Si ocurre, debe revisarse que la respuesta de la API incluya correctamente `estado_formularios`, `etapa_actual`, `paso` y los datos persistidos de la solicitud; esos valores controlan la rehidratación, el acceso a pasos y la habilitación del reporte.
+
+### Flujo de aprobación
+
+1. El usuario diligencia los formularios y completa sus pasos.
+2. Desde el panel selecciona los formularios terminados y los envía a revisión. El sistema valida los formularios obligatorios y la regla de `total_horas >= 16`.
+3. Cada formulario enviado cambia a **Enviado a revisión** y queda bloqueado para el propietario.
+4. El administrador revisa la solicitud desde la vista administrativa.
+5. El administrador puede aprobar formularios individualmente, aprobar la solicitud completa o devolver formularios con correcciones y comentarios.
+6. Cuando se solicitan correcciones, el usuario puede editar nuevamente los formularios devueltos y volver a enviarlos a revisión.
+7. Un formulario aprobado queda en estado **Aprobado** y permite descargar su reporte. La solicitud completa queda aprobada cuando el administrador ejecuta la aprobación total.
 
 
 

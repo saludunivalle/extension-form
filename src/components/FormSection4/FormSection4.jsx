@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {  Box, Button, Stepper, Step, StepLabel, Typography, Modal, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, TextField } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios'; // Importa Axios para realizar la solicitud de guardado
@@ -90,6 +90,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
   const location = useLocation(); // Obtener la ubicación actual
   const [isLoading, setIsLoading] = useState(false); // Estado para manejar el loading del botón
   const [exitDialogOpen, setExitDialogOpen] = useState(false);
+  const [unsavedExitDialogOpen, setUnsavedExitDialogOpen] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [completedSteps, setCompletedSteps] = useState([]);
   const [highestStepReached, setHighestStepReached] = useState(0); // Máximo paso alcanzado
@@ -112,6 +113,25 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
   const NEXT_COOLDOWN_SECONDS = 60;
   const cooldownStorageKey = `form${formId}_nextCooldownUntil_${idSolicitud}`;
   const [nextCooldownRemaining, setNextCooldownRemaining] = useState(0);
+  const initialFormDataRef = useRef(JSON.stringify(formData || {}));
+  const hasUnsavedChanges = JSON.stringify(formData || {}) !== initialFormDataRef.current;
+  const handleExit = () => {
+    if (isReadOnly || !hasUnsavedChanges) return navigate('/');
+    setUnsavedExitDialogOpen(true);
+  };
+  const handleExitWithoutSaving = () => { setUnsavedExitDialogOpen(false); navigate('/'); };
+  const handleSaveAndExit = async () => {
+    setUnsavedExitDialogOpen(false);
+    const previousStatus = estadoFormularios?.[String(formId)] || '';
+    const wasCompleted = formularioCompleto || ['completado', 'aprobado'].includes(String(previousStatus).toLowerCase());
+    if (activeStep === steps.length - 1) await handleSubmit();
+    else await handleNext();
+    if (wasCompleted) await axios.post(`${API_URL}/actualizacion-progreso`, {
+      id_solicitud: idSolicitud, etapa_actual: 4, paso_actual: steps.length,
+      estado_formularios: { ...estadoFormularios, '4': previousStatus || 'Completado' },
+    });
+    navigate('/');
+  };
 
   const startNextCooldown = useCallback(() => {
     const cooldownUntil = Date.now() + (NEXT_COOLDOWN_SECONDS * 1000);
@@ -1274,7 +1294,7 @@ const PrintReportButton = () => {
         <Button
           variant="outlined"
           color="secondary"
-          onClick={() => navigate('/')}
+          onClick={handleExit}
         >
           Volver al inicio
         </Button>
@@ -1289,6 +1309,16 @@ const PrintReportButton = () => {
             ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
             : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
         </Button>
+
+        <Dialog open={unsavedExitDialogOpen} onClose={() => setUnsavedExitDialogOpen(false)}>
+          <DialogTitle>Hay cambios sin guardar</DialogTitle>
+          <DialogContent><DialogContentText>¿Qué deseas hacer con los cambios realizados?</DialogContentText></DialogContent>
+          <DialogActions>
+            <Button onClick={() => setUnsavedExitDialogOpen(false)}>Cancelar</Button>
+            <Button color="warning" onClick={handleExitWithoutSaving}>Salir sin guardar</Button>
+            <Button variant="contained" onClick={handleSaveAndExit} disabled={isLoading || isReadOnly}>Guardar y salir</Button>
+          </DialogActions>
+        </Dialog>
 
         {nextCooldownRemaining > 0 && (
           <Typography variant="caption" color="warning.main" sx={{ width: '100%', textAlign: 'right', mt: 1 }}>
