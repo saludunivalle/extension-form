@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, Button, Stepper, Step, StepLabel, CircularProgress, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Typography, TextField } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom'; // Cambia useHistory por useNavigate
 import axios from 'axios';
@@ -114,9 +114,29 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
   const [revisionActionLoading, setRevisionActionLoading] = useState(false);
   const [correctionComment, setCorrectionComment] = useState('');
   const [commentsDialogOpen, setCommentsDialogOpen] = useState(false);
+  const [exitDialogOpen, setExitDialogOpen] = useState(false);
+  const initialFormDataRef = useRef(JSON.stringify(formData || {}));
   const NEXT_COOLDOWN_SECONDS = 60;
   const cooldownStorageKey = `form${formId}_nextCooldownUntil_${idSolicitud}`;
   const [nextCooldownRemaining, setNextCooldownRemaining] = useState(0);
+  const hasUnsavedChanges = JSON.stringify(formData || {}) !== initialFormDataRef.current;
+  const handleExit = () => {
+    if (isReadOnly || !hasUnsavedChanges) return window.location.href = '/';
+    setExitDialogOpen(true);
+  };
+  const handleExitWithoutSaving = () => { setExitDialogOpen(false); window.location.href = '/'; };
+  const handleSaveAndExit = async () => {
+    setExitDialogOpen(false);
+    const previousStatus = estadoFormularios?.[String(formId)] || '';
+    const wasCompleted = ['completado', 'aprobado'].includes(String(previousStatus).toLowerCase());
+    if (activeStep === steps.length - 1) await handleSubmit();
+    else await handleNext();
+    if (wasCompleted) await axios.post(`${API_URL}/actualizacion-progreso`, {
+      id_solicitud: idSolicitud, etapa_actual: 3, paso_actual: steps.length,
+      estado_formularios: { ...estadoFormularios, '3': previousStatus },
+    });
+    window.location.href = '/';
+  };
 
   const startNextCooldown = useCallback(() => {
     const cooldownUntil = Date.now() + (NEXT_COOLDOWN_SECONDS * 1000);
@@ -901,7 +921,7 @@ const PrintReportButton = () => {
         <Button
           variant="outlined"
           color="secondary"
-          onClick={() => window.location.href = '/'}
+          onClick={handleExit}
         >
           Volver al inicio
         </Button>
@@ -916,6 +936,16 @@ const PrintReportButton = () => {
             ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
             : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
         </Button>
+
+        <Dialog open={exitDialogOpen} onClose={() => setExitDialogOpen(false)}>
+          <DialogTitle>Hay cambios sin guardar</DialogTitle>
+          <DialogContent><DialogContentText>¿Qué deseas hacer con los cambios realizados?</DialogContentText></DialogContent>
+          <DialogActions>
+            <Button onClick={() => setExitDialogOpen(false)}>Cancelar</Button>
+            <Button color="warning" onClick={handleExitWithoutSaving}>Salir sin guardar</Button>
+            <Button variant="contained" onClick={handleSaveAndExit} disabled={isLoading || isReadOnly}>Guardar y salir</Button>
+          </DialogActions>
+        </Dialog>
 
         {nextCooldownRemaining > 0 && (
           <Typography variant="caption" color="warning.main" sx={{ width: '100%', textAlign: 'right', mt: 1 }}>
