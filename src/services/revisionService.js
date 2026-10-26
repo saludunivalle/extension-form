@@ -25,11 +25,16 @@ export const sendFormsToRevision = async ({ id_solicitud, userId, formularios })
   }
 
   try {
-    const response = await axios.post(`${API_URL}/enviarFormulariosRevision`, payload);
+    const response = await axios.post(`${API_URL}/enviarSolicitudRevision`, payload);
     return response.data;
   } catch {
-    const fallback = await axios.post(`${API_URL}/enviarSolicitudRevision`, payload);
-    return fallback.data;
+    try {
+      const fallback = await axios.post(`${API_URL}/form/enviarSolicitudRevision`, payload);
+      return fallback.data;
+    } catch {
+      const legacyFallback = await axios.post(`${API_URL}/enviarFormulariosRevision`, payload);
+      return legacyFallback.data;
+    }
   }
 };
 
