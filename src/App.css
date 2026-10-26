@@ -126,6 +126,7 @@ header {
 .workflow-observation { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid #edf0f4; }
 .workflow-observation:last-child { border-bottom:0; }
 .workflow-observation-form, .workflow-decision-actions, .workflow-signature, .workflow-decanato { display:grid; gap:10px; padding:12px; background:#fff; border:1px solid #e1e6ee; border-radius:8px; }
+.workflow-signature-confirmation { display:grid; gap:4px; padding:14px; border:1px solid #b7dfbd; border-radius:10px; background:#f0faf1; color:#2e7d32; }
 .workflow-observation-form input, .workflow-decanato input, .workflow-decanato select, .workflow-signature input[type=file] { min-height:38px; border:1px solid #c8d0db; border-radius:6px; padding:8px 10px; background:#fff; color:#1f2933; font:inherit; color-scheme:light; }
 .workflow-decanato label { color:#374151; font-size:.85rem; font-weight:600; }
 .workflow-decanato__select option { background:#fff; color:#1f2933; }
