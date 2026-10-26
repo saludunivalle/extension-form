@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { downloadFormReport } from '../services/reportServices';
-import { Accordion, AccordionSummary, AccordionDetails, Button, Typography, CircularProgress, Tooltip, Checkbox, Box, Chip, Stack, Stepper, Step, StepLabel, StepContent } from '@mui/material';
+import { Accordion, AccordionSummary, AccordionDetails, Button, Typography, CircularProgress, Tooltip, Checkbox, Box, Chip, Stack, Stepper, Step, StepLabel, StepContent, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import {config} from '../config';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
@@ -15,6 +15,7 @@ import {
   getWorkflowQueue,
   getWorkflowObservations,
   registerWorkflowSignature,
+  sendWorkflowRequestToDecanato,
   remindWorkflowSignature,
   submitDecanatoCut,
   submitWorkflowDecision,
@@ -440,7 +441,9 @@ function Dashboard({ userData }) {
   const [signatureFiles, setSignatureFiles] = useState({});
   const [signatureNotes, setSignatureNotes] = useState({});
   const [decanatoEmailData, setDecanatoEmailData] = useState({});
+  const [sendDecanatoRequest, setSendDecanatoRequest] = useState(null);
   const [decanatoData, setDecanatoData] = useState({});
+  const [totalHoursByRequest, setTotalHoursByRequest] = useState({});
   const navigate = useNavigate();
 
   const theme = createTheme({
@@ -923,6 +926,27 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
     }
   };
 
+  useEffect(() => {
+    let active = true;
+    const loadTotalHours = async () => {
+      const entries = await Promise.all(ownRequests.map(async (request) => [
+        request.idSolicitud,
+        await getRequestTotalHours(request),
+      ]));
+      if (active) setTotalHoursByRequest((previous) => ({ ...previous, ...Object.fromEntries(entries) }));
+    };
+    if (ownRequests.length) loadTotalHours();
+    return () => { active = false; };
+  }, [ownRequests]);
+
+  const requiresRiskMatrix = (request) => {
+    const directValue = totalHoursByRequest[request.idSolicitud]
+      ?? request.total_horas
+      ?? request.totalHoras
+      ?? request.SOLICITUDES?.total_horas;
+    return Number(directValue) >= 16;
+  };
+
   const isFormSelectableForReview = (request, formNumber) => {
     const formStatus = resolveFormStatus(request, formNumber);
     const normalized = normalizeStatusForMatch(formStatus);
@@ -937,7 +961,7 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
     return isFormCompleted(request, formNumber) || normalized === 'completado';
   };
 
-  const areRequiredFormsComplete = (request) => [1, 2].every((formNumber) => {
+  const areRequiredFormsComplete = (request) => [1, 2, ...(requiresRiskMatrix(request) ? [3] : [])].every((formNumber) => {
     const status = normalizeStatusForMatch(resolveFormStatus(request, formNumber));
     return status === 'completado' || status === 'aprobado';
   });
@@ -1057,7 +1081,7 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
 
   const isDecanatoCloser = (request) => (
     getRequestStage(request) === 'decanato'
-    && String(userData?.role || '').toLowerCase() === 'decanato'
+    && ['decanato', 'revisor_1', 'revisor_2'].includes(String(userData?.role || '').toLowerCase())
   );
 
   const loadRequestObservations = async (requestId) => {
@@ -1169,6 +1193,25 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
     }
   };
 
+  const handleSendToDecanato = async () => {
+    if (!sendDecanatoRequest) return;
+    const requestId = sendDecanatoRequest.idSolicitud;
+    const data = decanatoEmailData[requestId] || {};
+    try {
+      const response = await sendWorkflowRequestToDecanato(requestId, {
+        destinatariosDecanato: String(data.destinatarios || '').split(/[;,\n]/).map((email) => email.trim()).filter(Boolean),
+        asuntoDecanato: data.asunto || '',
+        cuerpoDecanato: data.cuerpo || '',
+      });
+      const failed = (response?.data?.notificaciones_decanato || []).some((notification) => notification.estado === 'fallida');
+      setSendDecanatoRequest(null);
+      alert(failed ? 'La solicitud pasó a Decanato, pero uno o más correos fallaron.' : 'Solicitud enviada a Decanato correctamente.');
+      window.location.reload();
+    } catch (error) {
+      alert(error?.response?.data?.message || error?.response?.data?.error || 'No se pudo enviar la solicitud a Decanato.');
+    }
+  };
+
   const handleDecanatoClosure = async (request) => {
     const data = decanatoData[request.idSolicitud] || {};
     const resultado = data.resultado || 'Aprobada';
@@ -1238,13 +1281,13 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
   }
 
   const flowStages = [
-    ['Solicitud', 'El solicitante diligencia y envía los formularios.'],
-    ['Revisión 1', 'Validación inicial por Extensión.'],
-    ['Revisión 2', 'Verificación de correcciones y requisitos.'],
-    ['Presupuesto', 'Revisión financiera.'],
-    ['Firmas', 'Firma del solicitante y director.'],
-    ['Decanato', 'Envío al corte y decisión institucional.'],
-    ['Finalizado', 'Solicitud aprobada o rechazada.'],
+    ['Solicitud', 'El solicitante diligencia y envía los formularios.', 'Solicitante'],
+    ['Revisión 1', 'Validación inicial por Extensión.', 'Revisor 1 de Extensión'],
+    ['Revisión 2', 'Verificación de correcciones y requisitos.', 'Revisor 2 de Extensión'],
+    ['Presupuesto', 'Revisión financiera.', 'Presupuesto'],
+    ['Firmas', 'Firma del solicitante y director.', 'Solicitante y director'],
+    ['Decanato', 'Envío al corte y decisión institucional.', 'Decanato, Revisor 1 o Revisor 2'],
+    ['Finalizado', 'Solicitud aprobada o rechazada.', 'Proceso finalizado'],
   ];
 
   const getFlowIndex = (request) => {
@@ -1261,6 +1304,7 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
 
   const renderRequesterStages = (request) => {
     const currentStage = getFlowIndex(request);
+    const riskMatrixRequired = requiresRiskMatrix(request);
     const requestObservations = getRequestObservations(request);
     const pendingObservations = getPendingObservations(requestObservations);
     const stages = [
@@ -1276,11 +1320,11 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
     return <Box className="requester-stages">
       <Typography variant="subtitle2" color="primary" sx={{ mb: 1 }}>Seguimiento de la solicitud</Typography>
       <Stepper activeStep={currentStage} orientation="vertical">
-        {stages.map((stage, index) => {
+      {stages.map((stage, index) => {
           const isCurrent = index === currentStage;
           const isPast = index < currentStage;
           return <Step key={stage.name} completed={isPast}>
-            <StepLabel optional={<Typography variant="caption" color="text.secondary">{stage.description}</Typography>}>
+            <StepLabel optional={<Typography variant="caption" color="text.secondary">{stage.description} · Responsable: {['Solicitante', 'Revisor 1 de Extensión', 'Revisor 2 de Extensión', 'Presupuesto', 'Solicitante y director', 'Decanato, Revisor 1 o Revisor 2', 'Proceso finalizado'][index]}</Typography>}>
               {stage.name}
             </StepLabel>
             <StepContent>
@@ -1322,7 +1366,7 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
                         const state = getButtonState(request, formNumber);
                         const readOnly = isLockedForOwner(status);
                         return <Box className="requester-form" key={`${request.idSolicitud}-stage-${formNumber}`}>
-                          <Box><Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap"><Typography variant="body2" fontWeight={600}>{formNames[formNumber - 1]}</Typography><Chip size="small" variant="outlined" color={formNumber <= 2 ? 'warning' : 'default'} label={formNumber <= 2 ? 'Obligatorio' : 'Opcional'} /></Stack><Typography variant="caption" color="text.secondary">{status}</Typography></Box>
+                          <Box><Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap"><Typography variant="body2" fontWeight={600}>{formNames[formNumber - 1]}</Typography><Chip size="small" variant="outlined" color={formNumber <= 2 || (formNumber === 3 && riskMatrixRequired) ? 'warning' : 'default'} label={formNumber <= 2 || (formNumber === 3 && riskMatrixRequired) ? 'Obligatorio' : 'Opcional'} /></Stack><Typography variant="caption" color="text.secondary">{status}</Typography></Box>
                           <Stack direction="row" spacing={1} className="requester-form__actions">
                             <Button size="small" variant="contained" disabled={!state.formEnabled} onClick={() => handleNavigateToForm(request, formNumber, readOnly)}>Abrir</Button>
                             {state.reportEnabled && <Button size="small" variant="outlined" onClick={() => handleDownloadFormReport(request, formNumber)}>Reporte</Button>}
@@ -1338,7 +1382,7 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
                         Marca como subsanadas todas las observaciones pendientes para habilitar el reenvío.
                       </Typography>
                     )}
-                    {!areRequiredFormsComplete(request) && <Typography variant="caption" color="text.secondary">Completa Aprobación y Presupuesto para habilitar el envío a revisión.</Typography>}
+                    {!areRequiredFormsComplete(request) && <Typography variant="caption" color="text.secondary">Completa Aprobación y Presupuesto{riskMatrixRequired ? ' y Matriz de riesgos (total de horas igual o superior a 16)' : ''} para habilitar el envío a revisión.</Typography>}
                   </> : index === 4 && !['revisor_1', 'revisor_2', 'presupuesto', 'decanato', 'director', 'admin'].includes(String(userData?.role || '').toLowerCase())
                     ? renderWorkflowPanel(request)
                     : <Typography variant="body2" color="text.secondary">{stage.content}</Typography>}
@@ -1348,6 +1392,20 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
           </Step>;
         })}
       </Stepper>
+      {request.historial?.length > 0 && (
+        <details className="workflow-history">
+          <summary>Historial de movimientos ({request.historial.length})</summary>
+          <div className="workflow-history__list">
+            {request.historial.map((entry, index) => (
+              <div className="workflow-history__item" key={entry.id_historial || `${request.idSolicitud}-history-${index}`}>
+                <strong>{entry.fecha || 'Fecha no disponible'}</strong>
+                <span>{entry.accion || 'Movimiento'} · {entry.rol_actor || 'Sistema'}</span>
+                {entry.comentario && <small>{entry.comentario}</small>}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
     </Box>;
   };
 
@@ -1504,35 +1562,6 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
                 [request.idSolicitud]: event.target.value,
               }))}
             />
-            <details className="workflow-decanato-email">
-              <summary>Personalizar correo a Decanato (opcional)</summary>
-              <input
-                type="text"
-                placeholder="Destinatarios adicionales, separados por coma"
-                value={decanatoEmailData[request.idSolicitud]?.destinatarios || ''}
-                onChange={(event) => setDecanatoEmailData((previous) => ({
-                  ...previous,
-                  [request.idSolicitud]: { ...previous[request.idSolicitud], destinatarios: event.target.value },
-                }))}
-              />
-              <input
-                type="text"
-                placeholder={`Asunto (por defecto: Solicitud enviada a Decanato - ${request.idSolicitud})`}
-                value={decanatoEmailData[request.idSolicitud]?.asunto || ''}
-                onChange={(event) => setDecanatoEmailData((previous) => ({
-                  ...previous,
-                  [request.idSolicitud]: { ...previous[request.idSolicitud], asunto: event.target.value },
-                }))}
-              />
-              <textarea
-                placeholder="Cuerpo del correo. Variables: {{id_solicitud}}, {{nombre_solicitante}}, {{etapa}}, {{fecha}}"
-                value={decanatoEmailData[request.idSolicitud]?.cuerpo || ''}
-                onChange={(event) => setDecanatoEmailData((previous) => ({
-                  ...previous,
-                  [request.idSolicitud]: { ...previous[request.idSolicitud], cuerpo: event.target.value },
-                }))}
-              />
-            </details>
             <Button variant="contained" onClick={() => handleWorkflowSignature(request)}>
               Registrar firma
             </Button>
@@ -1601,6 +1630,21 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
     );
   };
 
+  const renderWorkflowHistory = (request, keyPrefix = 'history') => request.historial?.length > 0 && (
+    <details className="workflow-history">
+      <summary>Historial de movimientos ({request.historial.length})</summary>
+      <div className="workflow-history__list">
+        {request.historial.map((entry, index) => (
+          <div className="workflow-history__item" key={entry.id_historial || `${request.idSolicitud}-${keyPrefix}-${index}`}>
+            <strong>{entry.fecha || 'Fecha no disponible'}</strong>
+            <span>{entry.accion || 'Movimiento'} · {entry.rol_actor || 'Sistema'}</span>
+            {entry.comentario && <small>{entry.comentario}</small>}
+          </div>
+        ))}
+      </div>
+    </details>
+  );
+
   const renderReceivedStageContent = (request, stageIndex, current) => {
     if (stageIndex !== current) return null;
 
@@ -1617,6 +1661,23 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
               El backend no devolvió todavía los datos del cierre de Decanato.
             </Typography>
           )}
+          {renderWorkflowHistory(request, 'final')}
+        </Box>
+      );
+    }
+
+    if (stageIndex === 4 && request.firmas_completas && ['revisor_1', 'revisor_2'].includes(String(userData?.role || '').toLowerCase())) {
+      return (
+        <Box className="workflow-stage-content">
+          <Box className="workflow-send-decanato">
+            <Typography variant="body2" color="text.secondary">
+              La solicitud ya cuenta con las firmas del solicitante y del director.
+            </Typography>
+            <Button variant="contained" color="secondary" onClick={() => setSendDecanatoRequest(request)}>
+              Enviar a Decanato
+            </Button>
+          </Box>
+          {renderWorkflowHistory(request, 'signatures')}
         </Box>
       );
     }
@@ -1664,6 +1725,7 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
           || String(userData?.role || '').toLowerCase() === 'director')
           ? renderWorkflowPanel(request)
           : null}
+        {renderWorkflowHistory(request, 'stage')}
       </Box>
     );
   };
@@ -1754,6 +1816,7 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
                     </AccordionSummary>
                     <AccordionDetails>
                       <small>{description}</small>
+                      <small className="workflow-stage-responsible">Responsable: {flowStages[index][2]}</small>
                       {renderReceivedStageContent(request, index, current)}
                     </AccordionDetails>
                   </Accordion>
@@ -1851,6 +1914,20 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
                       </Tooltip>
                     )}
                   </Stack>
+        {request.historial?.length > 0 && (
+          <details className="workflow-history">
+            <summary>Historial de movimientos ({request.historial.length})</summary>
+            <div className="workflow-history__list">
+              {request.historial.map((entry, index) => (
+                <div className="workflow-history__item" key={entry.id_historial || `${request.idSolicitud}-received-history-${index}`}>
+                  <strong>{entry.fecha || 'Fecha no disponible'}</strong>
+                  <span>{entry.accion || 'Movimiento'} · {entry.rol_actor || 'Sistema'}</span>
+                  {entry.comentario && <small>{entry.comentario}</small>}
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
                 </Box>
               );
             })}
@@ -1903,6 +1980,59 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
             renderRequestList({ requests, readOnlyMode: false, isReceived: true })
           )}
         />
+        <Dialog
+          open={Boolean(sendDecanatoRequest)}
+          onClose={() => setSendDecanatoRequest(null)}
+          fullWidth
+          maxWidth="sm"
+        >
+          <DialogTitle>Enviar solicitud a Decanato</DialogTitle>
+          <DialogContent dividers>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Los usuarios con rol Decanato siempre recibirán el correo. Puedes agregar destinatarios y personalizar el mensaje.
+            </Typography>
+            <Stack spacing={2}>
+              <TextField
+                label="Destinatarios adicionales"
+                placeholder="persona@ejemplo.edu.co, coordinador@ejemplo.edu.co"
+                helperText="Sepáralos por coma, punto y coma o salto de línea."
+                value={decanatoEmailData[sendDecanatoRequest?.idSolicitud]?.destinatarios || ''}
+                onChange={(event) => setDecanatoEmailData((previous) => ({
+                  ...previous,
+                  [sendDecanatoRequest.idSolicitud]: { ...previous[sendDecanatoRequest.idSolicitud], destinatarios: event.target.value },
+                }))}
+                fullWidth
+              />
+              <TextField
+                label="Asunto"
+                placeholder={`Solicitud enviada a Decanato - ${sendDecanatoRequest?.idSolicitud || ''}`}
+                value={decanatoEmailData[sendDecanatoRequest?.idSolicitud]?.asunto || ''}
+                onChange={(event) => setDecanatoEmailData((previous) => ({
+                  ...previous,
+                  [sendDecanatoRequest.idSolicitud]: { ...previous[sendDecanatoRequest.idSolicitud], asunto: event.target.value },
+                }))}
+                fullWidth
+              />
+              <TextField
+                label="Cuerpo del correo"
+                placeholder="La solicitud {{id_solicitud}} de {{nombre_solicitante}}..."
+                helperText="Variables disponibles: {{id_solicitud}}, {{nombre_solicitante}}, {{etapa}}, {{fecha}}"
+                value={decanatoEmailData[sendDecanatoRequest?.idSolicitud]?.cuerpo || ''}
+                onChange={(event) => setDecanatoEmailData((previous) => ({
+                  ...previous,
+                  [sendDecanatoRequest.idSolicitud]: { ...previous[sendDecanatoRequest.idSolicitud], cuerpo: event.target.value },
+                }))}
+                multiline
+                minRows={5}
+                fullWidth
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setSendDecanatoRequest(null)}>Cancelar</Button>
+            <Button variant="contained" color="secondary" onClick={handleSendToDecanato}>Enviar a Decanato</Button>
+          </DialogActions>
+        </Dialog>
       </div>
     </ThemeProvider>
   );

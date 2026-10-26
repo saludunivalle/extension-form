@@ -98,6 +98,14 @@ header {
 .flow-dot { position:relative; z-index:1; display:flex; align-items:center; justify-content:center; width:29px; height:29px; border-radius:50%; background:#eef0f3; color:#697586; font-weight:700; }
 .flow-step.done .flow-dot, .flow-step.current .flow-dot { background:#1976d2; color:#fff; }
 .flow-step small { display:block; color:#6b7280; font-size:11px; line-height:1.25; margin-top:3px; }
+.workflow-stage-responsible { color:#53657d !important; font-weight:600; }
+.workflow-send-decanato { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px; border:1px solid #d8b4e1; border-radius:10px; background:#fcf5fe; }
+.workflow-history { margin-top:14px; border:1px solid #dce3ec; border-radius:10px; background:#fff; overflow:hidden; }
+.workflow-history summary { cursor:pointer; padding:12px 14px; color:#334e6f; font-weight:700; }
+.workflow-history__list { display:grid; gap:0; padding:0 14px 10px; }
+.workflow-history__item { display:grid; gap:2px; padding:9px 0; border-top:1px solid #edf0f4; color:#53657d; font-size:.83rem; }
+.workflow-history__item strong { color:#263b59; font-size:.78rem; }
+.workflow-history__item small { color:#6b7280; }
 .review-panel { display:grid; gap:10px; margin-top:18px; padding:14px; background:#f7f9fc; border:1px solid #e1e6ee; border-radius:8px; }
 .review-panel textarea { width:100%; min-height:70px; border:1px solid #c8d0db; border-radius:6px; padding:9px; resize:vertical; font:inherit; }
 .review-panel button + button { margin-left:8px; }
