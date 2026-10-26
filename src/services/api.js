@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { config } from '../config';
+import { getStoredGoogleToken, isGoogleTokenExpired, redirectToLogin } from './authToken';
 
 // Crear instancia de axios con configuración base
 const apiClient = axios.create({
@@ -15,8 +16,8 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     // Agregar token si existe
-    const token = localStorage.getItem('google_token');
-    if (token) {
+    const token = getStoredGoogleToken();
+    if (token && !isGoogleTokenExpired(token)) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -37,6 +38,10 @@ apiClient.interceptors.response.use(
     // Manejar errores específicos
     if (error.code === 'ERR_NETWORK') {
       console.warn('Error de red - posiblemente el servidor no está disponible');
+    }
+
+    if (error.response?.status === 401) {
+      redirectToLogin();
     }
     
     return Promise.reject(error);

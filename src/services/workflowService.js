@@ -1,12 +1,21 @@
 import axios from 'axios';
 import { config } from '../config';
+import { getStoredGoogleToken, isGoogleTokenExpired, redirectToLogin } from './authToken';
 
 const workflowClient = axios.create({ baseURL: config.API_URL, withCredentials: true });
 workflowClient.interceptors.request.use((request) => {
-  const token = localStorage.getItem('google_token');
-  if (token) request.headers.Authorization = `Bearer ${token}`;
+  const token = getStoredGoogleToken();
+  if (token && !isGoogleTokenExpired(token)) request.headers.Authorization = `Bearer ${token}`;
   return request;
 });
+
+workflowClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) redirectToLogin();
+    return Promise.reject(error);
+  },
+);
 
 export const getWorkflowQueue = async () => {
   const response = await workflowClient.get('/workflow/cola');
