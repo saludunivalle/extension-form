@@ -60,22 +60,26 @@ export const registerWorkflowSignature = async (idSolicitud, {
   file,
   observaciones = '',
   fechaSolicitudFirma = '',
-  destinatariosDecanato = [],
-  asuntoDecanato = '',
-  cuerpoDecanato = '',
 }) => {
   const formData = new FormData();
   formData.append('evidencia_firma', file);
   if (observaciones) formData.append('observaciones', observaciones);
   if (fechaSolicitudFirma) formData.append('fecha_solicitud_firma', fechaSolicitudFirma);
-  const recipients = Array.isArray(destinatariosDecanato)
-    ? destinatariosDecanato.filter(Boolean)
-    : destinatariosDecanato;
-  if (recipients?.length) formData.append('destinatarios_decanato', JSON.stringify(recipients));
-  if (asuntoDecanato.trim()) formData.append('asunto_decanato', asuntoDecanato.trim());
-  if (cuerpoDecanato.trim()) formData.append('cuerpo_decanato', cuerpoDecanato.trim());
   const response = await workflowClient.post(`/workflow/${idSolicitud}/firma`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export const sendWorkflowRequestToDecanato = async (idSolicitud, {
+  destinatariosDecanato = [],
+  asuntoDecanato = '',
+  cuerpoDecanato = '',
+}) => {
+  const response = await workflowClient.post(`/workflow/${idSolicitud}/enviar-decanato`, {
+    destinatarios_decanato: destinatariosDecanato,
+    asunto_decanato: asuntoDecanato,
+    cuerpo_decanato: cuerpoDecanato,
   });
   return response.data;
 };
