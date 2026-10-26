@@ -827,8 +827,10 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
     // Lógica para solicitudes en creación
     if (isCurrentFormComplete || isPast || isThisFormCompleted) {
       return { 
-        formEnabled: !isReceived,
-        reportEnabled: isCompleted && !isReceived,
+        // Los revisores pueden consultar y descargar formularios completados
+        // en modo lectura, aunque no puedan editarlos.
+        formEnabled: isReceived || !blockedForOwner,
+        reportEnabled: isCompleted,
         formColor: '#1976d2', 
         reportColor: isCompleted ? '#f0611a' : '#e0e0e0',
         cursor: 'pointer', 
@@ -1443,7 +1445,10 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
     const canReview = reviewerStage === stage;
     const canAct = request.puede_actuar !== false;
     const canLegacyAdminReview = role === 'admin' && !['decanato', 'firmas', 'finalizado'].includes(stage);
-    const signatureStage = stage === 'firmas' && ['solicitante', 'director'].includes(role) && canAct;
+    const hasRegisteredSignature = role === 'director'
+      ? request.firma_director === true || request.firma_director === 'true'
+      : request.firma_solicitante === true || request.firma_solicitante === 'true';
+    const signatureStage = stage === 'firmas' && ['solicitante', 'director'].includes(role) && canAct && !hasRegisteredSignature;
 
     return (
       <div className="workflow-panel">
@@ -1572,6 +1577,15 @@ const handleNavigateToForm = async (request, formNumber, readOnly = false) => {
               Recordar firma pendiente
             </Button>
           </div>
+        )}
+
+        {stage === 'firmas' && role === 'director' && hasRegisteredSignature && (
+          <Box className="workflow-signature-confirmation">
+            <Typography variant="body2" fontWeight={600}>Firma agregada correctamente.</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Extensión enviará la solicitud a Decanato cuando estén registradas ambas firmas.
+            </Typography>
+          </Box>
         )}
 
         {isDecanatoCloser(request) && (
