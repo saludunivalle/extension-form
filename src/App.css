@@ -42,6 +42,89 @@ header {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.approval-list { display: grid; gap: 18px; margin: 12px auto 0; width: min(100%, 760px); }
+.workflow-stage-group { background:#f7f9fc; border:1px solid #cbd5e1 !important; border-radius:12px !important; overflow:hidden; }
+.workflow-stage-group::before { display:none; }
+.workflow-stage-group > .MuiAccordionSummary-root { min-height:64px; padding:8px 18px; background:#eef4fb; }
+.workflow-stage-group__details { display:grid; gap:14px; padding:14px !important; background:#fbfcfe; }
+.requester-list { display: grid; gap: 16px; margin: 16px auto 0; width: min(100%, 1120px); }
+.requester-request { background:#fff; border:1px solid #cbd5e1 !important; border-radius:12px !important; box-shadow:0 3px 12px rgba(20,30,50,.11) !important; overflow:hidden; }
+.requester-request .MuiAccordionSummary-root { min-height:72px; padding:8px 22px; }
+.requester-request .MuiAccordionSummary-content { margin:12px 0; }
+.requester-request .MuiTypography-subtitle1 { font-size:1.08rem; }
+.requester-request::before { display:none; }
+.requester-request__body { border-top:1px solid #e8ebef; padding:22px 38px 28px !important; display:grid; gap:16px; background:#fbfcfe; }
+.requester-stages { padding:4px 4px 8px; width:100%; min-width:0; }
+.requester-stages .MuiStepper-root { width:100%; }
+.requester-stages .MuiStep-root { width:100%; }
+.requester-stages .MuiStepContent-root { margin-left:12px; padding-left:26px; padding-right:12px; width:calc(100% - 12px); border-left:2px solid #c5d0dc; }
+.requester-stages .MuiStepContent-last { border-left-color:transparent; }
+.requester-stages .MuiStepLabel-iconContainer { width:24px; min-width:24px; padding-right:0; }
+.requester-stages .MuiStepLabel-labelContainer { padding-left:10px; }
+.requester-stages .MuiStepLabel-root { padding:8px 0; }
+.requester-stages .MuiStepLabel-label { font-weight:600; color:#6b7280; }
+.requester-stages .MuiStepLabel-label.Mui-active, .requester-stages .MuiStepLabel-label.Mui-completed { color:#1976d2; }
+.requester-stages .MuiStepIcon-root.Mui-active, .requester-stages .MuiStepIcon-root.Mui-completed { color:#1976d2; }
+.stage-detail { margin:6px 0 6px 0 !important; border:1px solid #cbd5e1; border-radius:10px !important; background:#fff; width:100%; box-shadow:0 1px 3px rgba(20,30,50,.06); }
+.stage-detail--current { border:2px solid #1976d2 !important; background:#eef4fb; box-shadow:0 4px 14px rgba(25,118,210,.2); }
+.stage-detail--current .MuiAccordionSummary-root { background:#e1edf9; }
+.stage-detail--current .MuiAccordionSummary-root::before { content:none; }
+.stage-detail--current .MuiAccordionDetails-root { background:#f7fbff; }
+.stage-detail .MuiAccordionSummary-root { min-height:48px; padding:0 16px; }
+.stage-detail .MuiAccordionDetails-root { padding:14px 16px 18px; }
+.stage-detail::before { display:none; }
+.requester-forms { display:grid; gap:8px; }
+.requester-form { display:flex; justify-content:space-between; align-items:center; gap:12px; background:#fff; border:1px solid #e2e7ee; border-radius:8px; padding:10px 12px; }
+.requester-form__actions { display:flex; gap:6px; }
+@media (max-width:600px) { .requester-request__body { padding:16px !important; } .requester-form { align-items:flex-start; flex-direction:column; } }
+.approval-card { background: #fff; border: 1px solid #d9dce1 !important; border-radius: 12px !important; box-shadow: 0 2px 8px rgba(20,30,50,.08) !important; overflow:hidden; }
+.approval-card::before { display:none; }
+.approval-card .MuiAccordionSummary-root { min-height:68px; padding:8px 18px; }
+.approval-card .MuiAccordionSummary-content { margin:12px 0; }
+.approval-card__details { display:grid; gap:16px; padding:20px 24px 24px !important; border-top:1px solid #e8ebef; background:#fbfcfe; }
+.approval-card__header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.flow-badge { border-radius: 999px; padding: 6px 12px; font-size: 12px; font-weight: 700; white-space:nowrap; background:#e3f0fd; color:#1976d2; }
+.flow-badge.warning { background:#fdf0dc; color:#a85b00; }
+.flow-track { display:flex; flex-direction:column; gap:0; margin:10px 0 8px; }
+.flow-step { position:relative; display:block; min-height:70px; color:#8a95a3; background:transparent !important; box-shadow:none !important; }
+.flow-step::before { display:none; }
+.flow-step:not(:last-child)::after { content:''; position:absolute; top:29px; bottom:-1px; left:14px; width:2px; background:#d9dce1; z-index:0; }
+.flow-step .MuiAccordionSummary-root { min-height:58px; padding:6px 4px; gap:12px; position:relative; z-index:1; }
+.flow-step .MuiAccordionSummary-content { align-items:center; gap:12px; margin:8px 0; }
+.flow-step .MuiAccordionDetails-root { padding:0 48px 14px; }
+.flow-step .MuiAccordionSummary-expandIconWrapper { margin-left:auto; }
+.flow-step.done, .flow-step.current { color:#1976d2; }
+.flow-step.done::after { background:#90caf9; }
+.flow-dot { position:relative; z-index:1; display:flex; align-items:center; justify-content:center; width:29px; height:29px; border-radius:50%; background:#eef0f3; color:#697586; font-weight:700; }
+.flow-step.done .flow-dot, .flow-step.current .flow-dot { background:#1976d2; color:#fff; }
+.flow-step small { display:block; color:#6b7280; font-size:11px; line-height:1.25; margin-top:3px; }
+.review-panel { display:grid; gap:10px; margin-top:18px; padding:14px; background:#f7f9fc; border:1px solid #e1e6ee; border-radius:8px; }
+.review-panel textarea { width:100%; min-height:70px; border:1px solid #c8d0db; border-radius:6px; padding:9px; resize:vertical; font:inherit; }
+.review-panel button + button { margin-left:8px; }
+.workflow-panel { display:grid; gap:12px; margin-top:18px; padding:16px; background:#f7f9fc; border:1px solid #dce3ec; border-radius:10px; }
+.workflow-role-view { display:grid; gap:26px; width:100%; }
+.workflow-role-view__header { position:relative; display:flex; align-items:center; justify-content:space-between; gap:24px; padding:24px 28px; overflow:hidden; border:1px solid #dbe5f1; border-radius:18px; background:linear-gradient(115deg,#f5f9ff 0%,#fff 58%,#f3f7fc 100%); box-shadow:0 8px 24px rgba(31,65,114,.07); }
+.workflow-role-view__header::after { content:''; position:absolute; right:-54px; top:-70px; width:190px; height:190px; border-radius:50%; background:rgba(25,118,210,.08); pointer-events:none; }
+.workflow-role-view__intro { position:relative; z-index:1; display:grid; gap:4px; }
+.workflow-role-view__eyebrow { color:#1976d2; font-size:.72rem; font-weight:800; letter-spacing:.14em; line-height:1.2; }
+.workflow-role-view__title { color:#172b4d; font-size:clamp(1.6rem,3vw,2.15rem) !important; font-weight:800 !important; letter-spacing:-.025em !important; line-height:1.15 !important; }
+.workflow-role-view__description { max-width:720px; color:#53657d; line-height:1.55 !important; }
+.workflow-role-view__welcome { margin-right:8px; color:#263b59; font-weight:700; }
+.workflow-role-view__header > button { position:relative; z-index:1; min-width:180px; border-radius:10px; box-shadow:0 5px 12px rgba(25,118,210,.2); text-transform:none; font-weight:700; }
+.workflow-role-section { display:grid; gap:12px; }
+.workflow-section-title { display:flex; align-items:center; gap:10px; color:#203653; font-weight:800 !important; }
+.workflow-section-title::before { content:''; display:inline-block; width:5px; height:24px; border-radius:6px; background:#1976d2; }
+.workflow-observations { display:grid; gap:8px; padding:12px; background:#fff; border:1px solid #e1e6ee; border-radius:8px; }
+.workflow-observation { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid #edf0f4; }
+.workflow-observation:last-child { border-bottom:0; }
+.workflow-observation-form, .workflow-decision-actions, .workflow-signature, .workflow-decanato { display:grid; gap:10px; padding:12px; background:#fff; border:1px solid #e1e6ee; border-radius:8px; }
+.workflow-observation-form input, .workflow-decanato input, .workflow-decanato select, .workflow-signature input[type=file] { min-height:38px; border:1px solid #c8d0db; border-radius:6px; padding:8px 10px; background:#fff; color:#1f2933; font:inherit; color-scheme:light; }
+.workflow-decanato label { color:#374151; font-size:.85rem; font-weight:600; }
+.workflow-decanato__select option { background:#fff; color:#1f2933; }
+.workflow-observation-form textarea, .workflow-decision-actions textarea, .workflow-signature textarea, .workflow-decanato textarea { width:100%; min-height:68px; border:1px solid #c8d0db; border-radius:6px; padding:9px; resize:vertical; font:inherit; background:#fff; color:#1f2933; }
+@media (max-width: 800px) { .approval-card__details { padding:16px !important; } .approval-card__header { flex-direction:column; } }
+@media (max-width: 600px) { .workflow-role-view__header { align-items:stretch; flex-direction:column; padding:20px; } .workflow-role-view__header > button { width:100%; } }
+
 @media (max-width: 768px) {
   #root {
     padding: 90px 1rem 2rem 1rem; 
