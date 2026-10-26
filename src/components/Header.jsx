@@ -1,7 +1,7 @@
 import { styled } from "@mui/material/styles";
 import { Link } from "react-router-dom";
-import Cookies from 'js-cookie';
 import logo from "/src/assets/images/logounivalle.svg";
+import { clearAuthSession } from '../services/authToken';
 
 const HeaderContainer = styled("header")(({ theme }) => ({
   display: "flex",
@@ -109,11 +109,7 @@ const Header = ({ userData }) => {
   const displayName = userData?.name ? capitalizeWords(userData.name) : '';
 
   const handleLogout = () => {
-    Cookies.remove('token');
-    localStorage.removeItem('google_token');
-    localStorage.removeItem('user_data');
-    localStorage.removeItem('user_id');
-    localStorage.removeItem('email');
+    clearAuthSession();
     window.location.replace('/login');
   };
 

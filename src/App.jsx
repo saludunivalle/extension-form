@@ -7,6 +7,7 @@ import GoogleLogin from './components/GoogleLogin';
 import Layout from './components/Layout'; 
 import Cookies from 'js-cookie';
 import {config} from './config';
+import { clearAuthSession, isGoogleTokenExpired } from './services/authToken';
 function App() {
   const [isLogged, setIsLogged] = useState(false);
   const [userData, setUserData] = useState();
@@ -16,7 +17,9 @@ function App() {
     const savedUserData = localStorage.getItem('user_data');
     const parsedSavedUserData = savedUserData ? JSON.parse(savedUserData) : null;
 
-    if (token) {
+    const googleToken = localStorage.getItem('google_token');
+
+    if (token && googleToken && !isGoogleTokenExpired(googleToken)) {
       try {
         const decodedToken = JSON.parse(token);
         const user = decodedToken.sub
@@ -37,6 +40,7 @@ function App() {
         setUserData(null);
       }
     } else {
+      if (token || googleToken) clearAuthSession();
       setIsLogged(false);
       setUserData(null);
     }
