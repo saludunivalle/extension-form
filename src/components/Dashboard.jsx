@@ -48,6 +48,13 @@ import {
 } from "../services/workflowService";
 import WorkflowRoleView from "./Workflow/WorkflowRoleView";
 const API_URL = config.API_URL;
+const WORKFLOW_ONLY_ROLES = new Set([
+  "revisor_1",
+  "revisor_2",
+  "presupuesto",
+  "director",
+  "decanato",
+]);
 
 const formatHistoryAction = (action) => {
   const labels = {
@@ -621,6 +628,53 @@ const getDecanatoResult = (request) =>
 const getDecanatoResolution = (request) =>
   request?.corte_decanato?.resolucion || request?.resolucion || "";
 
+const getDecanatoResolutionFile = (request) =>
+  request?.corte_decanato?.archivo_resolucion ||
+  request?.archivo_resolucion ||
+  "";
+
+const getRequestDescriptiveStatus = (request) => {
+  const stage = getRequestStage(request);
+  const visualStatus = getRequestVisualStatus(request);
+  if (visualStatus.tone === "correction" || visualStatus.tone === "rejected") {
+    return visualStatus.label;
+  }
+
+  const stageState = String(request?.estado_etapa || "")
+    .trim()
+    .toLowerCase();
+  const signatures =
+    Number(Boolean(request?.firma_solicitante)) +
+    Number(Boolean(request?.firma_director));
+
+  const labels = {
+    solicitud:
+      stageState === "borrador"
+        ? "Borrador · pendiente de envío a revisión"
+        : "Pendiente de envío a Revisión 1",
+    revision_1:
+      stageState === "en_revision"
+        ? "En revisión 1"
+        : "Pendiente de Revisión 1",
+    revision_2:
+      stageState === "en_revision"
+        ? "En revisión 2"
+        : "Pendiente de Revisión 2",
+    presupuesto:
+      stageState === "en_revision"
+        ? "En revisión presupuestal"
+        : "Pendiente de Presupuesto",
+    firmas:
+      request?.firmas_completas
+        ? "Firmas completas · lista para enviar a Decanato"
+        : `Pendiente de firmas (${signatures}/2)`,
+    decanato: "Pendiente de decisión de Decanato",
+    finalizado: visualStatus.label,
+  };
+
+  return labels[stage] || visualStatus.label;
+};
+
 const getRequestVisualStatus = (request) => {
   const stage = getRequestStage(request);
   const result = String(getDecanatoResult(request) || "")
@@ -683,6 +737,17 @@ function Dashboard({ userData }) {
   useEffect(() => {
     const fetchRequests = async () => {
       setLoading(true);
+      const role = String(userData?.role || "").toLowerCase();
+
+      // Estos roles reciben sus solicitudes desde el endpoint del workflow.
+      // Evitamos consultar también /getRequests para no duplicar lecturas en Sheets.
+      if (WORKFLOW_ONLY_ROLES.has(role)) {
+        setOwnRequests([]);
+        setReceivedRequests([]);
+        setLoading(false);
+        return;
+      }
+
       try {
         const requestsResponse = await axios.get(`${API_URL}/getRequests`, {
           params: { userId: userData.id },
@@ -2153,7 +2218,7 @@ function Dashboard({ userData }) {
                   <span
                     className={`request-status-badge request-status-badge--${getRequestVisualStatus(request).tone}`}
                   >
-                    {getRequestVisualStatus(request).label || overallStatus}
+                    {getRequestDescriptiveStatus(request) || overallStatus}
                   </span>
                 </Stack>
                 <Typography variant="caption" color="text.secondary">
@@ -2509,6 +2574,7 @@ function Dashboard({ userData }) {
     if (stageIndex === 6) {
       const result = getDecanatoResult(request);
       const resolution = getDecanatoResolution(request);
+      const resolutionFile = getDecanatoResolutionFile(request);
       return (
         <Box className="workflow-final-result">
           <Typography variant="body1" fontWeight={700}>
@@ -2519,6 +2585,13 @@ function Dashboard({ userData }) {
           )}
           {resolution && (
             <Typography variant="body2">Resolución: {resolution}</Typography>
+          )}
+          {resolutionFile && (
+            <Typography variant="body2">
+              <a href={resolutionFile} target="_blank" rel="noreferrer">
+                Ver PDF de resolución
+              </a>
+            </Typography>
           )}
           {!result && !resolution && (
             <Typography variant="body2" color="text.secondary">
@@ -2642,6 +2715,48 @@ function Dashboard({ userData }) {
       decanato: 5,
       finalizado: 6,
     };
+    const role = String(userData?.role || "").toLowerCase();
+    const specialGroups =
+      isReceived && role === "presupuesto"
+        ? [
+            {
+              name: "Por revisar",
+              stageIndex: "presupuesto-pendientes",
+              requests: requests.filter(
+                (request) => getRequestStage(request) === "presupuesto",
+              ),
+            },
+            {
+              name: "Ya revisadas",
+              stageIndex: "presupuesto-revisadas",
+              requests: requests.filter(
+                (request) => getRequestStage(request) !== "presupuesto",
+              ),
+            },
+          ]
+        : isReceived && role === "director"
+          ? [
+              {
+                name: "Por firmar",
+                stageIndex: "director-pendientes",
+                requests: requests.filter(
+                  (request) =>
+                    getRequestStage(request) === "firmas" &&
+                    !request.firma_director,
+                ),
+              },
+              {
+                name: "Ya firmadas",
+                stageIndex: "director-firmadas",
+                requests: requests.filter(
+                  (request) =>
+                    getRequestStage(request) !== "firmas" ||
+                    Boolean(request.firma_director),
+                ),
+              },
+            ]
+          : null;
+
     const groupedByStage = requests.reduce((groups, request) => {
       const explicitStage = getRequestStage(request);
       const stageIndex = stageIndexes[explicitStage] ?? getFlowIndex(request);
@@ -2649,13 +2764,15 @@ function Dashboard({ userData }) {
       groups[stageIndex].push(request);
       return groups;
     }, {});
-    const groupedRequests = flowStages
-      .map(([name], stageIndex) => ({
-        name,
-        stageIndex,
-        requests: groupedByStage[stageIndex] || [],
-      }))
-      .filter((group) => group.requests.length > 0);
+    const groupedRequests =
+      specialGroups ||
+      flowStages
+        .map(([name], stageIndex) => ({
+          name,
+          stageIndex,
+          requests: groupedByStage[stageIndex] || [],
+        }))
+        .filter((group) => group.requests.length > 0);
 
     return (
       <div className="approval-list">
@@ -2665,14 +2782,16 @@ function Dashboard({ userData }) {
             className="workflow-stage-group"
             disableGutters
             defaultExpanded={
-              group.stageIndex ===
-              Math.min(...groupedRequests.map(({ stageIndex }) => stageIndex))
+              specialGroups
+                ? group === groupedRequests[0]
+                : group.stageIndex ===
+                  Math.min(...groupedRequests.map(({ stageIndex }) => stageIndex))
             }
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Box sx={{ width: "100%", pr: 1 }}>
                 <Typography variant="subtitle1" fontWeight={700}>
-                  {flowStages[group.stageIndex][0]}
+                  {group.name}
                 </Typography>
                 <Typography className="workflow-stage-count" variant="body2">
                   {group.requests.length}{" "}
@@ -2724,7 +2843,7 @@ function Dashboard({ userData }) {
                               <span
                                 className={`request-status-badge request-status-badge--${getRequestVisualStatus(request).tone}`}
                               >
-                                {getRequestVisualStatus(request).label}
+                                {getRequestDescriptiveStatus(request)}
                               </span>
                               <span className="flow-badge">
                                 {flowStages[current][0]}
