@@ -77,10 +77,14 @@ header {
 .stage-detail .MuiAccordionSummary-root { min-height:48px; padding:0 16px; }
 .stage-detail .MuiAccordionDetails-root { padding:14px 16px 18px; }
 .stage-detail::before { display:none; }
-.requester-forms { display:grid; gap:8px; }
-.requester-form { display:flex; justify-content:space-between; align-items:center; gap:12px; background:#fff; border:1px solid #e2e7ee; border-radius:8px; padding:10px 12px; }
-.requester-form__actions { display:flex; gap:6px; }
-@media (max-width:600px) { .requester-request__body { padding:16px !important; } .requester-form { align-items:flex-start; flex-direction:column; } }
+.requester-forms, .requester-forms.MuiStack-root { display:grid !important; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px !important; padding:12px; background:#f7f9fc; border:1px solid #dce3ec; border-radius:10px; }
+.requester-forms.MuiStack-root > :not(style) ~ :not(style) { margin-top:0 !important; }
+.requester-form { display:flex; flex-direction:column; justify-content:flex-start; align-items:stretch; gap:10px; min-width:0; min-height:112px; background:#fff; border:1px solid #e2e7ee; border-radius:8px; padding:12px; }
+.requester-form .MuiTypography-root { overflow-wrap:anywhere; }
+.requester-form__actions { display:flex; gap:6px; align-self:flex-start; }
+.requester-form__actions .MuiButton-root { min-width:36px; width:36px; height:34px; padding:6px; }
+@media (max-width:900px) { .requester-forms, .requester-forms.MuiStack-root { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:600px) { .requester-request__body { padding:16px !important; } .requester-forms, .requester-forms.MuiStack-root { grid-template-columns:1fr; } .requester-form { align-items:flex-start; flex-direction:column; } }
 .approval-card { background: #fff; border: 1px solid #d9dce1 !important; border-radius: 12px !important; box-shadow: 0 2px 8px rgba(20,30,50,.08) !important; overflow:hidden; }
 .approval-card.request-status-card--ok { border-left:4px solid #a9d8ae !important; }
 .approval-card.request-status-card--pending { border-left:4px solid #f0cf82 !important; }
