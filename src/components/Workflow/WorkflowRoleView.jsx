@@ -56,7 +56,6 @@ const normalizeRole = (role) => {
 
 function WorkflowRoleView({
   role = "solicitante",
-  userName = "",
   ownRequests,
   receivedRequests,
   renderOwnRequests,
@@ -68,74 +67,53 @@ function WorkflowRoleView({
   const isRequester = normalizedRole === "solicitante";
   const isAdmin = normalizedRole === "admin";
 
+  const statusLegend = (
+    <div className="workflow-status-legend" aria-label="Leyenda de estados">
+      <span>
+        <i className="workflow-status-dot workflow-status-dot--ok" />
+        En orden
+      </span>
+      <span>
+        <i className="workflow-status-dot workflow-status-dot--pending" />
+        Pendiente
+      </span>
+      <span>
+        <i className="workflow-status-dot workflow-status-dot--correction" />
+        Requiere corrección
+      </span>
+      <span>
+        <i className="workflow-status-dot workflow-status-dot--rejected" />
+        Rechazada y finalizada
+      </span>
+    </div>
+  );
+
   return (
     <Box className={`workflow-role-view workflow-role-view--${normalizedRole}`}>
-      <Box className="workflow-role-view__header">
-        <Box className="workflow-role-view__intro">
-          <Typography
-            className="workflow-role-view__eyebrow"
-            variant="overline"
-          >
-            {isRequester
-              ? "Panel de seguimiento"
-              : isAdmin
-                ? "Panel de control"
-                : "Gestión de solicitudes"}
-          </Typography>
-          <Typography className="workflow-role-view__title" variant="h4">
-            {config.title}
-          </Typography>
-          <Typography
-            className="workflow-role-view__description"
-            variant="body1"
-          >
-            {userName && (
-              <span className="workflow-role-view__welcome">
-                Hola, {userName}
-              </span>
-            )}
-            {userName ? " · " : ""}
-            {config.description}
-          </Typography>
-        </Box>
-        {(isRequester || isAdmin) && (
-          <Button variant="contained" color="primary" onClick={onCreateRequest}>
-            Crear nueva solicitud
-          </Button>
-        )}
-      </Box>
-
-      <div className="workflow-status-legend" aria-label="Leyenda de estados">
-        <span>
-          <i className="workflow-status-dot workflow-status-dot--ok" />
-          En orden
-        </span>
-        <span>
-          <i className="workflow-status-dot workflow-status-dot--pending" />
-          Pendiente
-        </span>
-        <span>
-          <i className="workflow-status-dot workflow-status-dot--correction" />
-          Requiere corrección
-        </span>
-        <span>
-          <i className="workflow-status-dot workflow-status-dot--rejected" />
-          Rechazada y finalizada
-        </span>
-      </div>
-
       {isRequester || isAdmin ? (
         <section
           className="workflow-role-section"
           aria-labelledby="workflow-own-title"
         >
-          <Typography
-            id="workflow-own-title"
-            className="workflow-section-title"
-            variant="h6"
-          >
-            {config.ownTitle || "Mis solicitudes"}
-          </Typography>
+          <Box className="workflow-section-heading">
+            <Box className="workflow-section-heading__content">
+              <Typography
+                id="workflow-own-title"
+                className="workflow-section-title"
+                variant="h6"
+              >
+                {config.ownTitle || "Mis solicitudes"}
+              </Typography>
+              {statusLegend}
+            </Box>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={onCreateRequest}
+            >
+              Crear nueva solicitud
+            </Button>
+          </Box>
           {renderOwnRequests(ownRequests)}
         </section>
       ) : null}
@@ -145,13 +123,16 @@ function WorkflowRoleView({
           className="workflow-role-section"
           aria-labelledby="workflow-received-title"
         >
-          <Typography
-            id="workflow-received-title"
-            className="workflow-section-title"
-            variant="h6"
-          >
-            {config.receivedTitle}
-          </Typography>
+          <Box className="workflow-section-heading__content">
+            <Typography
+              id="workflow-received-title"
+              className="workflow-section-title"
+              variant="h6"
+            >
+              {config.receivedTitle}
+            </Typography>
+            {statusLegend}
+          </Box>
           {renderReceivedRequests(receivedRequests)}
         </section>
       )}
@@ -161,13 +142,16 @@ function WorkflowRoleView({
           className="workflow-role-section"
           aria-labelledby="workflow-admin-received-title"
         >
-          <Typography
-            id="workflow-admin-received-title"
-            className="workflow-section-title"
-            variant="h6"
-          >
-            {config.receivedTitle}
-          </Typography>
+          <Box className="workflow-section-heading__content">
+            <Typography
+              id="workflow-admin-received-title"
+              className="workflow-section-title"
+              variant="h6"
+            >
+              {config.receivedTitle}
+            </Typography>
+            {statusLegend}
+          </Box>
           {renderReceivedRequests(receivedRequests)}
         </section>
       )}
@@ -177,7 +161,6 @@ function WorkflowRoleView({
 
 WorkflowRoleView.propTypes = {
   role: PropTypes.string,
-  userName: PropTypes.string,
   ownRequests: PropTypes.arrayOf(PropTypes.object).isRequired,
   receivedRequests: PropTypes.arrayOf(PropTypes.object).isRequired,
   renderOwnRequests: PropTypes.func.isRequired,

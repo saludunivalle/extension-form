@@ -67,13 +67,21 @@ header {
 .requester-stages .MuiStepLabel-labelContainer { padding-left:10px; }
 .requester-stages .MuiStepLabel-root { padding:8px 0; }
 .requester-stages .MuiStepLabel-label { font-weight:600; color:#6b7280; }
-.requester-stages .MuiStepLabel-label.Mui-active, .requester-stages .MuiStepLabel-label.Mui-completed { color:#1976d2; }
-.requester-stages .MuiStepIcon-root.Mui-active, .requester-stages .MuiStepIcon-root.Mui-completed { color:#1976d2; }
+.requester-stages .requester-stage--completed .MuiStepLabel-label { color:#2e7d32; }
+.requester-stages .requester-stage--completed .MuiStepIcon-root { color:#2e7d32; }
+.requester-stages .requester-stage--current .MuiStepLabel-label { color:#9a7200; }
+.requester-stages .requester-stage--current .MuiStepIcon-root { color:#d9a400; }
+.requester-stages .requester-stage--pending .MuiStepLabel-label { color:#6b7280; }
+.requester-stages .requester-stage--pending .MuiStepIcon-root { color:#b8c0cc; }
+.requester-stages .requester-stage--completed .MuiStepContent-root { border-left-color:#7bc47f; }
+.requester-stages .requester-stage--current .MuiStepContent-root { border-left-color:#e4c04f; }
+.requester-stages .requester-stage--pending .MuiStepContent-root { border-left-color:#c5d0dc; }
+.requester-stages .MuiStepContent-last { border-left-color:transparent; }
 .stage-detail { margin:6px 0 6px 0 !important; border:1px solid #cbd5e1; border-radius:10px !important; background:#fff; width:100%; box-shadow:0 1px 3px rgba(20,30,50,.06); }
-.stage-detail--current { border:2px solid #1976d2 !important; background:#eef4fb; box-shadow:0 4px 14px rgba(25,118,210,.2); }
-.stage-detail--current .MuiAccordionSummary-root { background:#e1edf9; }
+.stage-detail--current { border:2px solid #d9a400 !important; background:#fffbea; box-shadow:0 4px 14px rgba(217,164,0,.2); }
+.stage-detail--current .MuiAccordionSummary-root { background:#fff4c7; }
 .stage-detail--current .MuiAccordionSummary-root::before { content:none; }
-.stage-detail--current .MuiAccordionDetails-root { background:#f7fbff; }
+.stage-detail--current .MuiAccordionDetails-root { background:#fffdf2; }
 .stage-detail .MuiAccordionSummary-root { min-height:48px; padding:0 16px; }
 .stage-detail .MuiAccordionDetails-root { padding:14px 16px 18px; }
 .stage-detail::before { display:none; }
@@ -127,14 +135,9 @@ header {
 .review-panel button + button { margin-left:8px; }
 .workflow-panel { display:grid; gap:12px; margin-top:18px; padding:16px; background:#f7f9fc; border:1px solid #dce3ec; border-radius:10px; }
 .workflow-role-view { display:grid; gap:26px; width:100%; }
-.workflow-role-view__header { position:relative; display:flex; align-items:center; justify-content:space-between; gap:24px; padding:24px 28px; overflow:hidden; border:1px solid #dbe5f1; border-radius:18px; background:linear-gradient(115deg,#f5f9ff 0%,#fff 58%,#f3f7fc 100%); box-shadow:0 8px 24px rgba(31,65,114,.07); }
-.workflow-role-view__header::after { content:''; position:absolute; right:-54px; top:-70px; width:190px; height:190px; border-radius:50%; background:rgba(25,118,210,.08); pointer-events:none; }
-.workflow-role-view__intro { position:relative; z-index:1; display:grid; gap:4px; }
-.workflow-role-view__eyebrow { color:#1976d2; font-size:.72rem; font-weight:800; letter-spacing:.14em; line-height:1.2; }
-.workflow-role-view__title { color:#172b4d; font-size:clamp(1.6rem,3vw,2.15rem) !important; font-weight:800 !important; letter-spacing:-.025em !important; line-height:1.15 !important; }
-.workflow-role-view__description { max-width:720px; color:#53657d; line-height:1.55 !important; }
-.workflow-role-view__welcome { margin-right:8px; color:#263b59; font-weight:700; }
-.workflow-role-view__header > button { position:relative; z-index:1; min-width:180px; border-radius:10px; box-shadow:0 5px 12px rgba(25,118,210,.2); text-transform:none; font-weight:700; }
+.workflow-section-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.workflow-section-heading__content { display:grid; gap:8px; min-width:0; }
+.workflow-section-heading > button { border-radius:10px; text-transform:none; font-weight:700; }
 .workflow-role-section { display:grid; gap:12px; }
 .workflow-status-legend { display:flex; align-items:center; flex-wrap:wrap; gap:8px 18px; color:#607086; font-size:.82rem; }
 .workflow-status-legend > span { display:inline-flex; align-items:center; gap:7px; }
@@ -154,7 +157,7 @@ header {
 .workflow-decanato__select option { background:#fff; color:#1f2933; }
 .workflow-observation-form textarea, .workflow-decision-actions textarea, .workflow-signature textarea, .workflow-decanato textarea { width:100%; min-height:68px; border:1px solid #c8d0db; border-radius:6px; padding:9px; resize:vertical; font:inherit; background:#fff; color:#1f2933; }
 @media (max-width: 800px) { .approval-card__details { padding:16px !important; } .approval-card__header { flex-direction:column; } .approval-card__badges { align-items:flex-start; flex-direction:row; flex-wrap:wrap; } }
-@media (max-width: 600px) { .workflow-role-view__header { align-items:stretch; flex-direction:column; padding:20px; } .workflow-role-view__header > button { width:100%; } }
+@media (max-width: 600px) { .workflow-section-heading { align-items:stretch; flex-direction:column; } .workflow-section-heading > button { width:100%; } }
 
 @media (max-width: 768px) {
   #root {
