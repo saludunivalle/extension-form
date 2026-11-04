@@ -397,7 +397,14 @@ const normalizeRequest = (request) => {
       request.user?.name ||
       "",
     nombre_dependencia:
-      request.nombre_dependencia || request.nombreDependencia || "",
+      request.nombre_dependencia ||
+      request.nombreDependencia ||
+      findNestedField(request.SOLICITUDES, [
+        "nombre_dependencia",
+        "nombreDependencia",
+      ]) ||
+      findNestedField(request, ["nombre_dependencia", "nombreDependencia"]) ||
+      "",
     fecha_solicitud:
       request.fecha_solicitud ||
       request.fechaSolicitud ||
@@ -549,6 +556,15 @@ const normalizeRevisionRequest = (request) => {
       request.name ||
       request.user?.name ||
       request.usuario?.name ||
+      "",
+    nombre_dependencia:
+      request.nombre_dependencia ||
+      request.nombreDependencia ||
+      findNestedField(request.SOLICITUDES, [
+        "nombre_dependencia",
+        "nombreDependencia",
+      ]) ||
+      findNestedField(request, ["nombre_dependencia", "nombreDependencia"]) ||
       "",
     nombre_actividad:
       request.nombre_actividad ||
