@@ -326,13 +326,20 @@ const normalizeRequest = (request) => {
       etapaAnterior,
       updatedAt,
       version,
+      nombreDependenciaRaw,
+      resultadoCorte,
+      observacionesCorte,
+      resolucionCorte,
+      archivoResolucionCorte,
     ] = request;
 
     const estados = parseEstadoFormularios(estadoFormulariosRaw);
     const etapaActual = Number(etapaActualRaw);
     const etapaEsNumerica = Number.isFinite(etapaActual) && etapaActual > 0;
     const isCompactRequest = request.length <= 12;
-    const nombreDependencia = isCompactRequest ? request[11] || "" : "";
+    const nombreDependencia = isCompactRequest
+      ? request[11] || ""
+      : nombreDependenciaRaw || "";
     if (etapaEsNumerica && estadoFormulario && !estados[String(etapaActual)]) {
       estados[String(etapaActual)] = estadoFormulario;
     }
@@ -346,6 +353,10 @@ const normalizeRequest = (request) => {
       estado: estadoFormulario || "",
       nombre_actividad: nombreActividad || "",
       nombre_dependencia: nombreDependencia || "",
+      resultado: resultadoCorte || "",
+      observaciones: observacionesCorte || "",
+      resolucion: resolucionCorte || "",
+      archivo_resolucion: archivoResolucionCorte || "",
       paso: Number(paso) || 0,
       etapa_actual: etapaEsNumerica ? etapaActual : 0,
       estadoFormularios: estados,
@@ -406,6 +417,19 @@ const normalizeRequest = (request) => {
       ]) ||
       findNestedField(request, ["nombre_dependencia", "nombreDependencia"]) ||
       "",
+    resultado:
+      request.resultado ||
+      request.estado_final ||
+      request.corte_decanato?.resultado ||
+      request.corte_decanato?.estado_final ||
+      "",
+    observaciones:
+      request.observaciones || request.corte_decanato?.observaciones || "",
+    resolucion: request.resolucion || request.corte_decanato?.resolucion || "",
+    archivo_resolucion:
+      request.archivo_resolucion ||
+      request.corte_decanato?.archivo_resolucion ||
+      "",
     fecha_solicitud:
       request.fecha_solicitud ||
       request.fechaSolicitud ||
@@ -428,7 +452,11 @@ const normalizeRequest = (request) => {
       request.etapaCodigo ||
       request.ETAPAS?.etapa_codigo ||
       request.etapas?.etapa_codigo ||
-      "",
+      (typeof request.etapa_actual === "string"
+        ? request.etapa_actual
+        : typeof request.formulario === "string"
+          ? request.formulario
+          : ""),
     etapa_anterior:
       request.etapa_anterior ||
       request.etapaAnterior ||
@@ -582,7 +610,13 @@ const normalizeRevisionRequest = (request) => {
       request.estadoGeneral ||
       request.ETAPAS?.estado_general ||
       "",
-    etapa_codigo: stage,
+    etapa_codigo:
+      stage ||
+      (typeof request.etapa_actual === "string"
+        ? request.etapa_actual
+        : typeof request.formulario === "string"
+          ? request.formulario
+          : ""),
     estado_etapa:
       request.estado_etapa ||
       request.estadoEtapa ||
@@ -639,6 +673,10 @@ const getRequestStage = (request) => {
     "revision-1": "revision_1",
     "revision 2": "revision_2",
     "revision-2": "revision_2",
+    terminado: "finalizado",
+    completado: "finalizado",
+    completada: "finalizado",
+    finalizada: "finalizado",
   };
   return stageAliases[rawStage] || rawStage;
 };
@@ -1857,6 +1895,14 @@ function Dashboard({ userData }) {
     const explicitStage = getRequestStage(request);
     if (stageIndex[explicitStage] !== undefined)
       return stageIndex[explicitStage];
+    const numericStage = Number(request.etapa_actual);
+    if (
+      Number.isInteger(numericStage) &&
+      numericStage >= 0 &&
+      numericStage <= stageIndex.finalizado
+    ) {
+      return numericStage;
+    }
     const statuses = Object.values(request.estadoFormularios || {}).map(
       normalizeStatusForMatch,
     );
@@ -1922,7 +1968,17 @@ function Dashboard({ userData }) {
             const isCurrent = index === currentStage;
             const isPast = index < currentStage;
             return (
-              <Step key={stage.name} completed={isPast}>
+              <Step
+                key={stage.name}
+                completed={isPast}
+                className={`requester-stage ${
+                  isPast
+                    ? "requester-stage--completed"
+                    : isCurrent
+                      ? "requester-stage--current"
+                      : "requester-stage--pending"
+                }`}
+              >
                 <StepLabel
                   optional={
                     <Typography variant="caption" color="text.secondary">
@@ -2027,164 +2083,185 @@ function Dashboard({ userData }) {
                               ))}
                             </div>
                           )}
-                          <Typography
-                            variant="subtitle2"
-                            color="primary"
-                            sx={{ mb: 1 }}
-                          >
-                            Formularios de la solicitud
-                          </Typography>
-                          <Stack spacing={1}>
-                            {[1, 2, 3, 4]
-                              .filter(
-                                (formNumber) =>
-                                  currentStage === 0 ||
-                                  isFormCompleted(request, formNumber),
-                              )
-                              .map((formNumber) => {
-                                const status =
-                                  resolveFormStatus(request, formNumber) ||
-                                  "En progreso";
-                                const state = getButtonState(
-                                  request,
-                                  formNumber,
-                                );
-                                const readOnly = currentStage > 0;
-                                return (
-                                  <Box
-                                    className="requester-form"
-                                    key={`${request.idSolicitud}-stage-${formNumber}`}
-                                  >
-                                    <Box>
-                                      <Stack
-                                        direction="row"
-                                        spacing={0.75}
-                                        alignItems="center"
-                                        flexWrap="wrap"
+                          {currentStage === 6 ? (
+                            renderReceivedStageContent(
+                              request,
+                              6,
+                              currentStage,
+                              true,
+                            )
+                          ) : (
+                            <>
+                              <Typography
+                                variant="subtitle2"
+                                color="primary"
+                                sx={{ mb: 1 }}
+                              >
+                                Formularios de la solicitud
+                              </Typography>
+                              <Stack className="requester-forms" spacing={1}>
+                                {[1, 2, 3, 4]
+                                  .filter(
+                                    (formNumber) =>
+                                      currentStage === 0 ||
+                                      currentStage === 6 ||
+                                      isFormCompleted(request, formNumber),
+                                  )
+                                  .map((formNumber) => {
+                                    const status =
+                                      resolveFormStatus(request, formNumber) ||
+                                      "En progreso";
+                                    const state = getButtonState(
+                                      request,
+                                      formNumber,
+                                    );
+                                    const readOnly = currentStage > 0;
+                                    return (
+                                      <Box
+                                        className="requester-form"
+                                        key={`${request.idSolicitud}-stage-${formNumber}`}
                                       >
-                                        <Typography
-                                          variant="body2"
-                                          fontWeight={600}
-                                        >
-                                          {formNames[formNumber - 1]}
-                                        </Typography>
-                                        <Chip
-                                          size="small"
-                                          variant="outlined"
-                                          color={
-                                            formNumber <= 2 ||
-                                            (formNumber === 3 &&
-                                              riskMatrixRequired)
-                                              ? "warning"
-                                              : "default"
-                                          }
-                                          label={
-                                            formNumber <= 2 ||
-                                            (formNumber === 3 &&
-                                              riskMatrixRequired)
-                                              ? "Obligatorio"
-                                              : "Opcional"
-                                          }
-                                        />
-                                      </Stack>
-                                      <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                      >
-                                        {status}
-                                      </Typography>
-                                    </Box>
-                                    <Stack
-                                      direction="row"
-                                      spacing={1}
-                                      className="requester-form__actions"
-                                    >
-                                      <Tooltip title="Abrir formulario">
-                                        <span>
-                                          <Button
-                                            size="small"
-                                            variant="contained"
-                                            aria-label="Abrir formulario"
-                                            disabled={!state.formEnabled}
-                                            onClick={() =>
-                                              handleNavigateToForm(
-                                                request,
-                                                formNumber,
-                                                readOnly,
-                                              )
-                                            }
+                                        <Box>
+                                          <Stack
+                                            direction="row"
+                                            spacing={0.75}
+                                            alignItems="center"
+                                            flexWrap="wrap"
                                           >
-                                            <VisibilityOutlined fontSize="small" />
-                                          </Button>
-                                        </span>
-                                      </Tooltip>
-                                      {state.reportEnabled && (
-                                        <Button
-                                          size="small"
-                                          variant="outlined"
-                                          aria-label="Descargar formulario"
-                                          title={
-                                            String(
-                                              userData?.role || "",
-                                            ).toLowerCase() === "solicitante"
-                                              ? "Generar reporte"
-                                              : "Descargar"
-                                          }
-                                          onClick={() =>
-                                            handleDownloadFormReport(
-                                              request,
-                                              formNumber,
-                                            )
-                                          }
+                                            <Typography
+                                              variant="body2"
+                                              fontWeight={600}
+                                            >
+                                              {formNames[formNumber - 1]}
+                                            </Typography>
+                                            <Chip
+                                              size="small"
+                                              variant="outlined"
+                                              color={
+                                                formNumber <= 2 ||
+                                                (formNumber === 3 &&
+                                                  riskMatrixRequired)
+                                                  ? "warning"
+                                                  : "default"
+                                              }
+                                              label={
+                                                formNumber <= 2 ||
+                                                (formNumber === 3 &&
+                                                  riskMatrixRequired)
+                                                  ? "Obligatorio"
+                                                  : "Opcional"
+                                              }
+                                            />
+                                          </Stack>
+                                          <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                          >
+                                            {status}
+                                          </Typography>
+                                        </Box>
+                                        <Stack
+                                          direction="row"
+                                          spacing={1}
+                                          className="requester-form__actions"
                                         >
-                                          <DownloadOutlined fontSize="small" />
-                                        </Button>
-                                      )}
-                                    </Stack>
-                                  </Box>
-                                );
-                              })}
-                          </Stack>
-                          {currentStage === 0 && (
-                            <Button
-                              sx={{ mt: 1.5 }}
-                              variant="contained"
-                              color="secondary"
-                              onClick={() =>
-                                handleSendSelectedFormsToReview(request, true)
-                              }
-                              disabled={
-                                !areRequiredFormsComplete(request) ||
-                                pendingObservations.length > 0 ||
-                                Boolean(
-                                  bulkReviewLoadingByRequest[
+                                          <Tooltip title="Abrir formulario">
+                                            <span>
+                                              <Button
+                                                size="small"
+                                                variant="contained"
+                                                aria-label="Abrir formulario"
+                                                disabled={!state.formEnabled}
+                                                onClick={() =>
+                                                  handleNavigateToForm(
+                                                    request,
+                                                    formNumber,
+                                                    readOnly,
+                                                  )
+                                                }
+                                              >
+                                                <VisibilityOutlined fontSize="small" />
+                                              </Button>
+                                            </span>
+                                          </Tooltip>
+                                          {state.reportEnabled && (
+                                            <Button
+                                              size="small"
+                                              variant="outlined"
+                                              aria-label="Descargar formulario"
+                                              title={
+                                                String(
+                                                  userData?.role || "",
+                                                ).toLowerCase() ===
+                                                "solicitante"
+                                                  ? "Generar reporte"
+                                                  : "Descargar"
+                                              }
+                                              onClick={() =>
+                                                handleDownloadFormReport(
+                                                  request,
+                                                  formNumber,
+                                                )
+                                              }
+                                            >
+                                              <DownloadOutlined fontSize="small" />
+                                            </Button>
+                                          )}
+                                        </Stack>
+                                      </Box>
+                                    );
+                                  })}
+                              </Stack>
+                              {currentStage === 0 && (
+                                <Button
+                                  sx={{ mt: 1.5 }}
+                                  variant="contained"
+                                  color="secondary"
+                                  onClick={() =>
+                                    handleSendSelectedFormsToReview(
+                                      request,
+                                      true,
+                                    )
+                                  }
+                                  disabled={
+                                    !areRequiredFormsComplete(request) ||
+                                    pendingObservations.length > 0 ||
+                                    Boolean(
+                                      bulkReviewLoadingByRequest[
+                                        request.idSolicitud
+                                      ],
+                                    )
+                                  }
+                                >
+                                  {bulkReviewLoadingByRequest[
                                     request.idSolicitud
-                                  ],
-                                )
-                              }
-                            >
-                              {bulkReviewLoadingByRequest[request.idSolicitud]
-                                ? "Enviando..."
-                                : "Enviar formularios a revisión"}
-                            </Button>
-                          )}
-                          {pendingObservations.length > 0 && (
-                            <Typography variant="caption" color="warning.main">
-                              Marca como subsanadas todas las observaciones
-                              pendientes para habilitar el reenvío.
-                            </Typography>
-                          )}
-                          {!areRequiredFormsComplete(request) && (
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                            >
-                              Completa Aprobación y Presupuesto
-                              {riskMatrixRequired
-                                ? " y Matriz de riesgos (total de horas igual o superior a 16)"
-                                : ""}{" "}
-                              para habilitar el envío a revisión.
-                            </Typography>
+                                  ]
+                                    ? "Enviando..."
+                                    : "Enviar formularios a revisión"}
+                                </Button>
+                              )}
+                              {pendingObservations.length > 0 && (
+                                <Typography
+                                  variant="caption"
+                                  color="warning.main"
+                                >
+                                  Marca como subsanadas todas las observaciones
+                                  pendientes para habilitar el reenvío.
+                                </Typography>
+                              )}
+                              {!areRequiredFormsComplete(request) && (
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  Completa Aprobación y Presupuesto
+                                  {riskMatrixRequired
+                                    ? " y Matriz de riesgos (total de horas igual o superior a 16)"
+                                    : ""}{" "}
+                                  para habilitar el envío a revisión.
+                                </Typography>
+                              )}
+                            </>
                           )}
                         </>
                       ) : index === 4 &&
@@ -2711,22 +2788,37 @@ function Dashboard({ userData }) {
       const result = getDecanatoResult(request);
       const resolution = getDecanatoResolution(request);
       const resolutionFile = getDecanatoResolutionFile(request);
+      const finalizationDetails = [
+        result && `Resultado: ${result} `,
+        resolution && ` Resolución: ${resolution} `,
+        resolutionFile && (
+          <a href={resolutionFile} target="_blank" rel="noreferrer">
+            {"  " + "ver PDF"}
+          </a>
+        ),
+      ].filter(Boolean);
       return (
         <Box className="workflow-final-result">
           <Typography variant="body1" fontWeight={700}>
             La solicitud ya finalizó.
           </Typography>
-          {result && (
-            <Typography variant="body2">Resultado: {result}</Typography>
-          )}
-          {resolution && (
-            <Typography variant="body2">Resolución: {resolution}</Typography>
-          )}
-          {resolutionFile && (
-            <Typography variant="body2">
-              <a href={resolutionFile} target="_blank" rel="noreferrer">
-                Ver PDF de resolución
-              </a>
+          {finalizationDetails.length > 0 && (
+            <Typography
+              variant="body2"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                whiteSpace: "nowrap",
+                overflowX: "auto",
+              }}
+            >
+              {finalizationDetails.map((detail, index) => (
+                <span key={index}>
+                  {index > 0 && <span>-</span>}
+                  {detail}
+                </span>
+              ))}
             </Typography>
           )}
           {renderReceivedForms(request)}
@@ -3307,7 +3399,6 @@ function Dashboard({ userData }) {
       <div style={{ padding: "20px", marginTop: "0" }}>
         <WorkflowRoleView
           role={userData.role}
-          userName={userData.name}
           ownRequests={ownRequests}
           receivedRequests={receivedRequests}
           onCreateRequest={handleCreateNewRequest}
