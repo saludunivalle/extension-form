@@ -331,7 +331,8 @@ const normalizeRequest = (request) => {
     const estados = parseEstadoFormularios(estadoFormulariosRaw);
     const etapaActual = Number(etapaActualRaw);
     const etapaEsNumerica = Number.isFinite(etapaActual) && etapaActual > 0;
-    const nombreDependencia = request[11] || "";
+    const isCompactRequest = request.length <= 12;
+    const nombreDependencia = isCompactRequest ? request[11] || "" : "";
     if (etapaEsNumerica && estadoFormulario && !estados[String(etapaActual)]) {
       estados[String(etapaActual)] = estadoFormulario;
     }
@@ -355,7 +356,7 @@ const normalizeRequest = (request) => {
       estado_etapa: estadoEtapa || "",
       comentarios: parseEstadoFormularios(comentariosRaw),
       comentarios_por_formulario: parseEstadoFormularios(
-        comentariosPorFormularioRaw,
+        isCompactRequest ? "" : comentariosPorFormularioRaw,
       ),
       fecha_inicio: fechaInicio || "",
       fecha_fin: fechaFin || "",
@@ -2920,7 +2921,7 @@ function Dashboard({ userData }) {
                     <AccordionDetails className="approval-card__details">
                       {(() => {
                         const titleText = isReceived
-                          ? `Solicitante:  ${request.nombre_solicitante || "Usuario sin nombre"} - ${request.nombreDependencia || request.nombre_dependencia || "Solicitud"} `
+                          ? `Solicitante: ${request.nombre_solicitante || "Usuario sin nombre"}`
                           : request.nombre_actividad || "Solicitud";
 
                         const current = getFlowIndex(request);
@@ -2950,6 +2951,14 @@ function Dashboard({ userData }) {
                                 <Typography variant="h6">
                                   {titleText}
                                 </Typography>
+                                {isReceived && request.nombre_dependencia && (
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                  >
+                                    Dependencia: {request.nombre_dependencia}
+                                  </Typography>
+                                )}
                               </div>
                               <div className="approval-card__badges">
                                 <span
