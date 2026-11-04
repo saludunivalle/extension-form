@@ -392,6 +392,15 @@ const normalizeRequest = (request) => {
       request.usuario?.name ||
       request.user?.name ||
       "",
+    nombre_dependencia:
+      request.nombre_dependencia ||
+      request.nombreDependencia ||
+      findNestedField(request.SOLICITUDES, [
+        "nombre_dependencia",
+        "nombreDependencia",
+      ]) ||
+      findNestedField(request, ["nombre_dependencia", "nombreDependencia"]) ||
+      "",
     fecha_solicitud:
       request.fecha_solicitud ||
       request.fechaSolicitud ||
@@ -543,6 +552,15 @@ const normalizeRevisionRequest = (request) => {
       request.name ||
       request.user?.name ||
       request.usuario?.name ||
+      "",
+    nombre_dependencia:
+      request.nombre_dependencia ||
+      request.nombreDependencia ||
+      findNestedField(request.SOLICITUDES, [
+        "nombre_dependencia",
+        "nombreDependencia",
+      ]) ||
+      findNestedField(request, ["nombre_dependencia", "nombreDependencia"]) ||
       "",
     nombre_actividad:
       request.nombre_actividad ||
@@ -2892,6 +2910,14 @@ function Dashboard({ userData }) {
                           <div className="approval-card__header">
                             <div>
                               <Typography variant="h6">{titleText}</Typography>
+                              {isReceived && request.nombre_dependencia && (
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  Dependencia: {request.nombre_dependencia}
+                                </Typography>
+                              )}
                               <Typography
                                 variant="body2"
                                 color="text.secondary"
