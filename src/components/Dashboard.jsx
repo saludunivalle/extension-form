@@ -67,7 +67,9 @@ const formatHistoryAction = (action) => {
     enviar_decanato: "Enviada a Decanato",
     registrar_decision: "Decisión registrada",
   };
-  const key = String(action || "").trim().toLowerCase();
+  const key = String(action || "")
+    .trim()
+    .toLowerCase();
   return labels[key] || String(action || "Movimiento");
 };
 
@@ -329,6 +331,8 @@ const normalizeRequest = (request) => {
     const estados = parseEstadoFormularios(estadoFormulariosRaw);
     const etapaActual = Number(etapaActualRaw);
     const etapaEsNumerica = Number.isFinite(etapaActual) && etapaActual > 0;
+    const isCompactRequest = request.length <= 12;
+    const nombreDependencia = isCompactRequest ? request[11] || "" : "";
     if (etapaEsNumerica && estadoFormulario && !estados[String(etapaActual)]) {
       estados[String(etapaActual)] = estadoFormulario;
     }
@@ -341,6 +345,7 @@ const normalizeRequest = (request) => {
       formulario: etapaEsNumerica ? etapaActual : 0,
       estado: estadoFormulario || "",
       nombre_actividad: nombreActividad || "",
+      nombre_dependencia: nombreDependencia || "",
       paso: Number(paso) || 0,
       etapa_actual: etapaEsNumerica ? etapaActual : 0,
       estadoFormularios: estados,
@@ -351,7 +356,7 @@ const normalizeRequest = (request) => {
       estado_etapa: estadoEtapa || "",
       comentarios: parseEstadoFormularios(comentariosRaw),
       comentarios_por_formulario: parseEstadoFormularios(
-        comentariosPorFormularioRaw,
+        isCompactRequest ? "" : comentariosPorFormularioRaw,
       ),
       fecha_inicio: fechaInicio || "",
       fecha_fin: fechaFin || "",
@@ -391,6 +396,15 @@ const normalizeRequest = (request) => {
       request.nombreSolicitante ||
       request.usuario?.name ||
       request.user?.name ||
+      "",
+    nombre_dependencia:
+      request.nombre_dependencia ||
+      request.nombreDependencia ||
+      findNestedField(request.SOLICITUDES, [
+        "nombre_dependencia",
+        "nombreDependencia",
+      ]) ||
+      findNestedField(request, ["nombre_dependencia", "nombreDependencia"]) ||
       "",
     fecha_solicitud:
       request.fecha_solicitud ||
@@ -544,6 +558,15 @@ const normalizeRevisionRequest = (request) => {
       request.user?.name ||
       request.usuario?.name ||
       "",
+    nombre_dependencia:
+      request.nombre_dependencia ||
+      request.nombreDependencia ||
+      findNestedField(request.SOLICITUDES, [
+        "nombre_dependencia",
+        "nombreDependencia",
+      ]) ||
+      findNestedField(request, ["nombre_dependencia", "nombreDependencia"]) ||
+      "",
     nombre_actividad:
       request.nombre_actividad ||
       request.nombreActividad ||
@@ -669,10 +692,9 @@ const getRequestDescriptiveStatus = (request) => {
       stageState === "en_revision"
         ? "En revisión presupuestal"
         : "Pendiente de Presupuesto",
-    firmas:
-      request?.firmas_completas
-        ? "Firmas completas · lista para enviar a Decanato"
-        : `Pendiente de firmas (${signatures}/2)`,
+    firmas: request?.firmas_completas
+      ? "Firmas completas · lista para enviar a Decanato"
+      : `Pendiente de firmas (${signatures}/2)`,
     decanato: "Pendiente de decisión de Decanato",
     finalizado: visualStatus.label,
   };
@@ -714,7 +736,7 @@ function Dashboard({ userData }) {
     {},
   );
   const [reviewAction, setReviewAction] = useState({});
-  const [reviewComment, setReviewComment] = useState({});
+  const [reviewComment] = useState({});
   const [workflowObservations, setWorkflowObservations] = useState({});
   const [observationDrafts, setObservationDrafts] = useState({});
   const [signatureFiles, setSignatureFiles] = useState({});
@@ -1789,9 +1811,7 @@ function Dashboard({ userData }) {
   if (loading) {
     return (
       <ThemeProvider theme={theme}>
-        <div
-          style={{ padding: "20px", marginTop: "0", textAlign: "center" }}
-        >
+        <div style={{ padding: "20px", marginTop: "0", textAlign: "center" }}>
           <CircularProgress />
         </div>
       </ThemeProvider>
@@ -1940,7 +1960,7 @@ function Dashboard({ userData }) {
                       </Typography>
                     </AccordionSummary>
                     <AccordionDetails>
-                      {index === 0 ? (
+                      {index === currentStage ? (
                         <>
                           <Typography
                             variant="body2"
@@ -2015,120 +2035,139 @@ function Dashboard({ userData }) {
                             Formularios de la solicitud
                           </Typography>
                           <Stack spacing={1}>
-                            {[1, 2, 3, 4].map((formNumber) => {
-                              const status =
-                                resolveFormStatus(request, formNumber) ||
-                                "En progreso";
-                              const state = getButtonState(request, formNumber);
-                              const readOnly = isLockedForOwner(status);
-                              return (
-                                <Box
-                                  className="requester-form"
-                                  key={`${request.idSolicitud}-stage-${formNumber}`}
-                                >
-                                  <Box>
+                            {[1, 2, 3, 4]
+                              .filter(
+                                (formNumber) =>
+                                  currentStage === 0 ||
+                                  isFormCompleted(request, formNumber),
+                              )
+                              .map((formNumber) => {
+                                const status =
+                                  resolveFormStatus(request, formNumber) ||
+                                  "En progreso";
+                                const state = getButtonState(
+                                  request,
+                                  formNumber,
+                                );
+                                const readOnly = currentStage > 0;
+                                return (
+                                  <Box
+                                    className="requester-form"
+                                    key={`${request.idSolicitud}-stage-${formNumber}`}
+                                  >
+                                    <Box>
+                                      <Stack
+                                        direction="row"
+                                        spacing={0.75}
+                                        alignItems="center"
+                                        flexWrap="wrap"
+                                      >
+                                        <Typography
+                                          variant="body2"
+                                          fontWeight={600}
+                                        >
+                                          {formNames[formNumber - 1]}
+                                        </Typography>
+                                        <Chip
+                                          size="small"
+                                          variant="outlined"
+                                          color={
+                                            formNumber <= 2 ||
+                                            (formNumber === 3 &&
+                                              riskMatrixRequired)
+                                              ? "warning"
+                                              : "default"
+                                          }
+                                          label={
+                                            formNumber <= 2 ||
+                                            (formNumber === 3 &&
+                                              riskMatrixRequired)
+                                              ? "Obligatorio"
+                                              : "Opcional"
+                                          }
+                                        />
+                                      </Stack>
+                                      <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                      >
+                                        {status}
+                                      </Typography>
+                                    </Box>
                                     <Stack
                                       direction="row"
-                                      spacing={0.75}
-                                      alignItems="center"
-                                      flexWrap="wrap"
+                                      spacing={1}
+                                      className="requester-form__actions"
                                     >
-                                      <Typography
-                                        variant="body2"
-                                        fontWeight={600}
-                                      >
-                                        {formNames[formNumber - 1]}
-                                      </Typography>
-                                      <Chip
-                                        size="small"
-                                        variant="outlined"
-                                        color={
-                                          formNumber <= 2 ||
-                                          (formNumber === 3 &&
-                                            riskMatrixRequired)
-                                            ? "warning"
-                                            : "default"
-                                        }
-                                        label={
-                                          formNumber <= 2 ||
-                                          (formNumber === 3 &&
-                                            riskMatrixRequired)
-                                            ? "Obligatorio"
-                                            : "Opcional"
-                                        }
-                                      />
-                                    </Stack>
-                                    <Typography
-                                      variant="caption"
-                                      color="text.secondary"
-                                    >
-                                      {status}
-                                    </Typography>
-                                  </Box>
-                                  <Stack
-                                    direction="row"
-                                    spacing={1}
-                                    className="requester-form__actions"
-                                  >
-                                    <Tooltip title="Abrir formulario">
-                                      <span>
+                                      <Tooltip title="Abrir formulario">
+                                        <span>
+                                          <Button
+                                            size="small"
+                                            variant="contained"
+                                            aria-label="Abrir formulario"
+                                            disabled={!state.formEnabled}
+                                            onClick={() =>
+                                              handleNavigateToForm(
+                                                request,
+                                                formNumber,
+                                                readOnly,
+                                              )
+                                            }
+                                          >
+                                            <VisibilityOutlined fontSize="small" />
+                                          </Button>
+                                        </span>
+                                      </Tooltip>
+                                      {state.reportEnabled && (
                                         <Button
                                           size="small"
-                                          variant="contained"
-                                          aria-label="Abrir formulario"
-                                          disabled={!state.formEnabled}
+                                          variant="outlined"
+                                          aria-label="Descargar formulario"
+                                          title={
+                                            String(
+                                              userData?.role || "",
+                                            ).toLowerCase() === "solicitante"
+                                              ? "Generar reporte"
+                                              : "Descargar"
+                                          }
                                           onClick={() =>
-                                            handleNavigateToForm(
+                                            handleDownloadFormReport(
                                               request,
                                               formNumber,
-                                              readOnly,
                                             )
                                           }
                                         >
-                                          <VisibilityOutlined fontSize="small" />
+                                          <DownloadOutlined fontSize="small" />
                                         </Button>
-                                      </span>
-                                    </Tooltip>
-                                    {state.reportEnabled && (
-                                      <Button
-                                        size="small"
-                                        variant="outlined"
-                                        aria-label="Descargar formulario"
-                                        title={String(userData?.role || "").toLowerCase() === "solicitante" ? "Generar reporte" : "Descargar"}
-                                        onClick={() =>
-                                          handleDownloadFormReport(
-                                            request,
-                                            formNumber,
-                                          )
-                                        }
-                                      >
-                                        <DownloadOutlined fontSize="small" />
-                                      </Button>
-                                    )}
-                                  </Stack>
-                                </Box>
-                              );
-                            })}
+                                      )}
+                                    </Stack>
+                                  </Box>
+                                );
+                              })}
                           </Stack>
-                          <Button
-                            sx={{ mt: 1.5 }}
-                            variant="contained"
-                            color="secondary"
-                            onClick={() =>
-                              handleSendSelectedFormsToReview(request, true)
-                            }
-                            disabled={
-                              !areRequiredFormsComplete(request) ||
-                              pendingObservations.length > 0 ||
-                              Boolean(
-                                bulkReviewLoadingByRequest[request.idSolicitud],
-                              )
-                            }
-                          >
-                            {bulkReviewLoadingByRequest[request.idSolicitud]
-                              ? "Enviando..."
-                              : "Enviar formularios a revisión"}
-                          </Button>
+                          {currentStage === 0 && (
+                            <Button
+                              sx={{ mt: 1.5 }}
+                              variant="contained"
+                              color="secondary"
+                              onClick={() =>
+                                handleSendSelectedFormsToReview(request, true)
+                              }
+                              disabled={
+                                !areRequiredFormsComplete(request) ||
+                                pendingObservations.length > 0 ||
+                                Boolean(
+                                  bulkReviewLoadingByRequest[
+                                    request.idSolicitud
+                                  ],
+                                )
+                              }
+                            >
+                              {bulkReviewLoadingByRequest[request.idSolicitud]
+                                ? "Enviando..."
+                                : "Enviar formularios a revisión"}
+                            </Button>
+                          )}
                           {pendingObservations.length > 0 && (
                             <Typography variant="caption" color="warning.main">
                               Marca como subsanadas todas las observaciones
@@ -2187,7 +2226,8 @@ function Dashboard({ userData }) {
                   }
                 >
                   <strong>
-                    {formatHistoryDate(entry.fecha)} · {getHistoryActorEmail(entry)}
+                    {formatHistoryDate(entry.fecha)} ·{" "}
+                    {getHistoryActorEmail(entry)}
                   </strong>
                   <span>
                     {formatHistoryAction(entry.accion)} ·{" "}
@@ -2226,8 +2266,7 @@ function Dashboard({ userData }) {
                   justifyContent="space-between"
                 >
                   <Typography variant="subtitle1" fontWeight={700}>
-                    {request.nombre_actividad ||
-                      `Solicitud ${request.idSolicitud}`}
+                    {request.nombre_actividad || "Solicitud"}
                   </Typography>
                   <span
                     className={`request-status-badge request-status-badge--${getRequestVisualStatus(request).tone}`}
@@ -2236,8 +2275,7 @@ function Dashboard({ userData }) {
                   </span>
                 </Stack>
                 <Typography variant="caption" color="text.secondary">
-                  {request.fecha_solicitud || "Sin fecha"} · ID{" "}
-                  {request.idSolicitud}
+                  {request.fecha_solicitud || "Sin fecha"}
                 </Typography>
               </Box>
             </AccordionSummary>
@@ -2370,16 +2408,7 @@ function Dashboard({ userData }) {
 
         {canReview && canAct && (
           <div className="workflow-decision-actions">
-            <textarea
-              placeholder="Comentario general (opcional)"
-              value={reviewComment[request.idSolicitud] || ""}
-              onChange={(event) =>
-                setReviewComment((previous) => ({
-                  ...previous,
-                  [request.idSolicitud]: event.target.value,
-                }))
-              }
-            />
+            {/* Comentario general oculto temporalmente. */}
             <Stack direction="row" spacing={1} flexWrap="wrap">
               <Button
                 variant="outlined"
@@ -2575,7 +2604,8 @@ function Dashboard({ userData }) {
                 {formatHistoryDate(entry.fecha)} · {getHistoryActorEmail(entry)}
               </strong>
               <span>
-                {formatHistoryAction(entry.accion)} · {entry.rol_actor || "Sistema"}
+                {formatHistoryAction(entry.accion)} ·{" "}
+                {entry.rol_actor || "Sistema"}
               </span>
               {entry.comentario && <small>{entry.comentario}</small>}
             </div>
@@ -2589,7 +2619,12 @@ function Dashboard({ userData }) {
       const status = normalizeStatusForMatch(
         resolveFormStatus(request, formNumber),
       );
-      return status && !["en progreso", "pendiente", "borrador", "no iniciado"].includes(status);
+      return (
+        status &&
+        !["en progreso", "pendiente", "borrador", "no iniciado"].includes(
+          status,
+        )
+      );
     });
 
     if (!submittedForms.length) return null;
@@ -2632,7 +2667,9 @@ function Dashboard({ userData }) {
                         variant="contained"
                         aria-label="Abrir formulario"
                         style={{ backgroundColor: formColor }}
-                        onClick={() => handleNavigateToForm(request, formNumber, true)}
+                        onClick={() =>
+                          handleNavigateToForm(request, formNumber, true)
+                        }
                         disabled={!formEnabled}
                       >
                         <VisibilityOutlined fontSize="small" />
@@ -2645,7 +2682,9 @@ function Dashboard({ userData }) {
                         size="small"
                         variant="outlined"
                         aria-label="Descargar formulario"
-                        onClick={() => handleDownloadFormReport(request, formNumber)}
+                        onClick={() =>
+                          handleDownloadFormReport(request, formNumber)
+                        }
                       >
                         <DownloadOutlined fontSize="small" />
                       </Button>
@@ -2808,7 +2847,18 @@ function Dashboard({ userData }) {
       return groups;
     }, {});
     const visibleStageIndexes =
-      role === "decanato" ? [stageIndexes.decanato] : flowStages.map((_, index) => index);
+      role === "decanato"
+        ? [stageIndexes.decanato]
+        : flowStages
+            .map((_, index) => index)
+            .filter(
+              (index) =>
+                !(
+                  isReceived &&
+                  ["revisor_1", "revisor_2"].includes(role) &&
+                  index === stageIndexes.solicitud
+                ),
+            );
     const groupedRequests =
       specialGroups ||
       visibleStageIndexes
@@ -2830,7 +2880,9 @@ function Dashboard({ userData }) {
               specialGroups
                 ? group === groupedRequests[0]
                 : group.stageIndex ===
-                  Math.min(...groupedRequests.map(({ stageIndex }) => stageIndex))
+                  Math.min(
+                    ...groupedRequests.map(({ stageIndex }) => stageIndex),
+                  )
             }
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -2856,131 +2908,207 @@ function Dashboard({ userData }) {
                     className={`approval-card request-status-card--${getRequestVisualStatus(request).tone}`}
                     disableGutters
                   >
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Box sx={{ width: "100%", pr: 1 }}>
-                      <Typography variant="subtitle1" fontWeight={700}>
-                        {request.nombre_actividad ||
-                          `Solicitud ${request.idSolicitud}`}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {request.fecha_solicitud || "Sin fecha"} · ID{" "}
-                        {request.idSolicitud}
-                      </Typography>
-                    </Box>
-                  </AccordionSummary>
-                  <AccordionDetails className="approval-card__details">
-                    {(() => {
-                      const titleText = isReceived
-                        ? `${request.fecha_solicitud || "Sin fecha"} - ${request.nombre_solicitante || "Usuario sin nombre"} - ${request.nombre_actividad || `Solicitud ${request.idSolicitud} `} `
-                        : request.nombre_actividad ||
-                          `Solicitud ${request.idSolicitud}  `;
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Box sx={{ width: "100%", pr: 1 }}>
+                        <Typography variant="subtitle1" fontWeight={700}>
+                          {request.nombre_actividad || "Solicitud"}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {request.fecha_solicitud || "Sin fecha"}
+                        </Typography>
+                      </Box>
+                    </AccordionSummary>
+                    <AccordionDetails className="approval-card__details">
+                      {(() => {
+                        const titleText = isReceived
+                          ? `Solicitante: ${request.nombre_solicitante || "Usuario sin nombre"}`
+                          : request.nombre_actividad || "Solicitud";
 
-                      const current = getFlowIndex(request);
-                      const timelineIndexes = isReceived
-                        ? [
-                            role === "presupuesto"
-                              ? 3
-                              : role === "director"
-                                ? 4
-                                : specialGroups
-                                  ? group.stageIndex
-                                  : current,
-                          ]
-                        : flowStages.map((_, index) => index);
-                      return (
-                        <>
-                          <div className="approval-card__header">
-                            <div>
-                              <Typography variant="h6">{titleText}</Typography>
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                              >
-                                ID {request.idSolicitud} ·{" "}
-                                {request.fecha_solicitud || "Sin fecha"}
-                              </Typography>
-                            </div>
-                            <div className="approval-card__badges">
-                              <span
-                                className={`request-status-badge request-status-badge--${getRequestVisualStatus(request).tone}`}
-                              >
-                                {getRequestDescriptiveStatus(request)}
-                              </span>
-                              <span className="flow-badge">
-                                {flowStages[current][0]}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flow-track">
-                            {timelineIndexes.map((index) => {
-                              const [name, description] = flowStages[index];
-                              const isFocusedReceivedStage =
-                                isReceived && index !== current;
-                              return (
-                              <Accordion
-                                className={`flow-step ${index < current ? "done" : index === current ? "current" : ""}`}
-                                key={name}
-                                disableGutters
-                                defaultExpanded={index === current}
-                              >
-                                <AccordionSummary
-                                  expandIcon={<ExpandMoreIcon />}
+                        const current = getFlowIndex(request);
+                        const timelineIndexes = isReceived
+                          ? [
+                              role === "presupuesto"
+                                ? 3
+                                : role === "director"
+                                  ? 4
+                                  : specialGroups
+                                    ? group.stageIndex
+                                    : current,
+                            ]
+                          : flowStages.map((_, index) => index);
+                        const visibleTimelineIndexes = timelineIndexes.filter(
+                          (index) =>
+                            !(
+                              isReceived &&
+                              ["revisor_1", "revisor_2"].includes(role) &&
+                              index === 0
+                            ),
+                        );
+                        return (
+                          <>
+                            <div className="approval-card__header">
+                              <div>
+                                <Typography variant="h6">
+                                  {titleText}
+                                </Typography>
+                                {isReceived && request.nombre_dependencia && (
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                  >
+                                    Dependencia: {request.nombre_dependencia}
+                                  </Typography>
+                                )}
+                              </div>
+                              <div className="approval-card__badges">
+                                <span
+                                  className={`request-status-badge request-status-badge--${getRequestVisualStatus(request).tone}`}
                                 >
-                                  <span className="flow-dot">
-                                    {index < current ? "✓" : index + 1}
-                                  </span>
-                                  <strong>{name}</strong>
-                                </AccordionSummary>
-                                <AccordionDetails>
-                                  <small>{description}</small>
-                                  <small className="workflow-stage-responsible">
-                                    Responsable: {flowStages[index][2]}
-                                  </small>
-                                  {renderReceivedStageContent(
-                                    request,
-                                    index,
-                                    current,
-                                    isFocusedReceivedStage,
-                                  )}
-                                </AccordionDetails>
-                              </Accordion>
+                                  {getRequestDescriptiveStatus(request)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flow-track">
+                              {visibleTimelineIndexes.map((index) => {
+                                const [name, description] = flowStages[index];
+                                const isFocusedReceivedStage =
+                                  isReceived && index !== current;
+                                return (
+                                  <Accordion
+                                    className={`flow-step ${index < current ? "done" : index === current ? "current" : ""}`}
+                                    key={name}
+                                    disableGutters
+                                    defaultExpanded={index === current}
+                                  >
+                                    <AccordionSummary
+                                      expandIcon={<ExpandMoreIcon />}
+                                    >
+                                      <span className="flow-dot">
+                                        {index < current ? "✓" : index + 1}
+                                      </span>
+                                      <strong>{name}</strong>
+                                    </AccordionSummary>
+                                    <AccordionDetails>
+                                      <small>{description}</small>
+                                      <small className="workflow-stage-responsible">
+                                        Responsable: {flowStages[index][2]}
+                                      </small>
+                                      {renderReceivedStageContent(
+                                        request,
+                                        index,
+                                        current,
+                                        isFocusedReceivedStage,
+                                      )}
+                                    </AccordionDetails>
+                                  </Accordion>
+                                );
+                              })}
+                            </div>
+                          </>
+                        );
+                      })()}
+
+                      {!isReceived && (
+                        <>
+                          <Stack
+                            className="requester-forms"
+                            spacing={1}
+                            sx={{ mt: 2 }}
+                          >
+                            {[1, 2, 3, 4].map((formNumber) => {
+                              const formStatus =
+                                resolveFormStatus(request, formNumber) ||
+                                "En progreso";
+                              const {
+                                formEnabled,
+                                reportEnabled,
+                                formColor,
+                                reportColor,
+                              } = getButtonState(request, formNumber, {
+                                isReceived,
+                              });
+                              const shouldReadOnly =
+                                isReceived ||
+                                (!isAdmin && isLockedForOwner(formStatus));
+
+                              if (readOnlyMode) {
+                                return (
+                                  <Box
+                                    className="requester-form"
+                                    key={`view-${request.idSolicitud}-${formNumber}`}
+                                  >
+                                    <Box>
+                                      <Typography
+                                        variant="body2"
+                                        fontWeight={600}
+                                      >
+                                        {formNames[formNumber - 1]}
+                                      </Typography>
+                                      <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                      >
+                                        {formStatus}
+                                      </Typography>
+                                    </Box>
+                                    <Tooltip title="Abrir formulario">
+                                      <span>
+                                        <Button
+                                          size="small"
+                                          variant="contained"
+                                          aria-label="Abrir formulario"
+                                          onClick={() =>
+                                            handleNavigateToForm(
+                                              request,
+                                              formNumber,
+                                              true,
+                                            )
+                                          }
+                                        >
+                                          <VisibilityOutlined fontSize="small" />
+                                        </Button>
+                                      </span>
+                                    </Tooltip>
+                                  </Box>
+                                );
+                              }
+
+                              const canSelectForReview =
+                                !readOnlyMode &&
+                                !isReceived &&
+                                !isAdmin &&
+                                isFormSelectableForReview(request, formNumber);
+                              const isSelected = Boolean(
+                                selectedFormsByRequest[request.idSolicitud]?.[
+                                  formNumber
+                                ],
                               );
-                            })}
-                          </div>
-                        </>
-                      );
-                    })()}
 
-                    {!isReceived && (
-                      <>
-                        <Stack
-                          className="requester-forms"
-                          spacing={1}
-                          sx={{ mt: 2 }}
-                        >
-                          {[1, 2, 3, 4].map((formNumber) => {
-                            const formStatus =
-                              resolveFormStatus(request, formNumber) ||
-                              "En progreso";
-                            const {
-                              formEnabled,
-                              reportEnabled,
-                              formColor,
-                              reportColor,
-                            } = getButtonState(request, formNumber, {
-                              isReceived,
-                            });
-                            const shouldReadOnly =
-                              isReceived ||
-                              (!isAdmin && isLockedForOwner(formStatus));
-
-                            if (readOnlyMode) {
                               return (
                                 <Box
                                   className="requester-form"
-                                  key={`view-${request.idSolicitud}-${formNumber}`}
+                                  key={`container-${request.idSolicitud}-${formNumber}`}
                                 >
-                                  <Box>
+                                  {!readOnlyMode && !isReceived && !isAdmin && (
+                                    <Checkbox
+                                      size="small"
+                                      checked={isSelected}
+                                      onChange={() =>
+                                        toggleFormSelection(
+                                          request.idSolicitud,
+                                          formNumber,
+                                        )
+                                      }
+                                      disabled={
+                                        !canSelectForReview ||
+                                        bulkReviewLoadingByRequest[
+                                          request.idSolicitud
+                                        ]
+                                      }
+                                      sx={{ p: 0.5 }}
+                                    />
+                                  )}
+                                  <Box sx={{ flex: 1, minWidth: 0 }}>
                                     <Typography
                                       variant="body2"
                                       fontWeight={600}
@@ -2994,228 +3122,176 @@ function Dashboard({ userData }) {
                                       {formStatus}
                                     </Typography>
                                   </Box>
-                                  <Tooltip title="Abrir formulario">
-                                    <span>
-                                      <Button
-                                        size="small"
-                                        variant="contained"
-                                        aria-label="Abrir formulario"
-                                        onClick={() =>
-                                          handleNavigateToForm(
-                                            request,
-                                            formNumber,
-                                            true,
-                                          )
-                                        }
-                                      >
-                                        <VisibilityOutlined fontSize="small" />
-                                      </Button>
-                                    </span>
-                                  </Tooltip>
-                                </Box>
-                              );
-                            }
-
-                            const canSelectForReview =
-                              !readOnlyMode &&
-                              !isReceived &&
-                              !isAdmin &&
-                              isFormSelectableForReview(request, formNumber);
-                            const isSelected = Boolean(
-                              selectedFormsByRequest[request.idSolicitud]?.[
-                                formNumber
-                              ],
-                            );
-
-                            return (
-                              <Box
-                                className="requester-form"
-                                key={`container-${request.idSolicitud}-${formNumber}`}
-                              >
-                                {!readOnlyMode && !isReceived && !isAdmin && (
-                                  <Checkbox
-                                    size="small"
-                                    checked={isSelected}
-                                    onChange={() =>
-                                      toggleFormSelection(
-                                        request.idSolicitud,
-                                        formNumber,
-                                      )
-                                    }
-                                    disabled={
-                                      !canSelectForReview ||
-                                      bulkReviewLoadingByRequest[
-                                        request.idSolicitud
-                                      ]
-                                    }
-                                    sx={{ p: 0.5 }}
-                                  />
-                                )}
-                                <Box sx={{ flex: 1, minWidth: 0 }}>
-                                  <Typography variant="body2" fontWeight={600}>
-                                    {formNames[formNumber - 1]}
-                                  </Typography>
-                                  <Typography
-                                    variant="caption"
-                                    color="text.secondary"
+                                  <Stack
+                                    direction="row"
+                                    spacing={1}
+                                    className="requester-form__actions"
                                   >
-                                    {formStatus}
-                                  </Typography>
-                                </Box>
-                                <Stack
-                                  direction="row"
-                                  spacing={1}
-                                  className="requester-form__actions"
-                                >
-                                  <Tooltip title="Abrir formulario">
-                                    <span>
-                                      <Button
-                                        size="small"
-                                        variant="contained"
-                                        aria-label="Abrir formulario"
-                                        style={{
-                                          backgroundColor: formColor,
-                                          cursor: formEnabled
-                                            ? "pointer"
-                                            : "not-allowed",
-                                        }}
-                                        onClick={() =>
-                                          handleNavigateToForm(
-                                            request,
-                                            formNumber,
-                                            shouldReadOnly,
-                                          )
-                                        }
-                                        disabled={!formEnabled}
-                                      >
-                                        <VisibilityOutlined fontSize="small" />
-                                      </Button>
-                                    </span>
-                                  </Tooltip>
-
-                                  {reportEnabled ? (
-                                    <Tooltip
-                                      title={String(userData?.role || "").toLowerCase() === "solicitante" ? "Generar reporte" : "Descargar"}
-                                    >
+                                    <Tooltip title="Abrir formulario">
                                       <span>
                                         <Button
                                           size="small"
-                                          variant="outlined"
+                                          variant="contained"
+                                          aria-label="Abrir formulario"
                                           style={{
-                                            cursor: loadingReports[
-                                              `${request.idSolicitud}-${formNumber}`
-                                            ]
-                                              ? "wait"
-                                              : "pointer",
+                                            backgroundColor: formColor,
+                                            cursor: formEnabled
+                                              ? "pointer"
+                                              : "not-allowed",
                                           }}
                                           onClick={() =>
-                                            handleDownloadFormReport(
+                                            handleNavigateToForm(
                                               request,
                                               formNumber,
+                                              shouldReadOnly,
                                             )
                                           }
-                                          disabled={
-                                            loadingReports[
-                                              `${request.idSolicitud}-${formNumber}`
-                                            ]
-                                          }
+                                          disabled={!formEnabled}
                                         >
-                                          {loadingReports[
-                                            `${request.idSolicitud}-${formNumber}`
-                                          ] ? (
-                                            <CircularProgress
-                                              size={20}
-                                              color="inherit"
-                                            />
-                                          ) : (
-                                            <DownloadOutlined fontSize="small" />
-                                          )}
+                                          <VisibilityOutlined fontSize="small" />
                                         </Button>
                                       </span>
                                     </Tooltip>
-                                  ) : (
-                                    <Tooltip title="Formulario no completado">
-                                      <span>
-                                        <Button
-                                          size="small"
-                                          variant="outlined"
-                                          style={{
-                                            backgroundColor: reportColor,
-                                            cursor: "not-allowed",
-                                          }}
-                                          disabled
-                                        >
-                                          <DownloadOutlined fontSize="small" />
-                                        </Button>
-                                      </span>
-                                    </Tooltip>
-                                  )}
-                                </Stack>
-                                {request.historial?.length > 0 && (
-                                  <details className="workflow-history">
-                                    <summary>
-                                      Historial de movimientos (
-                                      {request.historial.length})
-                                    </summary>
-                                    <div className="workflow-history__list">
-                                      {request.historial.map((entry, index) => (
-                                        <div
-                                          className="workflow-history__item"
-                                          key={
-                                            entry.id_historial ||
-                                            `${request.idSolicitud}-received-history-${index}`
-                                          }
-                                        >
-                                          <strong>
-                                            {formatHistoryDate(entry.fecha)} · {getHistoryActorEmail(entry)}
-                                          </strong>
-                                          <span>
-                                            {formatHistoryAction(entry.accion)} ·{" "}
-                                            {entry.rol_actor || "Sistema"}
-                                          </span>
-                                          {entry.comentario && (
-                                            <small>{entry.comentario}</small>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </details>
-                                )}
-                              </Box>
-                            );
-                          })}
-                        </Stack>
 
-                        {!readOnlyMode && !isReceived && !isAdmin && (
-                          <Button
-                            variant="contained"
-                            color="secondary"
-                            onClick={() =>
-                              handleSendSelectedFormsToReview(request)
-                            }
-                            disabled={Boolean(
-                              bulkReviewLoadingByRequest[request.idSolicitud],
-                            )}
-                            style={{ minWidth: "190px", justifySelf: "start" }}
-                          >
-                            {bulkReviewLoadingByRequest[request.idSolicitud]
-                              ? "Enviando..."
-                              : "Enviar seleccionados a revision"}
-                          </Button>
-                        )}
-                        {isReceived &&
-                          (String(userData?.role || "").toLowerCase() ===
-                            "admin" ||
-                          getReviewerStage(userData?.role) ===
-                            getRequestStage(request) ||
-                          isDecanatoCloser(request) ||
-                          String(userData?.role || "").toLowerCase() ===
-                            "director"
-                            ? renderWorkflowPanel(request)
-                            : null)}
-                      </>
-                    )}
-                  </AccordionDetails>
+                                    {reportEnabled ? (
+                                      <Tooltip
+                                        title={
+                                          String(
+                                            userData?.role || "",
+                                          ).toLowerCase() === "solicitante"
+                                            ? "Generar reporte"
+                                            : "Descargar"
+                                        }
+                                      >
+                                        <span>
+                                          <Button
+                                            size="small"
+                                            variant="outlined"
+                                            style={{
+                                              cursor: loadingReports[
+                                                `${request.idSolicitud}-${formNumber}`
+                                              ]
+                                                ? "wait"
+                                                : "pointer",
+                                            }}
+                                            onClick={() =>
+                                              handleDownloadFormReport(
+                                                request,
+                                                formNumber,
+                                              )
+                                            }
+                                            disabled={
+                                              loadingReports[
+                                                `${request.idSolicitud}-${formNumber}`
+                                              ]
+                                            }
+                                          >
+                                            {loadingReports[
+                                              `${request.idSolicitud}-${formNumber}`
+                                            ] ? (
+                                              <CircularProgress
+                                                size={20}
+                                                color="inherit"
+                                              />
+                                            ) : (
+                                              <DownloadOutlined fontSize="small" />
+                                            )}
+                                          </Button>
+                                        </span>
+                                      </Tooltip>
+                                    ) : (
+                                      <Tooltip title="Formulario no completado">
+                                        <span>
+                                          <Button
+                                            size="small"
+                                            variant="outlined"
+                                            style={{
+                                              backgroundColor: reportColor,
+                                              cursor: "not-allowed",
+                                            }}
+                                            disabled
+                                          >
+                                            <DownloadOutlined fontSize="small" />
+                                          </Button>
+                                        </span>
+                                      </Tooltip>
+                                    )}
+                                  </Stack>
+                                  {request.historial?.length > 0 && (
+                                    <details className="workflow-history">
+                                      <summary>
+                                        Historial de movimientos (
+                                        {request.historial.length})
+                                      </summary>
+                                      <div className="workflow-history__list">
+                                        {request.historial.map(
+                                          (entry, index) => (
+                                            <div
+                                              className="workflow-history__item"
+                                              key={
+                                                entry.id_historial ||
+                                                `${request.idSolicitud}-received-history-${index}`
+                                              }
+                                            >
+                                              <strong>
+                                                {formatHistoryDate(entry.fecha)}{" "}
+                                                · {getHistoryActorEmail(entry)}
+                                              </strong>
+                                              <span>
+                                                {formatHistoryAction(
+                                                  entry.accion,
+                                                )}{" "}
+                                                · {entry.rol_actor || "Sistema"}
+                                              </span>
+                                              {entry.comentario && (
+                                                <small>
+                                                  {entry.comentario}
+                                                </small>
+                                              )}
+                                            </div>
+                                          ),
+                                        )}
+                                      </div>
+                                    </details>
+                                  )}
+                                </Box>
+                              );
+                            })}
+                          </Stack>
+
+                          {!readOnlyMode && !isReceived && !isAdmin && (
+                            <Button
+                              variant="contained"
+                              color="secondary"
+                              onClick={() =>
+                                handleSendSelectedFormsToReview(request)
+                              }
+                              disabled={Boolean(
+                                bulkReviewLoadingByRequest[request.idSolicitud],
+                              )}
+                              style={{
+                                minWidth: "190px",
+                                justifySelf: "start",
+                              }}
+                            >
+                              {bulkReviewLoadingByRequest[request.idSolicitud]
+                                ? "Enviando..."
+                                : "Enviar seleccionados a revision"}
+                            </Button>
+                          )}
+                          {isReceived &&
+                            (String(userData?.role || "").toLowerCase() ===
+                              "admin" ||
+                            getReviewerStage(userData?.role) ===
+                              getRequestStage(request) ||
+                            isDecanatoCloser(request) ||
+                            String(userData?.role || "").toLowerCase() ===
+                              "director"
+                              ? renderWorkflowPanel(request)
+                              : null)}
+                        </>
+                      )}
+                    </AccordionDetails>
                   </Accordion>
                 ))
               )}
