@@ -3060,39 +3060,25 @@ function Dashboard({ userData }) {
                                 </span>
                               </div>
                             </div>
-                            <div className="flow-track">
+                            <div className="flow-track flow-track--static">
                               {visibleTimelineIndexes.map((index) => {
-                                const [name, description] = flowStages[index];
+                                const [name] = flowStages[index];
                                 const isFocusedReceivedStage =
                                   isReceived && index !== current;
                                 return (
-                                  <Accordion
+                                  <div
                                     className={`flow-step ${index < current ? "done" : index === current ? "current" : ""}`}
                                     key={name}
-                                    disableGutters
-                                    defaultExpanded={index === current}
                                   >
-                                    <AccordionSummary
-                                      expandIcon={<ExpandMoreIcon />}
-                                    >
-                                      <span className="flow-dot">
-                                        {index < current ? "✓" : index + 1}
-                                      </span>
-                                      <strong>{name}</strong>
-                                    </AccordionSummary>
-                                    <AccordionDetails>
-                                      <small>{description}</small>
-                                      <small className="workflow-stage-responsible">
-                                        Responsable: {flowStages[index][2]}
-                                      </small>
+                                    <div className="flow-step__details">
                                       {renderReceivedStageContent(
                                         request,
                                         index,
                                         current,
                                         isFocusedReceivedStage,
                                       )}
-                                    </AccordionDetails>
-                                  </Accordion>
+                                    </div>
+                                  </div>
                                 );
                               })}
                             </div>

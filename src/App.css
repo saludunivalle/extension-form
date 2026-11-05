@@ -117,6 +117,8 @@ header {
 .flow-step .MuiAccordionSummary-content { align-items:center; gap:12px; margin:8px 0; }
 .flow-step .MuiAccordionDetails-root { padding:0 48px 14px; }
 .flow-step .MuiAccordionSummary-expandIconWrapper { margin-left:auto; }
+.flow-step__heading { min-height:58px; display:flex; align-items:center; gap:12px; padding:6px 4px; position:relative; z-index:1; }
+.flow-step__details { padding:0 48px 14px; }
 .flow-step.done, .flow-step.current { color:#1976d2; }
 .flow-step.done::after { background:#90caf9; }
 .flow-dot { position:relative; z-index:1; display:flex; align-items:center; justify-content:center; width:29px; height:29px; border-radius:50%; background:#eef0f3; color:#697586; font-weight:700; }
