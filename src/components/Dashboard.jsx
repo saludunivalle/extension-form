@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import { downloadFormReport } from "../services/reportServices";
 import {
@@ -35,16 +35,18 @@ import {
   sendFormsToRevision,
 } from "../services/revisionService";
 import {
-  addWorkflowObservation,
   getWorkflowConsultation,
   getWorkflowQueue,
   getWorkflowObservations,
   registerWorkflowSignature,
   sendWorkflowRequestToDecanato,
+  sendWorkflowRequestToPresupuesto,
+  getWorkflowFormPdf,
   remindWorkflowSignature,
   submitDecanatoCut,
   submitWorkflowDecision,
   updateWorkflowObservation,
+  deleteWorkflowObservation,
 } from "../services/workflowService";
 import WorkflowRoleView from "./Workflow/WorkflowRoleView";
 const API_URL = config.API_URL;
@@ -291,6 +293,60 @@ const hasCorrectionsInRequest = (request) => {
   );
 };
 
+const isRequestInCorrection = (request) => {
+  if (!request) return false;
+  const rawStage = String(
+    request?.etapa_codigo ||
+    request?.etapaCodigo ||
+    request?.etapa_actual ||
+    (request?.ETAPAS && (request.ETAPAS.etapa_codigo || request.ETAPAS.etapaCodigo)) ||
+    ""
+  ).trim().toLowerCase();
+
+  // Si la solicitud ya avanzó o está en una fase de revisión/firmas/presupuesto/decanato, NO requiere corrección por el solicitante
+  if (
+    rawStage &&
+    rawStage !== "solicitud" &&
+    rawStage !== "0" &&
+    rawStage !== "1"
+  ) {
+    return false;
+  }
+
+  const stageState = String(request?.estado_etapa || "").trim().toLowerCase();
+  if (stageState === "devuelta" || stageState === "requiere_correcciones") {
+    return true;
+  }
+  const formState = String(request?.estado || "").trim().toLowerCase();
+  if (
+    formState === "requiere correccion" ||
+    formState === "requiere correcciones"
+  ) {
+    return true;
+  }
+  const estados = request?.estadoFormularios;
+  if (
+    estados &&
+    typeof estados === "object" &&
+    Object.values(estados).some((estado) => isCorrectionsStatus(estado))
+  ) {
+    return true;
+  }
+  const comments = request?.comentarios;
+  if (
+    comments &&
+    typeof comments === "object" &&
+    Object.values(comments).some(
+      (items) => Array.isArray(items) && items.length > 0,
+    )
+  ) {
+    if (stageState === "devuelta" || stageState === "requiere_correcciones") {
+      return true;
+    }
+  }
+  return false;
+};
+
 const getPendingObservations = (observations = []) =>
   observations.filter(
     (observation) =>
@@ -331,6 +387,9 @@ const normalizeRequest = (request) => {
       observacionesCorte,
       resolucionCorte,
       archivoResolucionCorte,
+      firmaSolicitanteRaw,
+      firmaDirectorRaw,
+      firmasCompletasRaw,
     ] = request;
 
     const estados = parseEstadoFormularios(estadoFormulariosRaw);
@@ -374,11 +433,17 @@ const normalizeRequest = (request) => {
       etapa_anterior: etapaAnterior || "",
       updated_at: updatedAt || "",
       version: version || "",
+      firma_solicitante: firmaSolicitanteRaw === true || String(firmaSolicitanteRaw) === 'true',
+      firma_director: firmaDirectorRaw === true || String(firmaDirectorRaw) === 'true',
+      firmas_completas: firmasCompletasRaw === true || String(firmasCompletasRaw) === 'true',
     };
   }
 
   return {
     ...request,
+    firma_solicitante: request.firma_solicitante === true || String(request.firma_solicitante) === 'true',
+    firma_director: request.firma_director === true || String(request.firma_director) === 'true',
+    firmas_completas: request.firmas_completas === true || String(request.firmas_completas) === 'true',
     idSolicitud:
       request.idSolicitud ||
       request.id_solicitud ||
@@ -663,6 +728,9 @@ const findNestedField = (source, fieldNames) => {
 };
 
 const getRequestStage = (request) => {
+  if (isRequestInCorrection(request)) {
+    return "solicitud";
+  }
   const rawStage = String(
     findNestedField(request, ["etapa_codigo", "etapaCodigo"]),
   )
@@ -699,13 +767,13 @@ const getDecanatoResolutionFile = (request) =>
 const getHistoryActorEmail = (entry) =>
   entry?.email_actor || entry?.correo_actor || "Sin email disponible";
 
-const getRequestDescriptiveStatus = (request) => {
-  const stage = getRequestStage(request);
-  const visualStatus = getRequestVisualStatus(request);
+const getRequestDescriptiveStatus = (request, role = "") => {
+  const visualStatus = getRequestVisualStatus(request, role);
   if (visualStatus.tone === "correction" || visualStatus.tone === "rejected") {
     return visualStatus.label;
   }
 
+  const stage = getRequestStage(request);
   const stageState = String(request?.estado_etapa || "")
     .trim()
     .toLowerCase();
@@ -717,7 +785,9 @@ const getRequestDescriptiveStatus = (request) => {
     solicitud:
       stageState === "borrador"
         ? "Borrador · pendiente de envío a revisión"
-        : "Pendiente de envío a Revisión 1",
+        : isRequestInCorrection(request)
+          ? "Requiere corrección"
+          : "Pendiente de envío a Revisión 1",
     revision_1:
       stageState === "en_revision"
         ? "En revisión 1"
@@ -726,13 +796,13 @@ const getRequestDescriptiveStatus = (request) => {
       stageState === "en_revision"
         ? "En revisión 2"
         : "Pendiente de Revisión 2",
+    firmas: request?.firmas_completas
+      ? "Firmas completas · lista para enviar a Presupuesto"
+      : `Pendiente de firmas (${signatures}/2)`,
     presupuesto:
       stageState === "en_revision"
         ? "En revisión presupuestal"
         : "Pendiente de Presupuesto",
-    firmas: request?.firmas_completas
-      ? "Firmas completas · lista para enviar a Decanato"
-      : `Pendiente de firmas (${signatures}/2)`,
     decanato: "Pendiente de decisión de Decanato",
     finalizado: visualStatus.label,
   };
@@ -740,7 +810,7 @@ const getRequestDescriptiveStatus = (request) => {
   return labels[stage] || visualStatus.label;
 };
 
-const getRequestVisualStatus = (request) => {
+const getRequestVisualStatus = (request, role = "") => {
   const stage = getRequestStage(request);
   const result = String(getDecanatoResult(request) || "")
     .trim()
@@ -750,11 +820,19 @@ const getRequestVisualStatus = (request) => {
       ? { label: "Rechazada · proceso finalizado", tone: "rejected" }
       : { label: "En orden · solicitud aprobada", tone: "ok" };
   }
-  if (hasCorrectionsInRequest(request))
-    return { label: "Requiere corrección", tone: "correction" };
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  const isReviewer = ["revisor_1", "revisor_2"].includes(normalizedRole);
+
+  if (isRequestInCorrection(request)) {
+    return {
+      label: isReviewer ? "Enviada a subsanar" : "Requiere corrección",
+      tone: "correction",
+    };
+  }
+
   if (stage === "firmas" && request.firmas_completas) {
     return {
-      label: "Pendiente · lista para enviar a Decanato",
+      label: "Pendiente · lista para enviar a Presupuesto",
       tone: "pending",
     };
   }
@@ -777,10 +855,13 @@ function Dashboard({ userData }) {
   const [reviewComment] = useState({});
   const [workflowObservations, setWorkflowObservations] = useState({});
   const [observationDrafts, setObservationDrafts] = useState({});
+  const [observationActionLoading, setObservationActionLoading] = useState({});
   const [signatureFiles, setSignatureFiles] = useState({});
   const [signatureNotes, setSignatureNotes] = useState({});
   const [decanatoEmailData, setDecanatoEmailData] = useState({});
   const [sendDecanatoRequest, setSendDecanatoRequest] = useState(null);
+  const [presupuestoEmailData, setPresupuestoEmailData] = useState({});
+  const [sendPresupuestoRequest, setSendPresupuestoRequest] = useState(null);
   const [decanatoData, setDecanatoData] = useState({});
   const [totalHoursByRequest, setTotalHoursByRequest] = useState({});
   const navigate = useNavigate();
@@ -799,8 +880,8 @@ function Dashboard({ userData }) {
     },
   });
 
-  useEffect(() => {
-    const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
+    if (!userData?.id) return;
       setLoading(true);
       const role = String(userData?.role || "").toLowerCase();
 
@@ -983,11 +1064,13 @@ function Dashboard({ userData }) {
         }
       }
       setLoading(false);
-    };
+  }, [userData]);
+
+  useEffect(() => {
     if (userData && userData.id) {
       fetchRequests();
     }
-  }, [userData]);
+  }, [fetchRequests, userData]);
 
   useEffect(() => {
     const workflowRoles = [
@@ -1152,6 +1235,9 @@ function Dashboard({ userData }) {
     formNumber,
     readOnly = false,
   ) => {
+    if (isAtOrPastFirmas(request)) {
+      return handleViewFormPdf(request, formNumber);
+    }
     try {
       const { idSolicitud } = request;
 
@@ -1181,7 +1267,7 @@ function Dashboard({ userData }) {
 
         // Navegar al formulario
         navigate(
-          `/formulario/${formNumber}?solicitud=${idSolicitud}&paso=${pasoDestino}${readOnly ? "&readOnly=1" : ""}`,
+          `/formulario/${formNumber}?solicitud=${idSolicitud}&paso=${pasoDestino}&etapa=${encodeURIComponent(request.etapa_codigo || request.etapa_actual || "")}${readOnly ? "&readOnly=1" : ""}`,
         );
       } else {
         throw new Error("No se encontraron datos para esta solicitud");
@@ -1350,6 +1436,9 @@ function Dashboard({ userData }) {
   }
 
   const handleDownloadFormReport = async (request, formNumber) => {
+    if (isAtOrPastFirmas(request)) {
+      return handleDownloadFormPdf(request, formNumber);
+    }
     const key = `${request.idSolicitud}-${formNumber}`;
     setLoadingReports((prev) => ({ ...prev, [key]: true }));
     try {
@@ -1429,7 +1518,20 @@ function Dashboard({ userData }) {
   const isFormSelectableForReview = (request, formNumber) => {
     const formStatus = resolveFormStatus(request, formNumber);
     const normalized = normalizeStatusForMatch(formStatus);
-    if (normalized === "aprobado" || normalized === "enviado a revision") {
+    if (normalized === "aprobado") {
+      return false;
+    }
+
+    const stageState = String(request?.estado_etapa || "").trim().toLowerCase();
+    const isReturned =
+      stageState === "devuelta" ||
+      stageState === "requiere_correcciones" ||
+      hasCorrectionsInRequest(request);
+    if (isReturned) {
+      return true;
+    }
+
+    if (normalized === "enviado a revision") {
       return false;
     }
 
@@ -1440,13 +1542,17 @@ function Dashboard({ userData }) {
     return isFormCompleted(request, formNumber) || normalized === "completado";
   };
 
-  const areRequiredFormsComplete = (request) =>
-    [1, 2, ...(requiresRiskMatrix(request) ? [3] : [])].every((formNumber) => {
+  const areRequiredFormsComplete = (request) => {
+    if (isRequestInCorrection(request)) {
+      return true;
+    }
+    return [1, 2, ...(requiresRiskMatrix(request) ? [3] : [])].every((formNumber) => {
       const status = normalizeStatusForMatch(
         resolveFormStatus(request, formNumber),
       );
       return status === "completado" || status === "aprobado";
     });
+  };
 
   const toggleFormSelection = (requestId, formNumber) => {
     setSelectedFormsByRequest((prev) => {
@@ -1502,9 +1608,17 @@ function Dashboard({ userData }) {
       resolveFormStatus(request, 3),
     );
 
+    const stageState = String(request?.estado_etapa || "").trim().toLowerCase();
+    const isReturned =
+      stageState === "devuelta" ||
+      stageState === "requiere_correcciones" ||
+      hasCorrectionsInRequest(request);
     const isAlreadySatisfied = (normalizedStatus) =>
       normalizedStatus === "aprobado" ||
-      normalizedStatus === "enviado a revision";
+      normalizedStatus === "enviado a revision" ||
+      (isReturned &&
+        (isCorrectionsStatus(normalizedStatus) ||
+          normalizedStatus === "completado"));
 
     const form1Satisfied =
       selectedForms.includes(1) || isAlreadySatisfied(normalizedStatus1);
@@ -1544,6 +1658,7 @@ function Dashboard({ userData }) {
         id_solicitud: requestId,
         userId: userData.id,
         formularios: selectedForms,
+        etapa_anterior: request?.etapa_anterior || "",
       });
 
       if (response?.success) {
@@ -1555,6 +1670,10 @@ function Dashboard({ userData }) {
           responseData.etapas?.etapa_codigo ||
           request.etapa_anterior ||
           "revision_1";
+        const nextRole =
+          responseData.rol_responsable ||
+          responseData.rolResponsable ||
+          (nextStage === "revision_2" ? "revisor_2" : "revisor_1");
         const responseStatuses = extractEstadoFormularios(responseData);
 
         setOwnRequests((prev) =>
@@ -1575,13 +1694,20 @@ function Dashboard({ userData }) {
                   ? responseStatuses
                   : nextStatuses,
               etapa_codigo: nextStage,
-              etapa_anterior: "",
+              etapa_actual: nextStage === "revision_2" ? 3 : 2,
+              rol_responsable: nextRole,
+              estado_etapa: "pendiente",
+              estado: "Enviado a revision",
+              etapa_anterior: "solicitud",
             };
           }),
         );
 
         setSelectedFormsByRequest((prev) => ({ ...prev, [requestId]: {} }));
         alert("Formularios seleccionados enviados a revision correctamente.");
+        if (typeof fetchRequests === "function") {
+          fetchRequests();
+        }
       }
     } catch (error) {
       console.error(
@@ -1662,29 +1788,32 @@ function Dashboard({ userData }) {
     }
   };
 
-  const handleAddObservation = async (request) => {
-    const requestId = request.idSolicitud;
-    const draft = observationDrafts[requestId] || {};
-    const text = String(draft.text || "").trim();
-    if (!text) {
-      alert("Escribe la observación antes de agregarla.");
+  const handleObservationStatus = async (request, observation, estado) => {
+    if (
+      !isRequestInCorrection(request) &&
+      !["revisor_1", "revisor_2", "presupuesto", "admin"].includes(
+        String(userData?.role || "").toLowerCase(),
+      )
+    ) {
+      alert("No se pueden modificar observaciones una vez reenviada la solicitud.");
       return;
     }
-    try {
-      await addWorkflowObservation(requestId, {
-        etapa: request.etapa_codigo,
-        observacion: text,
-      });
-      setObservationDrafts((previous) => ({ ...previous, [requestId]: {} }));
-      await loadRequestObservations(requestId);
-    } catch (error) {
-      alert(
-        error?.response?.data?.message || "No se pudo guardar la observación.",
-      );
-    }
-  };
-
-  const handleObservationStatus = async (request, observation, estado) => {
+    const actionKey = `${request.idSolicitud}-${observation.id_observacion}`;
+    setObservationActionLoading((previous) => ({
+      ...previous,
+      [actionKey]: true,
+    }));
+    setWorkflowObservations((previous) => {
+      const list = previous[request.idSolicitud] || [];
+      return {
+        ...previous,
+        [request.idSolicitud]: list.map((obs) =>
+          obs.id_observacion === observation.id_observacion
+            ? { ...obs, estado }
+            : obs,
+        ),
+      };
+    });
     try {
       await updateWorkflowObservation(
         request.idSolicitud,
@@ -1697,6 +1826,65 @@ function Dashboard({ userData }) {
         error?.response?.data?.message ||
           "No se pudo actualizar la observación.",
       );
+      await loadRequestObservations(request.idSolicitud);
+    } finally {
+      setObservationActionLoading((previous) => ({
+        ...previous,
+        [actionKey]: false,
+      }));
+    }
+  };
+
+  const handleEditObservation = (request, observation) => {
+    setObservationDrafts((previous) => ({
+      ...previous,
+      [request.idSolicitud]: {
+        ...previous[request.idSolicitud],
+        text: observation.observacion || "",
+        editingId: observation.id_observacion,
+      },
+    }));
+  };
+
+  const handleCancelEditObservation = (requestId) => {
+    setObservationDrafts((previous) => ({
+      ...previous,
+      [requestId]: {},
+    }));
+  };
+
+  const handleSaveObservationEdit = async (request) => {
+    const requestId = request.idSolicitud;
+    const draft = observationDrafts[requestId] || {};
+    const text = String(draft.text || "").trim();
+    if (!draft.editingId || !text) {
+      alert("Escribe la observación antes de guardarla.");
+      return;
+    }
+    const actionKey = `${requestId}-${draft.editingId}`;
+    setObservationActionLoading((previous) => ({
+      ...previous,
+      [actionKey]: true,
+    }));
+    try {
+      await updateWorkflowObservation(requestId, draft.editingId, {
+        observacion: text,
+      });
+      setObservationDrafts((previous) => ({
+        ...previous,
+        [requestId]: {},
+      }));
+      await loadRequestObservations(requestId);
+    } catch (error) {
+      alert(
+        error?.response?.data?.message ||
+          "No se pudo editar la observación.",
+      );
+    } finally {
+      setObservationActionLoading((previous) => ({
+        ...previous,
+        [actionKey]: false,
+      }));
     }
   };
 
@@ -1709,11 +1897,16 @@ function Dashboard({ userData }) {
   };
 
   const handleWorkflowSignature = async (request) => {
+    const actionKey = `${request.idSolicitud}-signature`;
     const file = signatureFiles[request.idSolicitud];
     if (!file) {
       alert("Selecciona la imagen de la firma.");
       return;
     }
+    setObservationActionLoading((previous) => ({
+      ...previous,
+      [actionKey]: true,
+    }));
     try {
       const response = await registerWorkflowSignature(request.idSolicitud, {
         file,
@@ -1735,6 +1928,11 @@ function Dashboard({ userData }) {
       window.location.reload();
     } catch (error) {
       alert(error?.response?.data?.message || "No se pudo registrar la firma.");
+    } finally {
+      setObservationActionLoading((previous) => ({
+        ...previous,
+        [actionKey]: false,
+      }));
     }
   };
 
@@ -1752,6 +1950,52 @@ function Dashboard({ userData }) {
     } catch (error) {
       alert(
         error?.response?.data?.message || "No se pudo enviar el recordatorio.",
+      );
+    }
+  };
+
+  const handleOpenSendToPresupuesto = (request) => {
+    const id = request.idSolicitud;
+    if (!presupuestoEmailData[id]?.asunto && !presupuestoEmailData[id]?.cuerpo) {
+      setPresupuestoEmailData((prev) => ({
+        ...prev,
+        [id]: {
+          ...prev[id],
+          asunto: `[Extensión] Solicitud #${id} firmada y remitida para revisión presupuestal - ${request.nombreActividad || ""}`,
+          cuerpo: `Cordial saludo.\n\nPor medio del presente correo se remite para su conocimiento, evaluación y trámite presupuestal la solicitud de extensión #${id} ("${request.nombreActividad || ""}"), presentada por ${request.nombreSolicitante || "el solicitante"}.\n\nLa solicitud ya cuenta con el aval y las firmas institucionales completas del solicitante y del director de escuela. Se adjuntan los formularios oficiales debidamente diligenciados y firmados en formato PDF.\n\nAgradecemos su oportuna atención.`
+        }
+      }));
+    }
+    setSendPresupuestoRequest(request);
+  };
+
+  const handleSendToPresupuesto = async () => {
+    if (!sendPresupuestoRequest) return;
+    const requestId = sendPresupuestoRequest.idSolicitud;
+    const data = presupuestoEmailData[requestId] || {};
+    try {
+      const response = await sendWorkflowRequestToPresupuesto(requestId, {
+        destinatariosPresupuesto: String(data.destinatarios || "")
+          .split(/[;,\n]/)
+          .map((email) => email.trim())
+          .filter(Boolean),
+        asuntoPresupuesto: data.asunto || "",
+        cuerpoPresupuesto: data.cuerpo || "",
+      });
+      setSendPresupuestoRequest(null);
+      alert(
+        response?.data?.notificaciones_presupuesto?.some(
+          (item) => item.estado === "fallida",
+        )
+          ? "La solicitud pasó a Presupuesto, pero uno o más correos fallaron."
+          : "Solicitud enviada a Presupuesto correctamente.",
+      );
+      window.location.reload();
+    } catch (error) {
+      alert(
+        error?.response?.data?.error ||
+          error?.response?.data?.message ||
+          "No se pudo enviar la solicitud a Presupuesto.",
       );
     }
   };
@@ -1813,6 +2057,39 @@ function Dashboard({ userData }) {
     }
   };
 
+  const handleDeleteObservation = async (request, observation) => {
+    const actionKey = `${request.idSolicitud}-${observation.id_observacion}`;
+    if (!window.confirm("¿Deseas desechar/eliminar esta observación?")) return;
+    setObservationActionLoading((previous) => ({
+      ...previous,
+      [actionKey]: true,
+    }));
+    try {
+      await deleteWorkflowObservation(request.idSolicitud, observation.id_observacion);
+      setWorkflowObservations((previous) => {
+        const list = previous[request.idSolicitud] || [];
+        return {
+          ...previous,
+          [request.idSolicitud]: list.filter(
+            (item) => item.id_observacion !== observation.id_observacion,
+          ),
+        };
+      });
+      await loadRequestObservations(request.idSolicitud);
+    } catch (error) {
+      alert(
+        error?.response?.data?.error ||
+          error?.response?.data?.message ||
+          "No se pudo eliminar la observación.",
+      );
+    } finally {
+      setObservationActionLoading((previous) => ({
+        ...previous,
+        [actionKey]: false,
+      }));
+    }
+  };
+
   const handleWorkflowReviewerAction = async (request, action) => {
     const requestId = request.idSolicitud;
     const reviewerStage = getReviewerStage(userData.role);
@@ -1829,7 +2106,13 @@ function Dashboard({ userData }) {
       });
       alert(
         action === "approve"
-          ? "Etapa aprobada."
+          ? (userData.role === "revisor_1"
+              ? "Solicitud enviada a Revisión 2."
+              : userData.role === "revisor_2"
+                ? "Solicitud aprobada y enviada a Firmas."
+                : userData.role === "presupuesto"
+                  ? "Solicitud aprobada y enviada a Decanato."
+                  : "Etapa aprobada.")
           : "Solicitud devuelta con observaciones.",
       );
       window.location.reload();
@@ -1872,8 +2155,8 @@ function Dashboard({ userData }) {
       "Verificación de correcciones y requisitos.",
       "Revisor 2 de Extensión",
     ],
-    ["Presupuesto", "Revisión financiera.", "Presupuesto"],
     ["Firmas", "Firma del solicitante y director.", "Solicitante y director"],
+    ["Presupuesto", "Revisión financiera.", "Presupuesto"],
     [
       "En Decanato",
       "Envío al corte y decisión institucional.",
@@ -1883,12 +2166,15 @@ function Dashboard({ userData }) {
   ];
 
   const getFlowIndex = (request) => {
+    if (isRequestInCorrection(request)) {
+      return 0;
+    }
     const stageIndex = {
       solicitud: 0,
       revision_1: 1,
       revision_2: 2,
-      presupuesto: 3,
-      firmas: 4,
+      firmas: 3,
+      presupuesto: 4,
       decanato: 5,
       finalizado: 6,
     };
@@ -1913,11 +2199,63 @@ function Dashboard({ userData }) {
     return 0;
   };
 
+  const isAtOrPastFirmas = (request) => {
+    if (isRequestInCorrection(request)) return false;
+    const flowIdx = getFlowIndex(request);
+    const stage = getRequestStage(request);
+    return flowIdx >= 3 || ["firmas", "presupuesto", "decanato", "finalizado"].includes(stage);
+  };
+
+  const handleViewFormPdf = async (request, formNumber) => {
+    const key = `${request.idSolicitud}-${formNumber}-pdf-view`;
+    setLoadingReports((prev) => ({ ...prev, [key]: true }));
+    try {
+      await getWorkflowFormPdf(request.idSolicitud, formNumber, { download: false });
+    } catch (error) {
+      alert("Hubo un problema al abrir el PDF del formulario: " + (error?.response?.data?.error || error.message));
+    } finally {
+      setLoadingReports((prev) => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const handleDownloadFormPdf = async (request, formNumber) => {
+    const key = `${request.idSolicitud}-${formNumber}-pdf-download`;
+    setLoadingReports((prev) => ({ ...prev, [key]: true }));
+    try {
+      await getWorkflowFormPdf(request.idSolicitud, formNumber, { download: true });
+    } catch (error) {
+      alert("Hubo un problema al descargar el PDF del formulario: " + (error?.response?.data?.error || error.message));
+    } finally {
+      setLoadingReports((prev) => ({ ...prev, [key]: false }));
+    }
+  };
+
   const renderRequesterStages = (request) => {
     const currentStage = getFlowIndex(request);
     const riskMatrixRequired = requiresRiskMatrix(request);
     const requestObservations = getRequestObservations(request);
     const pendingObservations = getPendingObservations(requestObservations);
+    const getStageDate = (stageIndex) => {
+      const stageKeys = [
+        ["solicitud", "solicitud"],
+        ["revision_1", "revisión 1", "revision 1"],
+        ["revision_2", "revisión 2", "revision 2"],
+        ["firmas", "firma"],
+        ["presupuesto"],
+        ["decanato", "en decanato"],
+        ["finalizado", "finalizado"],
+      ][stageIndex] || [];
+      const historyEntry = (request.historial || [])
+        .filter((entry) => {
+          const historyStage = normalizeStatusForMatch(entry?.etapa);
+          return stageKeys.some((key) => historyStage.includes(key));
+        })
+        .sort((a, b) => new Date(a.fecha || 0) - new Date(b.fecha || 0))
+        .at(-1);
+      return historyEntry?.fecha
+        ? ` · Fecha: ${formatHistoryDate(historyEntry.fecha)}`
+        : "";
+    };
     const stages = [
       {
         name: "Solicitud",
@@ -1936,15 +2274,15 @@ function Dashboard({ userData }) {
         content: "Esta etapa está a cargo del segundo revisor de Extensión.",
       },
       {
+        name: "Firmas",
+        description: "Firma del solicitante y del director.",
+        content: "La solicitud requiere las firmas correspondientes.",
+      },
+      {
         name: "Presupuesto",
         description: "Revisión financiera.",
         content:
           "Presupuesto revisa la información financiera de la solicitud.",
-      },
-      {
-        name: "Firmas",
-        description: "Firma del solicitante y del director.",
-        content: "La solicitud requiere las firmas correspondientes.",
       },
       {
         name: "Decanato",
@@ -1988,12 +2326,12 @@ function Dashboard({ userData }) {
                           "Solicitante",
                           "Revisor 1 de Extensión",
                           "Revisor 2 de Extensión",
-                          "Presupuesto",
                           "Solicitante y director",
+                          "Presupuesto",
                           "Decanato, Revisor 1 o Revisor 2",
                           "Proceso finalizado",
                         ][index]
-                      }
+                      }{getStageDate(index)}
                     </Typography>
                   }
                 >
@@ -2025,62 +2363,149 @@ function Dashboard({ userData }) {
                           >
                             {stage.content}
                           </Typography>
-                          {requestObservations.length > 0 && (
+                          {isRequestInCorrection(request) &&
+                            requestObservations.length > 0 && (
                             <div className="workflow-observations">
                               <Typography variant="body2" fontWeight={600}>
                                 Observaciones de la revisión
                               </Typography>
-                              {requestObservations.map((observation) => (
-                                <div
-                                  className="workflow-observation"
-                                  key={
-                                    observation.id_observacion ||
-                                    `${request.idSolicitud}-${observation.observacion}`
-                                  }
-                                >
-                                  <Stack
-                                    direction="row"
-                                    spacing={1}
-                                    alignItems="flex-start"
+                              {requestObservations.map((observation) => {
+                                const hasFormAndStep = Boolean(
+                                  observation.formulario && observation.paso,
+                                );
+                                const targetStepIndex = hasFormAndStep
+                                  ? Math.max(0, parseInt(observation.paso, 10) - 1)
+                                  : 0;
+                                const stageCode =
+                                  request.etapa_codigo ||
+                                  request.etapa_actual ||
+                                  getRequestStage(request) ||
+                                  "";
+                                const stageState = String(
+                                  request.estado_etapa || "",
+                                )
+                                  .trim()
+                                  .toLowerCase();
+                                const canEdit =
+                                  (getRequestStage(request) === "solicitud" ||
+                                    String(request.etapa_codigo || "").toLowerCase() === "solicitud") &&
+                                  ["devuelta", "requiere_correcciones", "borrador"].includes(
+                                    stageState,
+                                  );
+                                const shouldReadOnly = !canEdit;
+                                const targetUrl = hasFormAndStep
+                                  ? `/formulario/${observation.formulario}?solicitud=${request.idSolicitud}&paso=${targetStepIndex}&etapa=${encodeURIComponent(stageCode)}${shouldReadOnly ? "&readOnly=1" : ""}`
+                                  : null;
+
+                                return (
+                                  <div
+                                    className="workflow-observation"
+                                    role={hasFormAndStep ? "button" : undefined}
+                                    tabIndex={hasFormAndStep ? 0 : undefined}
+                                    onClick={() => {
+                                      if (targetUrl) {
+                                        navigate(targetUrl);
+                                      }
+                                    }}
+                                    onKeyDown={(event) => {
+                                      if (
+                                        (event.key === "Enter" ||
+                                          event.key === " ") &&
+                                        targetUrl
+                                      ) {
+                                        event.preventDefault();
+                                        navigate(targetUrl);
+                                      }
+                                    }}
+                                    key={
+                                      observation.id_observacion ||
+                                      `${request.idSolicitud}-${observation.observacion}`
+                                    }
                                   >
-                                    <Checkbox
-                                      size="small"
-                                      checked={
-                                        normalizeStatusForMatch(
-                                          observation.estado,
-                                        ) === "subsanada"
-                                      }
-                                      disabled={
-                                        normalizeStatusForMatch(
-                                          observation.estado,
-                                        ) === "subsanada"
-                                      }
-                                      onChange={() =>
-                                        handleObservationStatus(
-                                          request,
-                                          observation,
-                                          "subsanada",
-                                        )
-                                      }
-                                      inputProps={{
-                                        "aria-label": `Marcar observación como subsanada: ${observation.observacion}`,
-                                      }}
-                                    />
-                                    <Box>
-                                      <Typography variant="body2">
-                                        {observation.observacion}
-                                      </Typography>
-                                      <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                      >
-                                        {observation.nombre_autor || "Revisión"}{" "}
-                                        · {observation.estado}
-                                      </Typography>
-                                    </Box>
-                                  </Stack>
-                                </div>
-                              ))}
+                                    <Stack
+                                      direction="row"
+                                      spacing={1}
+                                      alignItems="flex-start"
+                                      sx={{ width: "100%" }}
+                                    >
+                                      <Checkbox
+                                        size="small"
+                                        checked={
+                                          normalizeStatusForMatch(
+                                            observation.estado,
+                                          ) === "subsanada"
+                                        }
+                                        disabled={
+                                          !isRequestInCorrection(request) ||
+                                          observationActionLoading[
+                                            `${request.idSolicitud}-${observation.id_observacion}`
+                                          ]
+                                        }
+                                        onClick={(e) => e.stopPropagation()}
+                                        onChange={(event) =>
+                                          handleObservationStatus(
+                                            request,
+                                            observation,
+                                            event.target.checked
+                                              ? "subsanada"
+                                              : "pendiente",
+                                          )
+                                        }
+                                        inputProps={{
+                                          "aria-label": `Marcar observación como subsanada: ${observation.observacion}`,
+                                        }}
+                                      />
+                                      <Box sx={{ flex: 1 }}>
+                                        <Typography
+                                          className={
+                                            hasFormAndStep
+                                              ? "workflow-observation-link"
+                                              : undefined
+                                          }
+                                          variant="body2"
+                                          sx={{
+                                            cursor: hasFormAndStep ? "pointer" : "default",
+                                            fontWeight: hasFormAndStep ? 500 : 400,
+                                            color: hasFormAndStep ? "primary.main" : "text.primary",
+                                            "&:hover": hasFormAndStep
+                                              ? { textDecoration: "underline" }
+                                              : {},
+                                          }}
+                                        >
+                                          {observation.observacion}
+                                        </Typography>
+                                        <Stack
+                                          direction="row"
+                                          spacing={1}
+                                          alignItems="center"
+                                          flexWrap="wrap"
+                                          sx={{ mt: 0.5 }}
+                                        >
+                                          <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                          >
+                                            {observation.nombre_autor || "Revisión"} · {observation.estado}
+                                          </Typography>
+                                          {hasFormAndStep && (
+                                            <Chip
+                                              size="small"
+                                              label={`Ir a Formulario ${observation.formulario} · Paso ${observation.paso}`}
+                                              variant="outlined"
+                                              color="primary"
+                                              sx={{ height: 22, fontSize: "0.72rem", cursor: "pointer" }}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (targetUrl) navigate(targetUrl);
+                                              }}
+                                            />
+                                          )}
+                                        </Stack>
+                                      </Box>
+                                    </Stack>
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                           {currentStage === 6 ? (
@@ -2165,47 +2590,115 @@ function Dashboard({ userData }) {
                                           spacing={1}
                                           className="requester-form__actions"
                                         >
-                                          <Tooltip title="Abrir formulario">
-                                            <span>
-                                              <Button
-                                                size="small"
-                                                variant="contained"
-                                                aria-label="Abrir formulario"
-                                                disabled={!state.formEnabled}
-                                                onClick={() =>
-                                                  handleNavigateToForm(
-                                                    request,
-                                                    formNumber,
-                                                    readOnly,
-                                                  )
-                                                }
-                                              >
-                                                <VisibilityOutlined fontSize="small" />
-                                              </Button>
-                                            </span>
-                                          </Tooltip>
-                                          {state.reportEnabled && (
-                                            <Button
-                                              size="small"
-                                              variant="outlined"
-                                              aria-label="Descargar formulario"
-                                              title={
-                                                String(
-                                                  userData?.role || "",
-                                                ).toLowerCase() ===
-                                                "solicitante"
-                                                  ? "Generar reporte"
-                                                  : "Descargar"
-                                              }
-                                              onClick={() =>
-                                                handleDownloadFormReport(
-                                                  request,
-                                                  formNumber,
-                                                )
-                                              }
-                                            >
-                                              <DownloadOutlined fontSize="small" />
-                                            </Button>
+                                          {isAtOrPastFirmas(request) ? (
+                                            <>
+                                              <Tooltip title="Ver formulario en PDF">
+                                                <span>
+                                                  <Button
+                                                    size="small"
+                                                    variant="contained"
+                                                    aria-label="Ver formulario en PDF"
+                                                    color="primary"
+                                                    disabled={Boolean(
+                                                      loadingReports[`${request.idSolicitud}-${formNumber}-pdf-view`]
+                                                    )}
+                                                    onClick={() =>
+                                                      handleViewFormPdf(request, formNumber)
+                                                    }
+                                                  >
+                                                    {loadingReports[`${request.idSolicitud}-${formNumber}-pdf-view`] ? (
+                                                      <CircularProgress size={16} color="inherit" />
+                                                    ) : (
+                                                      <VisibilityOutlined fontSize="small" />
+                                                    )}
+                                                  </Button>
+                                                </span>
+                                              </Tooltip>
+                                              <Tooltip title="Descargar PDF">
+                                                <span>
+                                                  <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    aria-label="Descargar PDF"
+                                                    disabled={Boolean(
+                                                      loadingReports[`${request.idSolicitud}-${formNumber}-pdf-download`]
+                                                    )}
+                                                    onClick={() =>
+                                                      handleDownloadFormPdf(request, formNumber)
+                                                    }
+                                                  >
+                                                    {loadingReports[`${request.idSolicitud}-${formNumber}-pdf-download`] ? (
+                                                      <CircularProgress size={16} color="inherit" />
+                                                    ) : (
+                                                      <DownloadOutlined fontSize="small" />
+                                                    )}
+                                                  </Button>
+                                                </span>
+                                              </Tooltip>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Tooltip title="Abrir formulario">
+                                                <span>
+                                                  <Button
+                                                    size="small"
+                                                    variant="contained"
+                                                    aria-label="Abrir formulario"
+                                                    disabled={!state.formEnabled}
+                                                    onClick={() =>
+                                                      handleNavigateToForm(
+                                                        request,
+                                                        formNumber,
+                                                        readOnly,
+                                                      )
+                                                    }
+                                                  >
+                                                    <VisibilityOutlined fontSize="small" />
+                                                  </Button>
+                                                </span>
+                                              </Tooltip>
+                                              {state.reportEnabled && (
+                                                <Button
+                                                  size="small"
+                                                  variant="outlined"
+                                                  aria-label="Descargar formulario"
+                                                  disabled={
+                                                    loadingReports[
+                                                      `${request.idSolicitud}-${formNumber}`
+                                                    ]
+                                                  }
+                                                  title={
+                                                    String(
+                                                      userData?.role || "",
+                                                    ).toLowerCase() ===
+                                                    "solicitante"
+                                                      ? "Generar reporte"
+                                                      : "Descargar"
+                                                  }
+                                                  onClick={() =>
+                                                    handleDownloadFormReport(
+                                                      request,
+                                                      formNumber,
+                                                    )
+                                                  }
+                                                >
+                                                  {loadingReports[
+                                                    `${request.idSolicitud}-${formNumber}`
+                                                  ] ? (
+                                                    <>
+                                                      <CircularProgress
+                                                        size={16}
+                                                        color="inherit"
+                                                        sx={{ mr: 0.5 }}
+                                                      />
+                                                      Cargando...
+                                                    </>
+                                                  ) : (
+                                                    <DownloadOutlined fontSize="small" />
+                                                  )}
+                                                </Button>
+                                              )}
+                                            </>
                                           )}
                                         </Stack>
                                       </Box>
@@ -2237,7 +2730,11 @@ function Dashboard({ userData }) {
                                     request.idSolicitud
                                   ]
                                     ? "Enviando..."
-                                    : "Enviar formularios a revisión"}
+                                    : (String(request?.estado_etapa || "").toLowerCase() === "devuelta" ||
+                                        String(request?.estado_etapa || "").toLowerCase() === "requiere_correcciones" ||
+                                        hasCorrectionsInRequest(request))
+                                       ? "Reenviar solicitud a revisión"
+                                       : "Enviar formularios a revisión"}
                                 </Button>
                               )}
                               {pendingObservations.length > 0 && (
@@ -2261,20 +2758,11 @@ function Dashboard({ userData }) {
                                   para habilitar el envío a revisión.
                                 </Typography>
                               )}
+                              {currentStage === 3 && renderWorkflowPanel(request)}
                             </>
                           )}
                         </>
-                      ) : index === 4 &&
-                        ![
-                          "revisor_1",
-                          "revisor_2",
-                          "presupuesto",
-                          "decanato",
-                          "director",
-                          "admin",
-                        ].includes(
-                          String(userData?.role || "").toLowerCase(),
-                        ) ? (
+                      ) : index === 3 ? (
                         renderWorkflowPanel(request)
                       ) : (
                         <Typography variant="body2" color="text.secondary">
@@ -2329,7 +2817,7 @@ function Dashboard({ userData }) {
           (waitingCorrections ? "Requiere correcciones" : "En proceso");
         return (
           <Accordion
-            className={`requester-request request-status-card--${getRequestVisualStatus(request).tone}`}
+            className={`requester-request request-status-card--${getRequestVisualStatus(request, userData?.role).tone}`}
             key={`requester-${request.idSolicitud}`}
             disableGutters
             elevation={0}
@@ -2348,7 +2836,7 @@ function Dashboard({ userData }) {
                   <span
                     className={`request-status-badge request-status-badge--${getRequestVisualStatus(request).tone}`}
                   >
-                    {getRequestDescriptiveStatus(request) || overallStatus}
+                    {getRequestDescriptiveStatus(request, userData?.role) || overallStatus}
                   </span>
                 </Stack>
                 <Typography variant="caption" color="text.secondary">
@@ -2373,19 +2861,35 @@ function Dashboard({ userData }) {
     const draft = observationDrafts[request.idSolicitud] || {};
     const canReview = reviewerStage === stage;
     const canAct = request.puede_actuar !== false;
+    const requestState = normalizeStatusForMatch(request.estado_etapa);
+    const observationsLocked = [
+      "devuelta",
+      "finalizado",
+      "cerrada",
+    ].includes(requestState);
+    const canManageObservation = (observation) =>
+      canAct &&
+      !observationsLocked &&
+      (role === "admin" ||
+        (role === "revisor_2" && stage === "revision_2") ||
+        String(observation.id_usuario_autor) === String(userData.id) ||
+        getReviewerStage(role) === observation.etapa);
     const canLegacyAdminReview =
       role === "admin" &&
       canAct &&
       !["decanato", "firmas", "finalizado"].includes(stage);
     const hasRegisteredSignature =
       role === "director"
-        ? request.firma_director === true || request.firma_director === "true"
+        ? request.firma_director === true || String(request.firma_director) === "true"
         : request.firma_solicitante === true ||
-          request.firma_solicitante === "true";
+          String(request.firma_solicitante) === "true";
+    const canSignAsSolicitante =
+      stage === "firmas" &&
+      (role === "solicitante" || isOwnRequest(request, userData?.id, userData?.name, userData?.email)) &&
+      !hasRegisteredSignature;
     const signatureStage =
       stage === "firmas" &&
-      ["solicitante", "director"].includes(role) &&
-      canAct &&
+      ((["solicitante", "director"].includes(role) && canAct) || canSignAsSolicitante) &&
       !hasRegisteredSignature;
 
     return (
@@ -2420,64 +2924,135 @@ function Dashboard({ userData }) {
                 <Typography variant="body2" fontWeight={600}>
                   Observaciones
                 </Typography>
-                {observations.map((observation) => (
+                {observations.map((observation) => {
+                  const observationActionKey = `${request.idSolicitud}-${observation.id_observacion}`;
+                  const canManage = canManageObservation(observation);
+                  const isEditing =
+                    draft.editingId === observation.id_observacion;
+                  return (
                   <div
                     className="workflow-observation"
                     key={observation.id_observacion}
                   >
-                    <div>
-                      <Typography variant="body2">
-                        {observation.observacion}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {observation.formulario
-                          ? `Formulario ${observation.formulario}`
-                          : "Etapa"}
-                        {observation.paso ? ` · Paso ${observation.paso}` : ""}
-                        {observation.nombre_autor
-                          ? ` · ${observation.nombre_autor}`
-                          : ""}
-                      </Typography>
+                    <div style={{ flex: 1 }}>
+                      {isEditing ? (
+                        <textarea
+                          aria-label="Editar observación"
+                          value={draft.text || ""}
+                          onChange={(event) =>
+                            setObservationDrafts((previous) => ({
+                              ...previous,
+                              [request.idSolicitud]: {
+                                ...previous[request.idSolicitud],
+                                text: event.target.value,
+                              },
+                            }))
+                          }
+                        />
+                      ) : (
+                        <Typography variant="body2">
+                          {observation.observacion}
+                        </Typography>
+                      )}
+                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mt: 0.5 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          {observation.formulario
+                            ? `Formulario ${observation.formulario}`
+                            : "Etapa"}
+                          {observation.paso ? ` · Paso ${observation.paso}` : ""}
+                          {observation.nombre_autor
+                            ? ` · ${observation.nombre_autor}`
+                            : ""}
+                        </Typography>
+                        {observation.formulario && observation.paso && (
+                          <Chip
+                            size="small"
+                            label={`Ver en Formulario ${observation.formulario} · Paso ${observation.paso}`}
+                            variant="outlined"
+                            color="primary"
+                            sx={{ height: 20, fontSize: "0.7rem", cursor: "pointer" }}
+                            onClick={() => {
+                              const targetStepIndex = Math.max(0, parseInt(observation.paso, 10) - 1);
+                              const stageCode = request.etapa_codigo || request.etapa_actual || getRequestStage(request) || "";
+                              navigate(`/formulario/${observation.formulario}?solicitud=${request.idSolicitud}&paso=${targetStepIndex}&etapa=${encodeURIComponent(stageCode)}&readOnly=1`);
+                            }}
+                          />
+                        )}
+                      </Stack>
                     </div>
-                    {canAct && observation.estado === "pendiente" && (
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() =>
-                          handleObservationStatus(
-                            request,
-                            observation,
-                            "subsanada",
-                          )
-                        }
-                      >
-                        Marcar subsanada
-                      </Button>
-                    )}
+                    <Stack direction="row" spacing={1} flexWrap="wrap">
+                      {canManage && isEditing && (
+                        <>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => handleSaveObservationEdit(request)}
+                            disabled={observationActionLoading[observationActionKey]}
+                          >
+                            {observationActionLoading[observationActionKey] ? (
+                              <CircularProgress size={16} />
+                            ) : (
+                              "Guardar"
+                            )}
+                          </Button>
+                          <Button
+                            size="small"
+                            onClick={() =>
+                              handleCancelEditObservation(request.idSolicitud)
+                            }
+                          >
+                            Cancelar
+                          </Button>
+                        </>
+                      )}
+                      {canManage && !isEditing && (
+                        <>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => handleEditObservation(request, observation)}
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="error"
+                            onClick={() => handleDeleteObservation(request, observation)}
+                            disabled={observationActionLoading[observationActionKey]}
+                          >
+                            {observationActionLoading[observationActionKey] ? (
+                              <CircularProgress size={16} />
+                            ) : (
+                              "Desechar"
+                            )}
+                          </Button>
+                        </>
+                      )}
+                      {canAct && observation.estado === "pendiente" && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() =>
+                            handleObservationStatus(
+                              request,
+                              observation,
+                              "subsanada",
+                            )
+                          }
+                          disabled={observationActionLoading[observationActionKey]}
+                        >
+                          {observationActionLoading[observationActionKey] ? (
+                            <CircularProgress size={16} />
+                          ) : (
+                            "Marcar subsanada"
+                          )}
+                        </Button>
+                      )}
+                    </Stack>
                   </div>
-                ))}
-              </div>
-            )}
-            {(canReview || canLegacyAdminReview) && (
-              <div className="workflow-observation-form">
-                <textarea
-                  aria-label="Texto de la observación"
-                  placeholder="Agregar observación"
-                  value={draft.text || ""}
-                  onChange={(event) =>
-                    setObservationDrafts((previous) => ({
-                      ...previous,
-                      [request.idSolicitud]: { text: event.target.value },
-                    }))
-                  }
-                />
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => handleAddObservation(request)}
-                >
-                  Agregar observación
-                </Button>
+                  );
+                })}
               </div>
             )}
           </>
@@ -2487,18 +3062,20 @@ function Dashboard({ userData }) {
           <div className="workflow-decision-actions">
             {/* Comentario general oculto temporalmente. */}
             <Stack direction="row" spacing={1} flexWrap="wrap">
-              <Button
-                variant="outlined"
-                color="warning"
-                onClick={() =>
-                  canLegacyAdminReview
-                    ? handleLegacyAdminAction(request, "return")
-                    : handleWorkflowReviewerAction(request, "return")
-                }
-                disabled={Boolean(reviewAction[request.idSolicitud])}
-              >
-                Devolver
-              </Button>
+              {role !== "revisor_1" && (
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  onClick={() =>
+                    canLegacyAdminReview
+                      ? handleLegacyAdminAction(request, "return")
+                      : handleWorkflowReviewerAction(request, "return")
+                  }
+                  disabled={Boolean(reviewAction[request.idSolicitud])}
+                >
+                  Devolver
+                </Button>
+              )}
               <Button
                 variant="contained"
                 color="success"
@@ -2509,7 +3086,13 @@ function Dashboard({ userData }) {
                 }
                 disabled={Boolean(reviewAction[request.idSolicitud])}
               >
-                Aprobar etapa
+                {role === "revisor_1"
+                  ? "Enviar a Revisión 2"
+                  : role === "revisor_2"
+                    ? "Aprobar y pasar a Firmas"
+                    : role === "presupuesto"
+                      ? "Aprobar y pasar a Decanato"
+                      : "Aprobar etapa"}
               </Button>
             </Stack>
           </div>
@@ -2543,9 +3126,22 @@ function Dashboard({ userData }) {
             <Button
               variant="contained"
               onClick={() => handleWorkflowSignature(request)}
+              disabled={
+                observationActionLoading[
+                  `${request.idSolicitud}-signature`
+                ]
+              }
             >
-              Registrar firma
+              {observationActionLoading[`${request.idSolicitud}-signature`] ? (
+                <>
+                  <CircularProgress size={16} sx={{ mr: 0.5 }} />
+                  Cargando...
+                </>
+              ) : (
+                "Registrar firma"
+              )}
             </Button>
+            {/* Botón de recordatorio de firma oculto temporalmente
             <Button
               variant="outlined"
               onClick={() =>
@@ -2557,6 +3153,7 @@ function Dashboard({ userData }) {
             >
               Recordar firma pendiente
             </Button>
+            */}
           </div>
         )}
 
@@ -2568,8 +3165,23 @@ function Dashboard({ userData }) {
                 Firma agregada correctamente.
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Extensión enviará la solicitud a Decanato cuando estén
+                Extensión enviará la solicitud a Presupuesto cuando estén
                 registradas ambas firmas.
+              </Typography>
+            </Box>
+          )}
+
+        {stage === "firmas" &&
+          (role === "solicitante" || isOwnRequest(request, userData?.id, userData?.name, userData?.email)) &&
+          hasRegisteredSignature && (
+            <Box className="workflow-signature-confirmation" sx={{ mt: 1.5, p: 2, borderRadius: 1, backgroundColor: "#e8f5e9", border: "1px solid #a5d6a7" }}>
+              <Typography variant="body2" fontWeight={600} color="#2e7d32">
+                ✓ Tu firma como solicitante ya fue registrada correctamente.
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                {request.firma_director
+                  ? "La solicitud ya cuenta con ambas firmas y está lista para ser remitida a Presupuesto."
+                  : "La solicitud está a la espera de la firma del director de escuela."}
               </Typography>
             </Box>
           )}
@@ -2737,35 +3349,84 @@ function Dashboard({ userData }) {
                   spacing={1}
                   className="requester-form__actions"
                 >
-                  <Tooltip title="Abrir formulario">
-                    <span>
-                      <Button
-                        size="small"
-                        variant="contained"
-                        aria-label="Abrir formulario"
-                        style={{ backgroundColor: formColor }}
-                        onClick={() =>
-                          handleNavigateToForm(request, formNumber, true)
-                        }
-                        disabled={!formEnabled}
-                      >
-                        <VisibilityOutlined fontSize="small" />
-                      </Button>
-                    </span>
-                  </Tooltip>
-                  {reportEnabled && (
-                    <Tooltip title="Descargar">
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        aria-label="Descargar formulario"
-                        onClick={() =>
-                          handleDownloadFormReport(request, formNumber)
-                        }
-                      >
-                        <DownloadOutlined fontSize="small" />
-                      </Button>
-                    </Tooltip>
+                  {isAtOrPastFirmas(request) ? (
+                    <>
+                      <Tooltip title="Ver formulario en PDF">
+                        <span>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            aria-label="Ver formulario en PDF"
+                            onClick={() =>
+                              handleViewFormPdf(request, formNumber)
+                            }
+                            disabled={Boolean(
+                              loadingReports[`${request.idSolicitud}-${formNumber}-pdf-view`]
+                            )}
+                          >
+                            {loadingReports[`${request.idSolicitud}-${formNumber}-pdf-view`] ? (
+                              <CircularProgress size={16} color="inherit" />
+                            ) : (
+                              <VisibilityOutlined fontSize="small" />
+                            )}
+                          </Button>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title="Descargar PDF">
+                        <span>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            aria-label="Descargar PDF"
+                            onClick={() =>
+                              handleDownloadFormPdf(request, formNumber)
+                            }
+                            disabled={Boolean(
+                              loadingReports[`${request.idSolicitud}-${formNumber}-pdf-download`]
+                            )}
+                          >
+                            {loadingReports[`${request.idSolicitud}-${formNumber}-pdf-download`] ? (
+                              <CircularProgress size={16} color="inherit" />
+                            ) : (
+                              <DownloadOutlined fontSize="small" />
+                            )}
+                          </Button>
+                        </span>
+                      </Tooltip>
+                    </>
+                  ) : (
+                    <>
+                      <Tooltip title="Abrir formulario">
+                        <span>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            aria-label="Abrir formulario"
+                            style={{ backgroundColor: formColor }}
+                            onClick={() =>
+                              handleNavigateToForm(request, formNumber, true)
+                            }
+                            disabled={!formEnabled}
+                          >
+                            <VisibilityOutlined fontSize="small" />
+                          </Button>
+                        </span>
+                      </Tooltip>
+                      {reportEnabled && (
+                        <Tooltip title="Descargar">
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            aria-label="Descargar formulario"
+                            onClick={() =>
+                              handleDownloadFormReport(request, formNumber)
+                            }
+                          >
+                            <DownloadOutlined fontSize="small" />
+                          </Button>
+                        </Tooltip>
+                      )}
+                    </>
                   )}
                 </Stack>
               </Box>
@@ -2833,15 +3494,15 @@ function Dashboard({ userData }) {
     }
 
     if (
-      stageIndex === 4 &&
+      stageIndex === 3 &&
       request.firmas_completas &&
-      ["revisor_1", "revisor_2"].includes(
+      ["revisor_1", "revisor_2", "admin"].includes(
         String(userData?.role || "").toLowerCase(),
       )
     ) {
       return (
         <Box className="workflow-stage-content">
-          <Box className="workflow-send-decanato">
+          <Box className="workflow-send-presupuesto">
             <Typography variant="body2" color="text.secondary">
               La solicitud ya cuenta con las firmas del solicitante y del
               director.
@@ -2849,9 +3510,9 @@ function Dashboard({ userData }) {
             <Button
               variant="contained"
               color="secondary"
-              onClick={() => setSendDecanatoRequest(request)}
+              onClick={() => handleOpenSendToPresupuesto(request)}
             >
-              Enviar a Decanato
+              Enviar a Presupuesto
             </Button>
           </Box>
           {renderReceivedForms(request)}
@@ -2866,7 +3527,11 @@ function Dashboard({ userData }) {
         {String(userData?.role || "").toLowerCase() === "admin" ||
         getReviewerStage(userData?.role) === getRequestStage(request) ||
         isDecanatoCloser(request) ||
-        String(userData?.role || "").toLowerCase() === "director"
+        String(userData?.role || "").toLowerCase() === "director" ||
+        (String(userData?.role || "").toLowerCase() === "solicitante" && getRequestStage(request) === "firmas") ||
+        (["revisor_1", "revisor_2"].includes(String(userData?.role || "").toLowerCase()) &&
+          (String(request.estado_etapa || "").toLowerCase() === "devuelta" ||
+            getRequestStage(request) === "solicitud"))
           ? renderWorkflowPanel(request)
           : null}
         {renderWorkflowHistory(request, "stage")}
@@ -2884,8 +3549,8 @@ function Dashboard({ userData }) {
       solicitud: 0,
       revision_1: 1,
       revision_2: 2,
-      presupuesto: 3,
-      firmas: 4,
+      firmas: 3,
+      presupuesto: 4,
       decanato: 5,
       finalizado: 6,
     };
@@ -2951,15 +3616,49 @@ function Dashboard({ userData }) {
                   index === stageIndexes.solicitud
                 ),
             );
+    const isSubsanarRequest = (request) => {
+      const stage = getRequestStage(request);
+      const stageState = String(request?.estado_etapa || "").trim().toLowerCase();
+      const formState = String(request?.estado_formulario || "").trim().toLowerCase();
+      const visualStatus = getRequestVisualStatus(request);
+      return (
+        (stage === "solicitud" || String(request?.etapa_codigo || "").toLowerCase() === "solicitud") &&
+        (stageState === "devuelta" ||
+          stageState === "requiere_correcciones" ||
+          formState === "requiere correcciones" ||
+          visualStatus.tone === "correction" ||
+          hasCorrectionsInRequest(request))
+      );
+    };
+
+    const subsanarRequests =
+      isReceived && ["revisor_1", "revisor_2"].includes(role)
+        ? requests.filter(isSubsanarRequest)
+        : [];
+
     const groupedRequests =
       specialGroups ||
-      visibleStageIndexes
-        .map((stageIndex) => flowStages[stageIndex])
-        .map(([name], stageIndex) => ({
-          name,
-          stageIndex: visibleStageIndexes[stageIndex],
-          requests: groupedByStage[visibleStageIndexes[stageIndex]] || [],
-        }));
+      (() => {
+        const baseGroups = visibleStageIndexes
+          .map((stageIndex) => flowStages[stageIndex])
+          .map(([name], stageIndex) => ({
+            name,
+            stageIndex: visibleStageIndexes[stageIndex],
+            requests: groupedByStage[visibleStageIndexes[stageIndex]] || [],
+          }));
+
+        if (subsanarRequests.length > 0) {
+          return [
+            {
+              name: "Enviada a subsanar",
+              stageIndex: "enviada-a-subsanar",
+              requests: subsanarRequests,
+            },
+            ...baseGroups,
+          ];
+        }
+        return baseGroups;
+      })();
 
     return (
       <div className="approval-list">
@@ -2968,14 +3667,7 @@ function Dashboard({ userData }) {
             key={`stage-group-${group.stageIndex}`}
             className="workflow-stage-group"
             disableGutters
-            defaultExpanded={
-              specialGroups
-                ? group === groupedRequests[0]
-                : group.stageIndex ===
-                  Math.min(
-                    ...groupedRequests.map(({ stageIndex }) => stageIndex),
-                  )
-            }
+            defaultExpanded={group === groupedRequests[0]}
           >
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Box sx={{ width: "100%", pr: 1 }}>
@@ -3017,15 +3709,18 @@ function Dashboard({ userData }) {
                           : request.nombre_actividad || "Solicitud";
 
                         const current = getFlowIndex(request);
+                        const isSubsanarGroup = group.stageIndex === "enviada-a-subsanar";
                         const timelineIndexes = isReceived
                           ? [
                               role === "presupuesto"
-                                ? 3
+                                ? 4
                                 : role === "director"
-                                  ? 4
+                                  ? 3
                                   : specialGroups
                                     ? group.stageIndex
-                                    : current,
+                                    : isSubsanarGroup
+                                      ? 0
+                                      : current,
                             ]
                           : flowStages.map((_, index) => index);
                         const visibleTimelineIndexes = timelineIndexes.filter(
@@ -3033,7 +3728,8 @@ function Dashboard({ userData }) {
                             !(
                               isReceived &&
                               ["revisor_1", "revisor_2"].includes(role) &&
-                              index === 0
+                              index === 0 &&
+                              !isSubsanarGroup
                             ),
                         );
                         return (
@@ -3205,94 +3901,147 @@ function Dashboard({ userData }) {
                                     spacing={1}
                                     className="requester-form__actions"
                                   >
-                                    <Tooltip title="Abrir formulario">
-                                      <span>
-                                        <Button
-                                          size="small"
-                                          variant="contained"
-                                          aria-label="Abrir formulario"
-                                          style={{
-                                            backgroundColor: formColor,
-                                            cursor: formEnabled
-                                              ? "pointer"
-                                              : "not-allowed",
-                                          }}
-                                          onClick={() =>
-                                            handleNavigateToForm(
-                                              request,
-                                              formNumber,
-                                              shouldReadOnly,
-                                            )
-                                          }
-                                          disabled={!formEnabled}
-                                        >
-                                          <VisibilityOutlined fontSize="small" />
-                                        </Button>
-                                      </span>
-                                    </Tooltip>
-
-                                    {reportEnabled ? (
-                                      <Tooltip
-                                        title={
-                                          String(
-                                            userData?.role || "",
-                                          ).toLowerCase() === "solicitante"
-                                            ? "Generar reporte"
-                                            : "Descargar"
-                                        }
-                                      >
-                                        <span>
-                                          <Button
-                                            size="small"
-                                            variant="outlined"
-                                            style={{
-                                              cursor: loadingReports[
-                                                `${request.idSolicitud}-${formNumber}`
-                                              ]
-                                                ? "wait"
-                                                : "pointer",
-                                            }}
-                                            onClick={() =>
-                                              handleDownloadFormReport(
-                                                request,
-                                                formNumber,
-                                              )
-                                            }
-                                            disabled={
-                                              loadingReports[
-                                                `${request.idSolicitud}-${formNumber}`
-                                              ]
-                                            }
-                                          >
-                                            {loadingReports[
-                                              `${request.idSolicitud}-${formNumber}`
-                                            ] ? (
-                                              <CircularProgress
-                                                size={20}
-                                                color="inherit"
-                                              />
-                                            ) : (
-                                              <DownloadOutlined fontSize="small" />
-                                            )}
-                                          </Button>
-                                        </span>
-                                      </Tooltip>
+                                    {isAtOrPastFirmas(request) ? (
+                                      <>
+                                        <Tooltip title="Ver formulario en PDF">
+                                          <span>
+                                            <Button
+                                              size="small"
+                                              variant="contained"
+                                              aria-label="Ver formulario en PDF"
+                                              onClick={() =>
+                                                handleViewFormPdf(request, formNumber)
+                                              }
+                                              disabled={Boolean(
+                                                loadingReports[`${request.idSolicitud}-${formNumber}-pdf-view`]
+                                              )}
+                                            >
+                                              {loadingReports[`${request.idSolicitud}-${formNumber}-pdf-view`] ? (
+                                                <CircularProgress size={16} color="inherit" />
+                                              ) : (
+                                                <VisibilityOutlined fontSize="small" />
+                                              )}
+                                            </Button>
+                                          </span>
+                                        </Tooltip>
+                                        <Tooltip title="Descargar PDF">
+                                          <span>
+                                            <Button
+                                              size="small"
+                                              variant="outlined"
+                                              aria-label="Descargar PDF"
+                                              onClick={() =>
+                                                handleDownloadFormPdf(request, formNumber)
+                                              }
+                                              disabled={Boolean(
+                                                loadingReports[`${request.idSolicitud}-${formNumber}-pdf-download`]
+                                              )}
+                                            >
+                                              {loadingReports[`${request.idSolicitud}-${formNumber}-pdf-download`] ? (
+                                                <CircularProgress size={16} color="inherit" />
+                                              ) : (
+                                                <DownloadOutlined fontSize="small" />
+                                              )}
+                                            </Button>
+                                          </span>
+                                        </Tooltip>
+                                      </>
                                     ) : (
-                                      <Tooltip title="Formulario no completado">
-                                        <span>
-                                          <Button
-                                            size="small"
-                                            variant="outlined"
-                                            style={{
-                                              backgroundColor: reportColor,
-                                              cursor: "not-allowed",
-                                            }}
-                                            disabled
+                                      <>
+                                        <Tooltip title="Abrir formulario">
+                                          <span>
+                                            <Button
+                                              size="small"
+                                              variant="contained"
+                                              aria-label="Abrir formulario"
+                                              style={{
+                                                backgroundColor: formColor,
+                                                cursor: formEnabled
+                                                  ? "pointer"
+                                                  : "not-allowed",
+                                              }}
+                                              onClick={() =>
+                                                handleNavigateToForm(
+                                                  request,
+                                                  formNumber,
+                                                  shouldReadOnly,
+                                                )
+                                              }
+                                              disabled={!formEnabled}
+                                            >
+                                              <VisibilityOutlined fontSize="small" />
+                                            </Button>
+                                          </span>
+                                        </Tooltip>
+
+                                        {reportEnabled ? (
+                                          <Tooltip
+                                            title={
+                                              String(
+                                                userData?.role || "",
+                                              ).toLowerCase() === "solicitante"
+                                                ? "Generar reporte"
+                                                : "Descargar"
+                                            }
                                           >
-                                            <DownloadOutlined fontSize="small" />
-                                          </Button>
-                                        </span>
-                                      </Tooltip>
+                                            <span>
+                                              <Button
+                                                size="small"
+                                                variant="outlined"
+                                                style={{
+                                                  cursor: loadingReports[
+                                                    `${request.idSolicitud}-${formNumber}`
+                                                  ]
+                                                    ? "wait"
+                                                    : "pointer",
+                                                }}
+                                                onClick={() =>
+                                                  handleDownloadFormReport(
+                                                    request,
+                                                    formNumber,
+                                                  )
+                                                }
+                                                disabled={
+                                                  loadingReports[
+                                                    `${request.idSolicitud}-${formNumber}`
+                                                  ]
+                                                }
+                                              >
+                                                {loadingReports[
+                                                  `${request.idSolicitud}-${formNumber}`
+                                                ] ? (
+                                                  <>
+                                                    <CircularProgress
+                                                      size={16}
+                                                      color="inherit"
+                                                      sx={{ mr: 0.5 }}
+                                                    />
+                                                    Cargando...
+                                                  </>
+                                                ) : (
+                                                  <DownloadOutlined fontSize="small" />
+                                                )}
+                                              </Button>
+                                            </span>
+                                          </Tooltip>
+                                        ) : (
+                                          <Tooltip title="Formulario no completado">
+                                            <span>
+                                              <Button
+                                                size="small"
+                                                variant="outlined"
+                                                style={{
+                                                  backgroundColor: reportColor,
+                                                  cursor: "not-allowed",
+                                                }}
+                                                disabled
+                                              >
+                                                <DownloadOutlined fontSize="small" />
+                                              </Button>
+                                            </span>
+                                          </Tooltip>
+                                        )}
+                                      </>
                                     )}
                                   </Stack>
                                   {request.historial?.length > 0 && (
@@ -3363,8 +4112,9 @@ function Dashboard({ userData }) {
                             getReviewerStage(userData?.role) ===
                               getRequestStage(request) ||
                             isDecanatoCloser(request) ||
-                            String(userData?.role || "").toLowerCase() ===
-                              "director"
+                            String(userData?.role || "").toLowerCase() === "director" ||
+                            (String(userData?.role || "").toLowerCase() === "solicitante" &&
+                              getRequestStage(request) === "firmas")
                               ? renderWorkflowPanel(request)
                               : null)}
                         </>
@@ -3399,6 +4149,93 @@ function Dashboard({ userData }) {
             })
           }
         />
+        <Dialog
+          open={Boolean(sendPresupuestoRequest)}
+          onClose={() => setSendPresupuestoRequest(null)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Enviar solicitud a Presupuesto</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Los usuarios con rol Presupuesto recibirán el correo con los formularios firmados en PDF. Puedes
+              agregar correos adicionales separados por coma, punto y coma o salto de línea.
+            </Typography>
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <TextField
+                label="Destinatarios adicionales"
+                placeholder="correo1@univalle.edu.co, correo2@univalle.edu.co"
+                value={
+                  presupuestoEmailData[sendPresupuestoRequest?.idSolicitud]
+                    ?.destinatarios || ""
+                }
+                onChange={(event) =>
+                  setPresupuestoEmailData((previous) => ({
+                    ...previous,
+                    [sendPresupuestoRequest.idSolicitud]: {
+                      ...previous[sendPresupuestoRequest.idSolicitud],
+                      destinatarios: event.target.value,
+                    },
+                  }))
+                }
+                fullWidth
+                multiline
+                rows={2}
+              />
+              <TextField
+                label="Asunto del correo"
+                placeholder={`[Extensión] Solicitud #${sendPresupuestoRequest?.idSolicitud || ""} firmada y remitida para revisión presupuestal - ${sendPresupuestoRequest?.nombreActividad || ""}`}
+                value={
+                  presupuestoEmailData[sendPresupuestoRequest?.idSolicitud]?.asunto ||
+                  ""
+                }
+                onChange={(event) =>
+                  setPresupuestoEmailData((previous) => ({
+                    ...previous,
+                    [sendPresupuestoRequest.idSolicitud]: {
+                      ...previous[sendPresupuestoRequest.idSolicitud],
+                      asunto: event.target.value,
+                    },
+                  }))
+                }
+                fullWidth
+              />
+              <TextField
+                label="Mensaje o cuerpo del correo"
+                placeholder="Mensaje institucional para la dependencia de Presupuesto..."
+                value={
+                  presupuestoEmailData[sendPresupuestoRequest?.idSolicitud]?.cuerpo ||
+                  ""
+                }
+                onChange={(event) =>
+                  setPresupuestoEmailData((previous) => ({
+                    ...previous,
+                    [sendPresupuestoRequest.idSolicitud]: {
+                      ...previous[sendPresupuestoRequest.idSolicitud],
+                      cuerpo: event.target.value,
+                    },
+                  }))
+                }
+                fullWidth
+                multiline
+                rows={4}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setSendPresupuestoRequest(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={handleSendToPresupuesto}
+            >
+              Enviar a Presupuesto
+            </Button>
+          </DialogActions>
+        </Dialog>
+
         <Dialog
           open={Boolean(sendDecanatoRequest)}
           onClose={() => setSendDecanatoRequest(null)}

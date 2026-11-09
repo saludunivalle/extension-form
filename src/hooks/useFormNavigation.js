@@ -23,6 +23,18 @@ const useFormNavigation = ({
   const navigate = useNavigate();
   const [currentSection, setCurrentSection] = useState(initialSection);
   const [currentStep, setCurrentStep] = useState(initialStep);
+
+  useEffect(() => {
+    if (initialSection && initialSection !== currentSection) {
+      setCurrentSection(initialSection);
+    }
+  }, [initialSection]);
+
+  useEffect(() => {
+    if (initialStep !== undefined && initialStep !== null && initialStep !== currentStep) {
+      setCurrentStep(initialStep);
+    }
+  }, [initialStep]);
   const [highestSectionReached, setHighestSectionReached] = useState(1);
   const [formCompletion, setFormCompletion] = useState(
     Array.from({ length: totalSections }, (_, i) => i + 1).reduce((acc, section) => {

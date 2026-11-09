@@ -52,7 +52,11 @@ export const submitWorkflowDecision = async (idSolicitud, {
 export const getWorkflowObservations = async (idSolicitud) => {
   const response = await workflowClient.get(`/workflow/${idSolicitud}/observaciones`);
   const payload = response.data;
-  return Array.isArray(payload) ? payload : (payload?.data || []);
+  const list = Array.isArray(payload) ? payload : (payload?.data || []);
+  if (payload?.etapa_actual) {
+    list.etapa_actual = payload.etapa_actual;
+  }
+  return list;
 };
 
 export const addWorkflowObservation = async (idSolicitud, observation) => {
@@ -62,6 +66,11 @@ export const addWorkflowObservation = async (idSolicitud, observation) => {
 
 export const updateWorkflowObservation = async (idSolicitud, observationId, update) => {
   const response = await workflowClient.patch(`/workflow/${idSolicitud}/observaciones/${observationId}`, update);
+  return response.data;
+};
+
+export const deleteWorkflowObservation = async (idSolicitud, observationId) => {
+  const response = await workflowClient.delete(`/workflow/${idSolicitud}/observaciones/${observationId}`);
   return response.data;
 };
 
@@ -80,11 +89,24 @@ export const registerWorkflowSignature = async (idSolicitud, {
   return response.data;
 };
 
+export const sendWorkflowRequestToPresupuesto = async (idSolicitud, {
+  destinatariosPresupuesto = [],
+  asuntoPresupuesto = '',
+  cuerpoPresupuesto = '',
+} = {}) => {
+  const response = await workflowClient.post(`/workflow/${idSolicitud}/enviar-presupuesto`, {
+    destinatarios_presupuesto: destinatariosPresupuesto,
+    asunto_presupuesto: asuntoPresupuesto,
+    cuerpo_presupuesto: cuerpoPresupuesto,
+  });
+  return response.data;
+};
+
 export const sendWorkflowRequestToDecanato = async (idSolicitud, {
   destinatariosDecanato = [],
   asuntoDecanato = '',
   cuerpoDecanato = '',
-}) => {
+} = {}) => {
   const response = await workflowClient.post(`/workflow/${idSolicitud}/enviar-decanato`, {
     destinatarios_decanato: destinatariosDecanato,
     asunto_decanato: asuntoDecanato,
@@ -117,4 +139,25 @@ export const submitDecanatoCut = async ({ idSolicitud, resultado, observaciones 
     headers: { 'Content-Type': 'multipart/form-data' },
   });
   return response.data;
+};
+
+export const getWorkflowFormPdf = async (idSolicitud, formNumber, { download = false } = {}) => {
+  const response = await workflowClient.get(`/workflow/${idSolicitud}/formulario/${formNumber}/pdf`, {
+    params: { download: download ? 1 : 0 },
+    responseType: 'blob',
+  });
+  const blob = new Blob([response.data], { type: 'application/pdf' });
+  const url = window.URL.createObjectURL(blob);
+  if (download) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Formulario${formNumber}_${idSolicitud}_firmado.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+  } else {
+    window.open(url, '_blank');
+  }
+  return true;
 };

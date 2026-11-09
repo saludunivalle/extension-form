@@ -14,11 +14,15 @@ export const getRevisionStatus = async (idSolicitud, userId) => {
   return response.data;
 };
 
-export const sendFormsToRevision = async ({ id_solicitud, userId, formularios }) => {
+export const sendFormsToRevision = async ({ id_solicitud, userId, formularios, etapa_anterior }) => {
   const payload = {
     id_solicitud,
     userId,
   };
+
+  if (etapa_anterior) {
+    payload.etapa_anterior = etapa_anterior;
+  }
 
   if (Array.isArray(formularios) && formularios.length > 0) {
     payload.formularios = formularios;
