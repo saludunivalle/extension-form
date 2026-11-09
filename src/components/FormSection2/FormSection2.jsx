@@ -19,6 +19,7 @@ import { openFormReport, downloadFormReport, openReportPreview } from '../../ser
 import axios from 'axios'; 
 import PropTypes from 'prop-types';
 import { config } from '../../config';
+import FormStepObservations from '../Workflow/FormStepObservations';
 import {
   getRevisionStatus,
   approveForms,
@@ -73,7 +74,7 @@ const API_URL = config.API_URL;
   );
   
 
-function FormSection2({ formData, handleInputChange, setCurrentSection, userData, totalAportesUnivalle, currentStep, validateStep, formId }) {
+function FormSection2({ formData, handleInputChange, setCurrentSection, userData, totalAportesUnivalle, currentStep, validateStep, formId, observationProps }) {
   
   const steps = ['Datos Generales', 'Ingresos y Gastos', 'Resumen Financiero'];
 
@@ -103,11 +104,19 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
   const NEXT_COOLDOWN_SECONDS = 60;
   const cooldownStorageKey = `form${formId}_nextCooldownUntil_${idSolicitud}`;
   const [nextCooldownRemaining, setNextCooldownRemaining] = useState(0);
+  useEffect(() => {
+    setActiveStep(Number.isFinite(Number(currentStep)) ? Number(currentStep) : 0);
+  }, [currentStep]);
   const hasUnsavedChanges = JSON.stringify(formData || {}) !== initialFormDataRef.current;
-  const handleExit = () => {
+  const handleExit = useCallback(() => {
     if (isReadOnly || !hasUnsavedChanges) return window.location.href = '/';
     setExitDialogOpen(true);
-  };
+  }, [isReadOnly, hasUnsavedChanges]);
+  useEffect(() => {
+    const handleHeaderExit = () => handleExit();
+    window.addEventListener('form:request-exit', handleHeaderExit);
+    return () => window.removeEventListener('form:request-exit', handleHeaderExit);
+  }, [handleExit]);
   const handleExitWithoutSaving = () => { setExitDialogOpen(false); window.location.href = '/'; };
   const handleSaveAndExit = async () => {
     setExitDialogOpen(false);
@@ -1248,11 +1257,13 @@ const handleNext = async () => {
     }
   };
 
-  const handleStepClick = (stepIndex) => {
+  const isStepAccessible = (index) => isReadOnly || index <= Math.max(highestStepReached, activeStep);
+
+    const handleStepClick = (stepIndex) => {
     // Verificar si el formulario está completado
     const isFormCompleted = localStorage.getItem(`form2_completed_${idSolicitud}`) === 'true';
     
-    if (isFormCompleted || stepIndex <= highestStepReached) {
+    if (isFormCompleted || isStepAccessible(stepIndex)) {
       setActiveStep(stepIndex); // Permite cambiar a cualquier paso si el formulario está completado o al paso ya alcanzado
       // Registrar el cambio de paso
       localStorage.setItem(`form2_lastStep_${idSolicitud}`, stepIndex.toString());
@@ -1493,7 +1504,7 @@ useEffect(() => {
                 {...props} 
                 active={index === activeStep}
                 completed={completedSteps.includes(index)}
-                accessible={index <= highestStepReached}
+                accessible={isStepAccessible(index)}
               />
             )}
             sx={{
@@ -1502,24 +1513,24 @@ useEffect(() => {
                   ? '#0056b3' // Activo: azul oscuro
                   : completedSteps.includes(index)
                     ? '#81bef7' // Completado no activo: azul claro
-                    : index <= highestStepReached
+                    : isStepAccessible(index)
                       ? '#81bef7' // Accesible no completado: azul claro
                       : 'transparent', // No accesible: sin fondo
-                color: index === activeStep || index <= highestStepReached 
+                color: index === activeStep || isStepAccessible(index) 
                   ? '#FFFFFF' 
                   : '#A0A0A0',
-                padding: index <= highestStepReached ? '5px 10px' : '0',
+                padding: isStepAccessible(index) ? '5px 10px' : '0',
                 borderRadius: '20px',
                 fontWeight: index === activeStep ? 'bold' : 'normal',
-                cursor: index <= highestStepReached ? 'pointer' : 'default',
-                opacity: index <= highestStepReached ? 1 : 0.6,
+                cursor: isStepAccessible(index) ? 'pointer' : 'default',
+                opacity: isStepAccessible(index) ? 1 : 0.6,
               },
               '& .MuiStepIcon-root': {
                 color: index === activeStep
                   ? '#0056b3' // Activo: azul oscuro
                   : completedSteps.includes(index)
                     ? '#81bef7' // Completado no activo: azul claro
-                    : index <= highestStepReached
+                    : isStepAccessible(index)
                       ? '#81bef7' // Accesible no completado: azul claro
                       : '#E0E0E0', // No accesible: gris
                 fontSize: '28px',
@@ -1552,14 +1563,33 @@ useEffect(() => {
         </Button>
         <Button variant="contained"
           color="primary" 
-          onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext} 
-          disabled={isLoading || isLockedByRevision || isReadOnly || isNextButtonBlocked}
+          onClick={
+            isReadOnly
+              ? () => {
+                  if (activeStep < steps.length - 1) {
+                    setActiveStep((prev) => prev + 1);
+                  }
+                }
+              : activeStep === steps.length - 1
+                ? handleSubmit
+                : handleNext
+          }
+          disabled={
+            isLoading ||
+            isLockedByRevision ||
+            (isReadOnly ? activeStep === steps.length - 1 : isNextButtonBlocked)
+          }
           startIcon={isLoading ? <CircularProgress size={20} /> : null}
           >
           {activeStep === steps.length - 1
             ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
             : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
         </Button>
+        <FormStepObservations
+          {...observationProps}
+          formNumber={formId}
+          stepNumber={activeStep + 1}
+        />
 
         <Dialog open={exitDialogOpen} onClose={() => setExitDialogOpen(false)}>
           <DialogTitle>Hay cambios sin guardar</DialogTitle>
@@ -1780,6 +1810,13 @@ useEffect(() => {
 }
 
 FormSection2.propTypes = {
+  observationProps: PropTypes.shape({
+    idSolicitud: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    formNumber: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    stepNumber: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    stage: PropTypes.string,
+    canAddObservation: PropTypes.bool,
+  }),
   formData: PropTypes.object.isRequired,
   handleInputChange: PropTypes.func.isRequired,
   setCurrentSection: PropTypes.func.isRequired,

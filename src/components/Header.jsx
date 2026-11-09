@@ -1,7 +1,8 @@
 import { styled } from "@mui/material/styles";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import logo from "/src/assets/images/logounivalle.svg";
 import { clearAuthSession } from '../services/authToken';
+import PropTypes from 'prop-types';
 
 const HeaderContainer = styled("header")(({ theme }) => ({
   display: "flex",
@@ -105,8 +106,32 @@ const capitalizeWords = (str) => {
 };
 
 const Header = ({ userData }) => {
-  const normalizedRole = userData?.role?.toLowerCase() === 'admin' ? 'admin' : '';
+  const location = useLocation();
+  const normalizedRole = String(userData?.role || '').trim().toLowerCase();
   const displayName = userData?.name ? capitalizeWords(userData.name) : '';
+  const roleLabels = {
+    admin: 'Administrador',
+    administrador: 'Administrador',
+    revisor_1: 'Revisor 1',
+    revisor1: 'Revisor 1',
+    revisor_2: 'Revisor 2',
+    revisor2: 'Revisor 2',
+    presupuesto: 'Presupuesto',
+    director: 'Director',
+    decanato: 'Decanato',
+    solicitante: 'Solicitante',
+  };
+  const displayRole = roleLabels[normalizedRole]
+    || (normalizedRole
+      ? capitalizeWords(normalizedRole.replace(/[_-]+/g, ' '))
+      : 'Solicitante');
+
+  const handleLogoClick = (event) => {
+    if (location.pathname.startsWith('/form')) {
+      event.preventDefault();
+      window.dispatchEvent(new CustomEvent('form:request-exit'));
+    }
+  };
 
   const handleLogout = () => {
     clearAuthSession();
@@ -116,19 +141,30 @@ const Header = ({ userData }) => {
   return (
     <HeaderContainer role="navegación" aria-label="Navegación Principal">
       <Logo>
-        <Link to="/" alt="Logo Universidad del Valle" aria-label="Homepage de Sistema Siac">
+        <Link to="/" onClick={handleLogoClick} aria-label="Homepage de Sistema Siac">
           <img src={logo} loading="lazy" alt="Logo Universidad del Valle" />
         </Link>
       </Logo>
       <TitleContainer>
         <Title>Solicitud Actividades de Extensión</Title>
-        {userData && <UserName>{normalizedRole === 'admin' ? `${displayName} - Administrador` : displayName}</UserName>}
+        {userData && (
+          <UserName>
+            {displayName} - {displayRole}
+          </UserName>
+        )}
       </TitleContainer>
       <LogoutButton type="button" onClick={handleLogout}>
         Salir
       </LogoutButton>
     </HeaderContainer>
   );
+};
+
+Header.propTypes = {
+  userData: PropTypes.shape({
+    name: PropTypes.string,
+    role: PropTypes.string,
+  }),
 };
 
 export default Header;

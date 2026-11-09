@@ -11,6 +11,7 @@ import PropTypes from 'prop-types';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import { config } from '../../config';
+import FormStepObservations from '../Workflow/FormStepObservations';
 import {
   getRevisionStatus,
   approveForms,
@@ -76,7 +77,7 @@ const CustomStepIcon = ({ active, completed, icon, accessible }) => (
   </CustomStepIconRoot>
 );
 
-function FormSection3({ formData, handleInputChange, userData, currentStep, setCurrentSection, formId}) {
+function FormSection3({ formData, handleInputChange, userData, currentStep, setCurrentSection, formId, observationProps}) {
   // Step labels - Actualizado para incluir el nuevo paso
   const steps = ['Propósito y Comentario', 'Matriz de Riesgos - Diseño', 'Matriz de Riesgos - Locaciones', 'Matriz de Riesgos - Desarrollo', 'Matriz de Riesgos - Cierre', 'Matriz de Riesgos - Otros'];
   const [activeStep, setActiveStep] = useState(currentStep);  // Usar currentStep como el paso inicial
@@ -119,11 +120,19 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
   const NEXT_COOLDOWN_SECONDS = 60;
   const cooldownStorageKey = `form${formId}_nextCooldownUntil_${idSolicitud}`;
   const [nextCooldownRemaining, setNextCooldownRemaining] = useState(0);
+  useEffect(() => {
+    setActiveStep(Number.isFinite(Number(currentStep)) ? Number(currentStep) : 0);
+  }, [currentStep]);
   const hasUnsavedChanges = JSON.stringify(formData || {}) !== initialFormDataRef.current;
-  const handleExit = () => {
+  const handleExit = useCallback(() => {
     if (isReadOnly || !hasUnsavedChanges) return window.location.href = '/';
     setExitDialogOpen(true);
-  };
+  }, [isReadOnly, hasUnsavedChanges]);
+  useEffect(() => {
+    const handleHeaderExit = () => handleExit();
+    window.addEventListener('form:request-exit', handleHeaderExit);
+    return () => window.removeEventListener('form:request-exit', handleHeaderExit);
+  }, [handleExit]);
   const handleExitWithoutSaving = () => { setExitDialogOpen(false); window.location.href = '/'; };
   const handleSaveAndExit = async () => {
     setExitDialogOpen(false);
@@ -753,8 +762,10 @@ const handleSubmit = async () => {
     }
   };
 
-  const handleStepClick = (stepIndex) => {
-    if (stepIndex <= highestStepReached) {
+  const isStepAccessible = (index) => isReadOnly || index <= Math.max(highestStepReached, activeStep);
+
+    const handleStepClick = (stepIndex) => {
+    if (isStepAccessible(stepIndex)) {
       setActiveStep(stepIndex); // Cambiar al paso clicado si es alcanzado
     }
   };
@@ -871,7 +882,7 @@ const PrintReportButton = () => {
                   {...props} 
                   active={index === activeStep}
                   completed={completedSteps.includes(index)}
-                  accessible={index <= highestStepReached}
+                  accessible={isStepAccessible(index)}
                 />
               )}
               sx={{
@@ -880,24 +891,24 @@ const PrintReportButton = () => {
                     ? '#0056b3' // Activo: azul oscuro
                     : completedSteps.includes(index)
                       ? '#81bef7' // Completado no activo: azul claro
-                      : index <= highestStepReached
+                      : isStepAccessible(index)
                         ? '#81bef7' // Accesible no completado: azul claro
                         : 'transparent', // No accesible: sin fondo
-                  color: index === activeStep || index <= highestStepReached 
+                  color: index === activeStep || isStepAccessible(index) 
                     ? '#FFFFFF' 
                     : '#A0A0A0',
-                  padding: index <= highestStepReached ? '5px 10px' : '0',
+                  padding: isStepAccessible(index) ? '5px 10px' : '0',
                   borderRadius: '20px',
                   fontWeight: index === activeStep ? 'bold' : 'normal',
-                  cursor: index <= highestStepReached ? 'pointer' : 'default',
-                  opacity: index <= highestStepReached ? 1 : 0.6,
+                  cursor: isStepAccessible(index) ? 'pointer' : 'default',
+                  opacity: isStepAccessible(index) ? 1 : 0.6,
                 },
                 '& .MuiStepIcon-root': {
                   color: index === activeStep
                     ? '#0056b3' // Activo: azul oscuro
                     : completedSteps.includes(index)
                       ? '#81bef7' // Completado no activo: azul claro
-                      : index <= highestStepReached
+                      : isStepAccessible(index)
                         ? '#E0E0E0' // Accesible no completado: azul claro
                         : '#E0E0E0', // No accesible: gris
                   fontSize: '28px',
@@ -928,14 +939,33 @@ const PrintReportButton = () => {
         <Button
           variant="contained"
           color="primary"
-          onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
-          disabled={isLoading || isLockedByRevision || isReadOnly || isNextButtonBlocked}
+          onClick={
+            isReadOnly
+              ? () => {
+                  if (activeStep < steps.length - 1) {
+                    setActiveStep((prev) => prev + 1);
+                  }
+                }
+              : activeStep === steps.length - 1
+                ? handleSubmit
+                : handleNext
+          }
+          disabled={
+            isLoading ||
+            isLockedByRevision ||
+            (isReadOnly ? activeStep === steps.length - 1 : isNextButtonBlocked)
+          }
           startIcon={isLoading ? <CircularProgress size={20} /> : null}
         >
           {activeStep === steps.length - 1
             ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
             : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
         </Button>
+        <FormStepObservations
+          {...observationProps}
+          formNumber={formId}
+          stepNumber={activeStep + 1}
+        />
 
         <Dialog open={exitDialogOpen} onClose={() => setExitDialogOpen(false)}>
           <DialogTitle>Hay cambios sin guardar</DialogTitle>
@@ -1118,6 +1148,13 @@ const PrintReportButton = () => {
 }
 
 FormSection3.propTypes = {
+  observationProps: PropTypes.shape({
+    idSolicitud: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    formNumber: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    stepNumber: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    stage: PropTypes.string,
+    canAddObservation: PropTypes.bool,
+  }),
   formData: PropTypes.shape({
     proposito: PropTypes.string,
     comentario: PropTypes.string,

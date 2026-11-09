@@ -16,6 +16,7 @@ import Step3FormSection4 from './Step3FormSection4';
 import Step4FormSection4 from './Step4FormSection4';
 import Step5FormSection4 from './Step5FormSection4';
 import { config } from '../../config';
+import FormStepObservations from '../Workflow/FormStepObservations';
 import CheckIcon from '@mui/icons-material/Check'; // Importa el ícono del check
 import { styled } from '@mui/system';
 import {
@@ -75,7 +76,7 @@ const API_URL = config.API_URL;
   );
   
 
-function FormSection4({ formData, handleInputChange, userData, currentStep, formId }) {
+function FormSection4({ formData, handleInputChange, userData, currentStep, formId, observationProps }) {
   const steps = [
     'Actividades de Mercadeo Relacional',
     'Valor Económico de los Programas',
@@ -113,12 +114,20 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
   const NEXT_COOLDOWN_SECONDS = 60;
   const cooldownStorageKey = `form${formId}_nextCooldownUntil_${idSolicitud}`;
   const [nextCooldownRemaining, setNextCooldownRemaining] = useState(0);
+  useEffect(() => {
+    setActiveStep(Number.isFinite(Number(currentStep)) ? Number(currentStep) : 0);
+  }, [currentStep]);
   const initialFormDataRef = useRef(JSON.stringify(formData || {}));
   const hasUnsavedChanges = JSON.stringify(formData || {}) !== initialFormDataRef.current;
-  const handleExit = () => {
+  const handleExit = useCallback(() => {
     if (isReadOnly || !hasUnsavedChanges) return navigate('/');
     setUnsavedExitDialogOpen(true);
-  };
+  }, [isReadOnly, hasUnsavedChanges, navigate]);
+  useEffect(() => {
+    const handleHeaderExit = () => handleExit();
+    window.addEventListener('form:request-exit', handleHeaderExit);
+    return () => window.removeEventListener('form:request-exit', handleHeaderExit);
+  }, [handleExit]);
   const handleExitWithoutSaving = () => { setUnsavedExitDialogOpen(false); navigate('/'); };
   const handleSaveAndExit = async () => {
     setUnsavedExitDialogOpen(false);
@@ -1068,7 +1077,9 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
       }
   };
 
-  const handleStepClick = (stepIndex) => {
+  const isStepAccessible = (index) => isReadOnly || index <= Math.max(highestStepReached, activeStep);
+
+    const handleStepClick = (stepIndex) => {
     if (isStepAllowed(stepIndex)) {
       setActiveStep(stepIndex); // Cambiar al paso clicado si está permitido
     }
@@ -1301,14 +1312,33 @@ const PrintReportButton = () => {
         <Button 
           variant="contained" 
           color="primary" 
-          onClick={activeStep === steps.length - 1 ? handleSubmit : handleNext}
-          disabled={isLoading || isLockedByRevision || isReadOnly || isNextButtonBlocked} 
+          onClick={
+            isReadOnly
+              ? () => {
+                  if (activeStep < steps.length - 1) {
+                    setActiveStep((prev) => prev + 1);
+                  }
+                }
+              : activeStep === steps.length - 1
+                ? handleSubmit
+                : handleNext
+          }
+          disabled={
+            isLoading ||
+            isLockedByRevision ||
+            (isReadOnly ? activeStep === steps.length - 1 : isNextButtonBlocked)
+          } 
           startIcon={isLoading ? <CircularProgress size={20} /> : null}
         >
           {activeStep === steps.length - 1
             ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
             : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
         </Button>
+          <FormStepObservations
+            {...observationProps}
+            formNumber={formId}
+            stepNumber={activeStep + 1}
+          />
 
         <Dialog open={unsavedExitDialogOpen} onClose={() => setUnsavedExitDialogOpen(false)}>
           <DialogTitle>Hay cambios sin guardar</DialogTitle>
@@ -1512,6 +1542,13 @@ const PrintReportButton = () => {
 }
 
 FormSection4.propTypes = {
+  observationProps: PropTypes.shape({
+    idSolicitud: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    formNumber: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    stepNumber: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    stage: PropTypes.string,
+    canAddObservation: PropTypes.bool,
+  }),
   formData: PropTypes.shape({
     descripcionPrograma: PropTypes.string,
     identificacionNecesidades: PropTypes.string,

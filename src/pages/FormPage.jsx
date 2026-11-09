@@ -7,6 +7,7 @@ import FormSection3 from '../components/FormSection3/FormSection3';
 import FormSection4 from '../components/FormSection4/FormSection4';
 import FormStepper from './FormStepper';
 import useFormNavigation from '../hooks/useFormNavigation';
+import { getWorkflowObservations } from '../services/workflowService';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { config } from '../config';
@@ -24,6 +25,75 @@ const sectionShortTitles = [
   'Riesgos Potenciales',
   'Identificación de Mercadeo'
 ];
+
+const normalizeObservationStage = (stage) => {
+  const stageAliases = {
+    '1': 'revision_1',
+    '2': 'revision_2',
+    '3': 'firmas',
+    '4': 'presupuesto',
+    'firmas': 'firmas',
+    'presupuesto': 'presupuesto',
+    '5': 'decanato',
+    '6': 'finalizado',
+    'revisión 1': 'revision_1',
+    'revision 1': 'revision_1',
+    'revisión 2': 'revision_2',
+    'revision 2': 'revision_2',
+    'en decanato': 'decanato',
+  };
+  const normalized = String(stage || '').trim().toLowerCase();
+  const compact = normalized.replace(/\s+/g, '_');
+  if (normalized.includes('revision') && normalized.includes('1')) {
+    return 'revision_1';
+  }
+  if (normalized.includes('revision') && normalized.includes('2')) {
+    return 'revision_2';
+  }
+  return (
+    stageAliases[normalized] ||
+    stageAliases[compact] ||
+    ({ revision1: 'revision_1', revision2: 'revision_2' }[normalized] || normalized)
+  );
+};
+
+const normalizeObservationRole = (role) => {
+  const normalized = String(role || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+  const aliases = {
+    'revisor 1': 'revisor_1',
+    'revisor 1 de extension': 'revisor_1',
+    'revisor_2': 'revisor_2',
+    'revisor 2': 'revisor_2',
+    'revisor 2 de extension': 'revisor_2',
+    'director de escuela': 'director',
+    administrador: 'admin',
+  };
+  if (normalized.includes('revisor 1')) return 'revisor_1';
+  if (normalized.includes('revisor 2')) return 'revisor_2';
+  return aliases[normalized] || normalized;
+};
+
+const getObservationPermission = (role, stage) => {
+  const normalizedRole = normalizeObservationRole(role);
+  const normalizedStage = normalizeObservationStage(stage);
+  if (normalizedRole === 'admin') return normalizedStage !== 'finalizado';
+  const roleStages = {
+    revisor_1: 'revision_1',
+    revisor_2: 'revision_2',
+    presupuesto: 'presupuesto',
+    director: 'firmas',
+    decanato: 'decanato',
+  };
+  return (
+    roleStages[normalizedRole] === normalizedStage &&
+    normalizedStage !== 'finalizado'
+  );
+};
 
 const flattenSolicitudData = (data) => {
   if (!data || typeof data !== 'object') {
@@ -288,7 +358,10 @@ const normalizeLoadedSolicitudData = (rawData) => {
 
 function FormPage({ userData }) {
   const [searchParams] = useSearchParams();
-  const isReadOnly = searchParams.get('readOnly') === '1';
+  const stageFromUrl = searchParams.get('etapa') || '';
+  const normalizedCurrentStage = normalizeObservationStage(stageFromUrl);
+  const isFirmasOrLater = ['firmas', 'presupuesto', 'decanato', 'finalizado'].includes(normalizedCurrentStage);
+  const isReadOnly = searchParams.get('readOnly') === '1' || isFirmasOrLater;
   const [highestSectionReached, setHighestSectionReached] = useState(1);
   const { formId } = useParams(); // Se extrae la sección actual de la URL
   const formStep = searchParams.get('paso') || 0;
@@ -317,6 +390,7 @@ function FormPage({ userData }) {
   const [etapaActual, setEtapaActual] = useState(1);
   const [pasoActual, setPasoActual] = useState(1);
   const [estadoFormularios, setEstadoFormularios] = useState({});
+  const [requestStage, setRequestStage] = useState(() => normalizeObservationStage(stageFromUrl));
   const [formularioCompleto, setFormularioCompleto] = useState(false);
   const [maxAllowedStep, setMaxAllowedStep] = useState(0);
 
@@ -326,6 +400,24 @@ function FormPage({ userData }) {
     3: { completed: false, lastStep: 0 },
     4: { completed: false, lastStep: 0 }
   });
+
+  useEffect(() => {
+    if (stageFromUrl) {
+      setRequestStage(normalizeObservationStage(stageFromUrl));
+    }
+  }, [stageFromUrl]);
+
+  useEffect(() => {
+    if (!requestStage && solicitudId) {
+      getWorkflowObservations(solicitudId)
+        .then((loaded) => {
+          if (loaded?.etapa_actual) {
+            setRequestStage(normalizeObservationStage(loaded.etapa_actual));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [solicitudId, requestStage]);
 
   const [errors, setErrors] = useState({});
   
@@ -598,6 +690,18 @@ useEffect(() => {
 
         const normalizedData = normalizeLoadedSolicitudData(response.data);
         if (Object.keys(normalizedData).length === 0) return;
+        const loadedStage =
+          normalizedData.etapa_codigo ||
+          normalizedData.etapaCodigo ||
+          normalizedData.etapa_actual ||
+          response.data?.ETAPAS?.etapa_codigo ||
+          response.data?.ETAPAS?.etapa_actual ||
+          response.data?.etapas?.etapa_codigo ||
+          response.data?.etapas?.etapa_actual ||
+          '';
+        if (loadedStage) {
+          setRequestStage(normalizeObservationStage(loadedStage));
+        }
 
         console.log('🧩 getSolicitud normalizado (campos clave):', {
           modalidad: normalizedData?.modalidad,
@@ -912,6 +1016,16 @@ useEffect(() => {
       id_usuario: userData?.id_usuario ?? '',
       name: userData?.name ?? '',
     };
+    const observationProps = {
+      idSolicitud: solicitudId,
+      formNumber: currentSection,
+      stepNumber: currentStep + 1,
+      stage: requestStage,
+      canAddObservation: getObservationPermission(
+        safeUserData.role,
+        requestStage,
+      ),
+    };
     switch (currentSection) {
       case 1:
         return (
@@ -930,6 +1044,7 @@ useEffect(() => {
             userData={safeUserData}
             currentStep={currentStep || 0}
             handleFileChange={handleFileChange}
+            observationProps={observationProps}
             active={true}
             initialErrors={{}}
             errors={{errors}}
@@ -947,6 +1062,7 @@ useEffect(() => {
             setCurrentSection={handleSectionChange} 
             currentStep={currentStep} 
             validateStep={validateStep}
+            observationProps={observationProps}
           />
         );
       case 3:
@@ -959,6 +1075,7 @@ useEffect(() => {
             setCurrentSection={handleSectionChange} 
             currentStep={currentStep}
             validateStep={validateStep}
+            observationProps={observationProps}
           />
         );
       case 4:
@@ -971,6 +1088,7 @@ useEffect(() => {
             handleInputChange={handleInputChange} 
             currentStep={currentStep}
             validateStep={validateStep}
+            observationProps={observationProps}
           />
         );
       default:
@@ -1002,7 +1120,11 @@ useEffect(() => {
       <Typography variant={isSmallScreen ? 'h5' : 'h4'} gutterBottom sx={{ fontWeight: 'bold', textAlign: isSmallScreen ? 'center' : 'left' }}>
         {sectionTitles[currentSection - 1]}
       </Typography>
-      {isReadOnly && (
+      {isFirmasOrLater ? (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Esta solicitud se encuentra en etapa de Firmas o posterior. Los formularios son documentos oficiales cerrados y se gestionan en formato PDF firmado (no editables).
+        </Alert>
+      ) : isReadOnly && (
         <Alert severity="info" sx={{ mb: 2 }}>
           Modo solo lectura: puedes navegar entre pasos, pero no se guardaran cambios.
         </Alert>
