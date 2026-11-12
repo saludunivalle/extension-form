@@ -161,3 +161,10 @@ export const getWorkflowFormPdf = async (idSolicitud, formNumber, { download = f
   }
   return true;
 };
+
+export const getWorkflowSignatureImage = async (idSolicitud, tipoFirma) => {
+  const response = await workflowClient.get(`/workflow/${idSolicitud}/firma/${tipoFirma}/imagen`, {
+    responseType: 'blob',
+  });
+  return window.URL.createObjectURL(response.data);
+};

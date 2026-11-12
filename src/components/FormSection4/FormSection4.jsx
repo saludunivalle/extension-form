@@ -1334,28 +1334,28 @@ const PrintReportButton = () => {
             ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
             : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
         </Button>
-          <FormStepObservations
-            {...observationProps}
-            formNumber={formId}
-            stepNumber={activeStep + 1}
-          />
-
-        <Dialog open={unsavedExitDialogOpen} onClose={() => setUnsavedExitDialogOpen(false)}>
-          <DialogTitle>Hay cambios sin guardar</DialogTitle>
-          <DialogContent><DialogContentText>¿Qué deseas hacer con los cambios realizados?</DialogContentText></DialogContent>
-          <DialogActions>
-            <Button onClick={() => setUnsavedExitDialogOpen(false)}>Cancelar</Button>
-            <Button color="warning" onClick={handleExitWithoutSaving}>Salir sin guardar</Button>
-            <Button variant="contained" onClick={handleSaveAndExit} disabled={isLoading || isReadOnly}>Guardar y salir</Button>
-          </DialogActions>
-        </Dialog>
-
         {nextCooldownRemaining > 0 && (
           <Typography variant="caption" color="warning.main" sx={{ width: '100%', textAlign: 'right', mt: 1 }}>
             Esperar por un minuto para evitar errores con el servidor
           </Typography>
         )}
       </Box>
+
+      <FormStepObservations
+        {...observationProps}
+        formNumber={formId}
+        stepNumber={activeStep + 1}
+      />
+
+      <Dialog open={unsavedExitDialogOpen} onClose={() => setUnsavedExitDialogOpen(false)}>
+        <DialogTitle>Hay cambios sin guardar</DialogTitle>
+        <DialogContent><DialogContentText>¿Qué deseas hacer con los cambios realizados?</DialogContentText></DialogContent>
+        <DialogActions>
+          <Button onClick={() => setUnsavedExitDialogOpen(false)}>Cancelar</Button>
+          <Button color="warning" onClick={handleExitWithoutSaving}>Salir sin guardar</Button>
+          <Button variant="contained" onClick={handleSaveAndExit} disabled={isLoading || isReadOnly}>Guardar y salir</Button>
+        </DialogActions>
+      </Dialog>
 
       {isLockedByRevision && (
         <Typography variant="body2" color="warning.main" sx={{ mb: 2 }}>

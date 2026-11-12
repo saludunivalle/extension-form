@@ -74,7 +74,7 @@ const API_URL = config.API_URL;
   );
   
 
-function FormSection2({ formData, handleInputChange, setCurrentSection, userData, totalAportesUnivalle, currentStep, validateStep, formId, observationProps }) {
+function FormSection2({ formData, setFormData: setParentFormData, handleInputChange, setCurrentSection, userData, totalAportesUnivalle, currentStep, validateStep, formId, observationProps }) {
   
   const steps = ['Datos Generales', 'Ingresos y Gastos', 'Resumen Financiero'];
 
@@ -131,28 +131,28 @@ function FormSection2({ formData, handleInputChange, setCurrentSection, userData
     window.location.href = '/';
   };
 
-  // Define setFormData as a function that updates formData through handleInputChange
-  const setFormData = (newDataOrCallback) => {
-    const currentData = formData || {};
-
-    // Handle both function and object parameter styles
-    if (typeof newDataOrCallback === 'function') {
-      const newData = newDataOrCallback(currentData);
-      // Apply each field individually through handleInputChange
-      Object.entries(newData).forEach(([key, value]) => {
-        if (currentData[key] !== value) {
-          handleInputChange({ target: { name: key, value } });
-        }
+  // Define setFormData updating parent state directly so readOnly hydration works too
+  const setFormData = useCallback((newDataOrCallback) => {
+    if (typeof setParentFormData === 'function') {
+      setParentFormData((prev) => {
+        const currentData = prev || {};
+        return typeof newDataOrCallback === 'function'
+          ? newDataOrCallback(currentData)
+          : { ...currentData, ...newDataOrCallback };
       });
-    } else {
-      // Apply each field individually through handleInputChange
-      Object.entries(newDataOrCallback).forEach(([key, value]) => {
-        if (currentData[key] !== value) {
-          handleInputChange({ target: { name: key, value } });
-        }
-      });
+      return;
     }
-  };
+
+    const currentData = formData || {};
+    const newData = typeof newDataOrCallback === 'function'
+      ? newDataOrCallback(currentData)
+      : newDataOrCallback;
+    Object.entries(newData).forEach(([key, value]) => {
+      if (currentData[key] !== value) {
+        handleInputChange({ target: { name: key, value } });
+      }
+    });
+  }, [formData, handleInputChange, setParentFormData]);
   
   const { 
     maxAllowedStep, 
@@ -408,15 +408,15 @@ useEffect(() => {
       let regularGastos = {};
       let extraGastosList = [];
       
-      // 3. Try memory cache first (fastest)
-      if (cachedData) {
+      // 3. Try memory cache first when editing (never skip server fetch in read-only review)
+      if (!isReadOnly && cachedData) {
         console.log("📊 Usando datos de gastos desde caché interna");
         regularGastos = cachedData.regularGastos || {};
         extraGastosList = cachedData.extraGastosList || [];
-        dataLoaded = true;
+        const hasCachedGastos = Object.keys(regularGastos).length > 0 || extraGastosList.length > 0;
+        dataLoaded = hasCachedGastos;
         
-        // If cache is still valid, don't make API request
-        if (isCacheValid) {
+        if (isCacheValid && hasCachedGastos) {
           console.log("📊 Cache still valid, skipping API request");
           setFormData(prev => ({ ...prev, ...regularGastos, gastosCargados: true }));
           setExtraExpenses(extraGastosList);
@@ -425,20 +425,21 @@ useEffect(() => {
         }
       } 
       // 4. Try localStorage if memory cache not available
-      else if (localStorageData) {
+      else if (!isReadOnly && localStorageData) {
         try {
           console.log("📊 Usando datos de gastos desde localStorage");
           const parsedData = JSON.parse(localStorageData);
           regularGastos = parsedData.regularGastos || {};
           extraGastosList = parsedData.extraGastosList || [];
-          dataLoaded = true;
+          const hasLocalGastos = Object.keys(regularGastos).length > 0 || extraGastosList.length > 0;
+          dataLoaded = hasLocalGastos;
           
-          // Apply cached data immediately while we fetch from API
-          setFormData(prev => ({ ...prev, ...regularGastos, gastosCargados: true }));
-          setExtraExpenses(extraGastosList);
+          if (hasLocalGastos) {
+            setFormData(prev => ({ ...prev, ...regularGastos, gastosCargados: true }));
+            setExtraExpenses(extraGastosList);
+          }
           
-          // If cache is still valid, don't make API request
-          if (isCacheValid) {
+          if (isCacheValid && hasLocalGastos) {
             console.log("📊 Cache still valid, skipping API request");
             setIsLoading(false);
             return;
@@ -448,52 +449,48 @@ useEffect(() => {
         }
       }
       
-      // 5. Try the API if we don't have valid cache, or if we want to refresh outdated cache
+      // 5. Fetch authoritative gastos from GET /getGastos
       try {
         console.log("📊 Obteniendo gastos desde el servidor...");
         const apiTimeout = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('API request timeout')), 8000)
         );
         
-        // Use Promise.race to implement a timeout
         const response = await Promise.race([
-          axios.post(`${API_URL}/progreso-actual`, {
-            id_solicitud: idSolicitud,
-            etapa_destino: 2,
-            paso_destino: 1
+          axios.get(`${API_URL}/getGastos`, {
+            params: { id_solicitud: idSolicitud }
           }),
           apiTimeout
         ]);
         
-        if (response.data.success) {
-          const gastos = response.data.estado.datosFormulario?.gastos || [];
+        if (response.data?.success) {
+          const gastos = Array.isArray(response.data.data) ? response.data.data : [];
           const serverTimestamp = response.data.timestamp || Date.now();
           
           if (gastos.length > 0) {
             const serverRegularGastos = {};
             const serverExtraGastosList = [];
             
-            gastos.forEach(gasto => {
-              // Procesar gastos
-              if (gasto.id_conceptos.startsWith('14.')) {
-                // Es un gasto extra dinámico
+            gastos.forEach((gasto, idx) => {
+              const rawId = String(gasto.id_conceptos || '').trim();
+              if (!rawId) return;
+              const dotKey = rawId.replace(/,/g, '.');
+              if (dotKey.startsWith('14.')) {
                 serverExtraGastosList.push({
-                  id: Date.now() + parseInt(gasto.id_conceptos.split('.')[1]),
-                  name: gasto.concepto || `Gasto Extra ${gasto.id_conceptos.split('.')[1]}`,
-                  cantidad: gasto.cantidad || 0,
-                  vr_unit: gasto.valor_unit || 0,
-                  key: gasto.id_conceptos
+                  id: Date.now() + idx + (parseInt(dotKey.split('.')[1], 10) || 0),
+                  name: gasto.concepto || `Gasto Extra ${dotKey.split('.')[1] || idx + 1}`,
+                  cantidad: gasto.cantidad ?? 0,
+                  vr_unit: gasto.valor_unit ?? 0,
+                  key: dotKey
                 });
               } else {
-                // Es un gasto regular
-                serverRegularGastos[`${gasto.id_conceptos}_cantidad`] = gasto.cantidad;
-                serverRegularGastos[`${gasto.id_conceptos}_vr_unit`] = gasto.valor_unit;
+                const formKey = dotKey.replace(/\./g, ',');
+                serverRegularGastos[`${formKey}_cantidad`] = gasto.cantidad ?? 0;
+                serverRegularGastos[`${formKey}_vr_unit`] = gasto.valor_unit ?? 0;
               }
             });
             
-            // Always use server data if available, as it should be authoritative
-            // But check if we have newer local modifications
-            const useServerData = !localStorageTimestamp || serverTimestamp > parseInt(localStorageTimestamp);
+            const useServerData = isReadOnly || !localStorageTimestamp || serverTimestamp > parseInt(localStorageTimestamp);
             
             if (useServerData) {
               console.log("📊 Usando datos más recientes del servidor");
@@ -1358,17 +1355,13 @@ const PrintReportButton = () => {
 };
   
 
-  // Almacenamiento local para los datos del formulario y gastos extras
+  // Almacenamiento local para los datos del formulario y gastos extras (solo en modo edición)
 useEffect(() => {
-  // Función para guardar los datos del formulario en localStorage
+  if (isReadOnly) return;
   const saveFormDataLocally = () => {
     if (idSolicitud) {
-      // Guardar los datos del formulario
       localStorage.setItem(`solicitud2_data_${idSolicitud}`, JSON.stringify(formData));
-      
-      // Guardar los gastos extras por separado para mejor rendimiento
       localStorage.setItem(`solicitud2_extraExpenses_${idSolicitud}`, JSON.stringify(extraExpenses));
-      
       console.log("Datos del formulario guardados localmente");
     }
   };
@@ -1382,9 +1375,9 @@ useEffect(() => {
   return () => clearInterval(saveInterval);
 }, [formData, extraExpenses, idSolicitud]);
 
-// Cargar datos del formulario y gastos extras desde localStorage al inicio
+// Cargar datos del formulario y gastos extras desde localStorage al inicio (solo en modo edición)
 useEffect(() => {
-  if (idSolicitud) {
+  if (idSolicitud && !isReadOnly) {
     try {
       // Recuperar datos del formulario
       const savedFormData = localStorage.getItem(`solicitud2_data_${idSolicitud}`);
@@ -1405,7 +1398,17 @@ useEffect(() => {
       console.error("Error al recuperar datos guardados localmente:", error);
     }
   }
-}, [idSolicitud]);
+}, [idSolicitud, isReadOnly]);
+
+// Mantener totalGastos sincronizado si se abre directamente el paso 3 sin montar Step2
+useEffect(() => {
+  if (activeStep !== 1) {
+    const fallbackTotal = parseFloat(formData?.total_gastos_imprevistos);
+    if (Number.isFinite(fallbackTotal) && fallbackTotal > 0 && totalGastos === 0) {
+      setTotalGastos(fallbackTotal);
+    }
+  }
+}, [activeStep, formData?.total_gastos_imprevistos, totalGastos]);
 
 // Función para guardar datos específicos del paso 3
 const saveStep3Data = useCallback(() => {
@@ -1585,27 +1588,28 @@ useEffect(() => {
             ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
             : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
         </Button>
-        <FormStepObservations
-          {...observationProps}
-          formNumber={formId}
-          stepNumber={activeStep + 1}
-        />
-
-        <Dialog open={exitDialogOpen} onClose={() => setExitDialogOpen(false)}>
-          <DialogTitle>Hay cambios sin guardar</DialogTitle>
-          <DialogContent><DialogContentText>¿Qué deseas hacer con los cambios realizados?</DialogContentText></DialogContent>
-          <DialogActions>
-            <Button onClick={() => setExitDialogOpen(false)}>Cancelar</Button>
-            <Button color="warning" onClick={handleExitWithoutSaving}>Salir sin guardar</Button>
-            <Button variant="contained" onClick={handleSaveAndExit} disabled={isLoading || isReadOnly}>Guardar y salir</Button>
-          </DialogActions>
-        </Dialog>
-
         {nextCooldownRemaining > 0 && (
           <Typography variant="caption" color="warning.main" sx={{ width: '100%', textAlign: 'right', mt: 1 }}>
             Esperar por un minuto para evitar errores con el servidor
           </Typography>
         )}
+      </Box>
+
+      <FormStepObservations
+        {...observationProps}
+        formNumber={formId}
+        stepNumber={activeStep + 1}
+      />
+
+      <Dialog open={exitDialogOpen} onClose={() => setExitDialogOpen(false)}>
+        <DialogTitle>Hay cambios sin guardar</DialogTitle>
+        <DialogContent><DialogContentText>¿Qué deseas hacer con los cambios realizados?</DialogContentText></DialogContent>
+        <DialogActions>
+          <Button onClick={() => setExitDialogOpen(false)}>Cancelar</Button>
+          <Button color="warning" onClick={handleExitWithoutSaving}>Salir sin guardar</Button>
+          <Button variant="contained" onClick={handleSaveAndExit} disabled={isLoading || isReadOnly}>Guardar y salir</Button>
+        </DialogActions>
+      </Dialog>
 
           <Dialog 
             open={showModal} 
@@ -1733,7 +1737,6 @@ useEffect(() => {
               </Box>
             </DialogActions>
           </Dialog>
-      </Box>
 
       {isLockedByRevision && (
         <Typography variant="body2" color="warning.main" sx={{ mb: 2 }}>
@@ -1818,6 +1821,7 @@ FormSection2.propTypes = {
     canAddObservation: PropTypes.bool,
   }),
   formData: PropTypes.object.isRequired,
+  setFormData: PropTypes.func,
   handleInputChange: PropTypes.func.isRequired,
   setCurrentSection: PropTypes.func.isRequired,
   userData: PropTypes.object.isRequired,
