@@ -40,7 +40,8 @@ function FormStepObservations({
       observations.filter(
         (observation) =>
           normalize(observation.formulario) === normalize(formNumber) &&
-          normalize(observation.paso) === normalize(stepNumber),
+          normalize(observation.paso) === normalize(stepNumber) &&
+          normalize(observation.estado) !== "subsanada",
       ),
     [formNumber, observations, stepNumber],
   );
@@ -125,6 +126,7 @@ function FormStepObservations({
   return (
     <Box
       sx={{
+        width: "100%",
         mt: 2,
         p: 2,
         border: "1px solid #dbe3ec",

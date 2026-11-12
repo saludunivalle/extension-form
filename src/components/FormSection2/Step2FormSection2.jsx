@@ -504,7 +504,7 @@ function Step2FormSection2({
                   <TextField
                     type="number"
                     name={`${item.key}_cantidad`}
-                    value={formData[`${item.key}_cantidad`]}
+                    value={formData[`${item.key}_cantidad`] ?? ''}
                     onChange={handleNumberInputChange}
                     size="small"
                   />
@@ -516,7 +516,7 @@ function Step2FormSection2({
                     decimalSeparator=","
                     prefix="$ "
                     name={`${item.key}_vr_unit`}
-                    value={formData[`${item.key}_vr_unit`]}
+                    value={formData[`${item.key}_vr_unit`] ?? ''}
                     onValueChange={(values) =>
                       handleNumberInputChange({ target: { name: `${item.key}_vr_unit`, value: values.value } })
                     }
@@ -605,7 +605,7 @@ function Step2FormSection2({
                   <TextField
                     type="number"
                     name={`${child.key}_cantidad`} // Ej: using child.key for unique name
-                    value={formData[`${child.key}_cantidad`]}
+                    value={formData[`${child.key}_cantidad`] ?? ''}
                     onChange={handleNumberInputChange}
                     size="small"
                   />
@@ -617,7 +617,7 @@ function Step2FormSection2({
                     decimalSeparator=","
                     prefix="$ "
                     name={`${child.key}_vr_unit`}
-                    value={formData[`${child.key}_vr_unit`]}
+                    value={formData[`${child.key}_vr_unit`] ?? ''}
                     onValueChange={(values) =>
                       handleNumberInputChange({ target: { name: `${child.key}_vr_unit`, value: values.value } })
                     }
