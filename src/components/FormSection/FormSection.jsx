@@ -111,15 +111,19 @@ const API_URL = config.API_URL;
     const [isLoading, setIsLoading] = useState(false); 
     const [isGeneratingReport, setIsGeneratingReport] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
     const [completedSteps, setCompletedSteps] = useState([]);
-    const [highestStepReached, setHighestStepReached] = useState(0); 
+    const [highestStepReached, setHighestStepReached] = useState(0);
+    const targetSolId = new URLSearchParams(location.search).get('solicitud') || idSolicitud || formData?.id_solicitud || localStorage.getItem('id_solicitud') || '';
+    const exitUrl = targetSolId ? ('/?solicitud=' + targetSolId) : '/'; 
     const [errors, setErrors] = useState({});
     const isSmallScreen = useMediaQuery('(max-width:600px)');
     const isVerySmallScreen = useMediaQuery('(max-width:375px)');
-    const location = useLocation();
     const isReadOnly = new URLSearchParams(location.search).get('readOnly') === '1';
     const currentUserId = userData?.id || userData?.id_usuario || '';
     const isAdminUser = String(userData?.role || '').toLowerCase() === 'admin';
+    const userRole = String(userData?.role || userData?.rol || '').trim().toLowerCase();
+    const isSolicitante = !userRole || userRole === 'solicitante';
     const [revisionStatusData, setRevisionStatusData] = useState(null);
     const [revisionActionLoading, setRevisionActionLoading] = useState(false);
     const [correctionComment, setCorrectionComment] = useState('');
@@ -174,7 +178,7 @@ const API_URL = config.API_URL;
           paso_actual: steps.length,
           estado_formularios: { ...estadoFormularios, '1': previousStatus || 'Completado' },
         });
-        window.location.href = '/';
+        navigate(exitUrl);
       } catch (error) {
         console.error('No se pudieron guardar los cambios antes de salir:', error);
       }
@@ -182,16 +186,16 @@ const API_URL = config.API_URL;
 
     const handleExitWithoutSaving = () => {
       setExitDialogOpen(false);
-      window.location.href = '/';
+      navigate(exitUrl);
     };
 
     const handleExit = useCallback(() => {
       if (isReadOnly || !hasUnsavedChanges) {
-        window.location.href = '/';
+        navigate(exitUrl);
         return;
       }
       setExitDialogOpen(true);
-    }, [isReadOnly, hasUnsavedChanges]);
+    }, [isReadOnly, hasUnsavedChanges, exitUrl, navigate]);
 
     useEffect(() => {
       const handleHeaderExit = () => handleExit();
@@ -313,10 +317,12 @@ const API_URL = config.API_URL;
         }
         if (!formData.programCont) stepErrors.programCont = "Este campo es obligatorio";
         if (!formData.dirigidoa) stepErrors.dirigidoa = "Este campo es obligatorio";
-        if (formData.creditos === undefined || formData.creditos === null) {
+        const totalHoras = Number(formData.total_horas) || 0;
+        if (formData.creditos === undefined || formData.creditos === null || formData.creditos === "") {
           stepErrors.creditos = "Este campo es obligatorio";
-        }
-        if (  formData.creditos > 50) {
+        } else if (totalHoras < 48 && Number(formData.creditos) > 0) {
+          stepErrors.creditos = "No se pueden agregar créditos con menos de 48 horas de intensidad horaria (48h = 1 crédito)";
+        } else if (Number(formData.creditos) > 50) {
           stepErrors.creditos = "El máximo de creditos es 50";
         }
         if (!formData.cupo_min) stepErrors.cupo_min = "Este campo es obligatorio";
@@ -1081,42 +1087,45 @@ const PrintReportButton = () => {
             Atrás
           </Button>
           <Button
-            variant="outlined"
+            variant="contained"
             color="secondary"
             onClick={handleExit}
             sx={{
+              color: '#fff',
               width: isSmallScreen ? '100%' : 'auto',
               marginBottom: isSmallScreen ? '10px' : '0'
             }}
           >
             Volver al inicio
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={
-            isReadOnly
-              ? () => {
-                  if (activeStep < steps.length - 1) {
-                    setActiveStep((prev) => prev + 1);
+          {(activeStep < steps.length - 1 || isSolicitante) && (
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={
+              isReadOnly
+                ? () => {
+                    if (activeStep < steps.length - 1) {
+                      setActiveStep((prev) => prev + 1);
+                    }
                   }
-                }
-              : activeStep === steps.length - 1
-                ? handleSubmit
-                : handleNext
-          }
-          disabled={
-            isLoading ||
-            isLockedByRevision ||
-            (isReadOnly ? activeStep === steps.length - 1 : isNextButtonBlocked)
-          } 
-            startIcon={isLoading ? <CircularProgress size={20} /> : null}
-            sx={{ width: isSmallScreen ? '100%' : 'auto' }} 
-          >
-            {activeStep === steps.length - 1
-              ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
-              : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
-          </Button>
+                : activeStep === steps.length - 1
+                  ? handleSubmit
+                  : handleNext
+            }
+            disabled={
+              isLoading ||
+              isLockedByRevision ||
+              (isReadOnly ? activeStep === steps.length - 1 : isNextButtonBlocked)
+            } 
+              startIcon={isLoading ? <CircularProgress size={20} /> : null}
+              sx={{ width: isSmallScreen ? '100%' : 'auto' }} 
+            >
+              {activeStep === steps.length - 1
+                ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
+                : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
+            </Button>
+          )}
         </Box>
         <FormStepObservations
           {...observationProps}
@@ -1140,7 +1149,7 @@ const PrintReportButton = () => {
           </DialogActions>
         </Dialog>
 
-        {nextCooldownRemaining > 0 && (
+        {nextCooldownRemaining > 0 && (activeStep < steps.length - 1 || isSolicitante) && (
           <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: -1, mb: 2, textAlign: 'right' }}>
             Esperar por un minuto para evitar errores con el servidor
           </Typography>

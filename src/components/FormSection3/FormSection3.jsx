@@ -98,6 +98,8 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
   });
 
   const [idSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
+  const targetSolId = new URLSearchParams(location.search).get('solicitud') || idSolicitud || formData?.id_solicitud || localStorage.getItem('id_solicitud') || '';
+  const exitUrl = targetSolId ? ('/?solicitud=' + targetSolId) : '/';
 
   const { maxAllowedStep, loading: navLoading, error: navError, isStepAllowed } = 
   useInternalNavigationGoogleSheets(idSolicitud, 3, steps.length);
@@ -111,6 +113,8 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
   const isReadOnly = new URLSearchParams(location.search).get('readOnly') === '1';
   const currentUserId = userData?.id || userData?.id_usuario || '';
   const isAdminUser = String(userData?.role || '').toLowerCase() === 'admin';
+  const userRole = String(userData?.role || userData?.rol || '').trim().toLowerCase();
+  const isSolicitante = !userRole || userRole === 'solicitante';
   const [revisionStatusData, setRevisionStatusData] = useState(null);
   const [revisionActionLoading, setRevisionActionLoading] = useState(false);
   const [correctionComment, setCorrectionComment] = useState('');
@@ -125,15 +129,15 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
   }, [currentStep]);
   const hasUnsavedChanges = JSON.stringify(formData || {}) !== initialFormDataRef.current;
   const handleExit = useCallback(() => {
-    if (isReadOnly || !hasUnsavedChanges) return window.location.href = '/';
+    if (isReadOnly || !hasUnsavedChanges) return navigate(exitUrl);
     setExitDialogOpen(true);
-  }, [isReadOnly, hasUnsavedChanges]);
+  }, [isReadOnly, hasUnsavedChanges, exitUrl, navigate]);
   useEffect(() => {
     const handleHeaderExit = () => handleExit();
     window.addEventListener('form:request-exit', handleHeaderExit);
     return () => window.removeEventListener('form:request-exit', handleHeaderExit);
   }, [handleExit]);
-  const handleExitWithoutSaving = () => { setExitDialogOpen(false); window.location.href = '/'; };
+  const handleExitWithoutSaving = () => { setExitDialogOpen(false); navigate(exitUrl); };
   const handleSaveAndExit = async () => {
     setExitDialogOpen(false);
     const previousStatus = estadoFormularios?.[String(formId)] || '';
@@ -144,7 +148,7 @@ function FormSection3({ formData, handleInputChange, userData, currentStep, setC
       id_solicitud: idSolicitud, etapa_actual: 3, paso_actual: steps.length,
       estado_formularios: { ...estadoFormularios, '3': previousStatus },
     });
-    window.location.href = '/';
+    navigate(exitUrl);
   };
 
   const startNextCooldown = useCallback(() => {
@@ -930,38 +934,41 @@ const PrintReportButton = () => {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px', flexWrap: 'wrap' }}>
         <Button disabled={activeStep === 0} onClick={handleBack}>Atrás</Button>
         <Button
-          variant="outlined"
+          variant="contained"
           color="secondary"
           onClick={handleExit}
+          sx={{ color: '#fff' }}
         >
           Volver al inicio
         </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={
-            isReadOnly
-              ? () => {
-                  if (activeStep < steps.length - 1) {
-                    setActiveStep((prev) => prev + 1);
+        {(activeStep < steps.length - 1 || isSolicitante) && (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={
+              isReadOnly
+                ? () => {
+                    if (activeStep < steps.length - 1) {
+                      setActiveStep((prev) => prev + 1);
+                    }
                   }
-                }
-              : activeStep === steps.length - 1
-                ? handleSubmit
-                : handleNext
-          }
-          disabled={
-            isLoading ||
-            isLockedByRevision ||
-            (isReadOnly ? activeStep === steps.length - 1 : isNextButtonBlocked)
-          }
-          startIcon={isLoading ? <CircularProgress size={20} /> : null}
-        >
-          {activeStep === steps.length - 1
-            ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
-            : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
-        </Button>
-        {nextCooldownRemaining > 0 && (
+                : activeStep === steps.length - 1
+                  ? handleSubmit
+                  : handleNext
+            }
+            disabled={
+              isLoading ||
+              isLockedByRevision ||
+              (isReadOnly ? activeStep === steps.length - 1 : isNextButtonBlocked)
+            }
+            startIcon={isLoading ? <CircularProgress size={20} /> : null}
+          >
+            {activeStep === steps.length - 1
+              ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
+              : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
+          </Button>
+        )}
+        {nextCooldownRemaining > 0 && (activeStep < steps.length - 1 || isSolicitante) && (
           <Typography variant="caption" color="warning.main" sx={{ width: '100%', textAlign: 'right', mt: 1 }}>
             Esperar por un minuto para evitar errores con el servidor
           </Typography>

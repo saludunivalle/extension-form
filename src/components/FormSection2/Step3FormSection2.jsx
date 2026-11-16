@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Grid, Table, TableBody, TableCell, TableHead, TableRow, TextField, Box, IconButton, Typography, Collapse } from '@mui/material';
-import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
+import { Grid, Table, TableBody, TableCell, TableHead, TableRow, TextField, Box, IconButton, Typography, Collapse, Button, Chip } from '@mui/material';
+import { KeyboardArrowDown, KeyboardArrowUp, AttachFile, PictureAsPdf } from '@mui/icons-material';
 import PropTypes from 'prop-types';
 
 const parseNumberOrFallback = (value, fallback) => {
@@ -23,7 +23,7 @@ const parseNumericInput = (value) => {
   return Number.isFinite(parsed) ? parsed : NaN;
 };
 
-function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
+function Step3FormSection2({ formData, handleInputChange, handleFileChange, totalGastos, isReadOnly }) {
   const [observacionesExpanded, setObservacionesExpanded] = useState(true);
   const isExtensionSolidaria = String(formData.extension_solidaria || '').trim().toLowerCase() === 'si';
   const defaultSolidariaObservation = 'Actividad de extension solidaria sin recaudo por inscripcion.';
@@ -59,7 +59,8 @@ function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
   const escuelaDepartamentoPorcentaje = parseNumberOrFallback(formData.escuela_departamento_porcentaje, 0);
   const escuelaDepartamento = (escuelaDepartamentoPorcentaje / 100) * totalIngresos;
 
-  const shouldShowArchivoFondoComun = fondoComunPorcentaje > 30;
+  const isFondoComunModificado = Math.round(Number(fondoComunPorcentaje) * 100) / 100 !== 30;
+  const hasSoporte = Boolean(formData.soporte || formData.url_soporte_fondo || formData.archivo_fondo_comun);
 
   // Suma total de los aportes
   const totalAportesUnivalle = fondoComun + facultadInstituto + escuelaDepartamento;
@@ -198,21 +199,106 @@ function Step3FormSection2({ formData, handleInputChange, totalGastos}) {
         </Table>
       </Grid>
 
-      {shouldShowArchivoFondoComun && (
+      {isFondoComunModificado && (
         <Grid item xs={12}>
-          <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>
-              Formato de Viavilidad y aportes al fondo comun, firmado por el jefe de la Sección de Presupuesto.
+          <Box
+            sx={{
+              p: 2.5,
+              border: '1px solid #90caf9',
+              borderRadius: 2,
+              backgroundColor: '#f8fbff',
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ mb: 0.5, fontWeight: 700, color: '#1565c0' }}>
+              Soporte de modificación del Fondo Común (PDF) *
             </Typography>
-            <TextField
-              fullWidth
-              label="Link del soporte fondo comun"
-              name="archivo_fondo_comun"
-              value={formData.archivo_fondo_comun || ''}
-              onChange={handleInputChange}
-              placeholder="https://..."
-              helperText="Ingrese la URL del soporte cuando el fondo comun sea mayor al 30%"
-            />
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              Al modificarse el porcentaje del fondo común ({fondoComunPorcentaje}%, diferente de 30%), es obligatorio adjuntar el Formato de Viabilidad y aportes al fondo común en formato PDF, debidamente firmado por la Sección de Presupuesto.
+            </Typography>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+              <input
+                type="file"
+                id="soporte-fondo-file-input"
+                name="soporte"
+                accept="application/pdf,.pdf"
+                style={{ display: 'none' }}
+                disabled={isReadOnly}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+                    alert('El archivo de soporte debe ser en formato PDF.');
+                    e.target.value = '';
+                    return;
+                  }
+                  if (typeof handleFileChange === 'function') {
+                    handleFileChange(e);
+                  } else {
+                    handleInputChange({ target: { name: 'soporte', value: file } });
+                  }
+                }}
+              />
+              <label htmlFor="soporte-fondo-file-input">
+                <Button
+                  variant="contained"
+                  component="span"
+                  startIcon={<AttachFile />}
+                  disabled={isReadOnly}
+                  sx={{ backgroundColor: '#1976d2' }}
+                >
+                  {hasSoporte ? 'Cambiar archivo PDF' : 'Subir archivo PDF'}
+                </Button>
+              </label>
+
+              {formData.soporte instanceof File && (
+                <Chip
+                  color="primary"
+                  variant="outlined"
+                  label={`Seleccionado: ${formData.soporte.name}`}
+                  onDelete={
+                    isReadOnly
+                      ? undefined
+                      : () => {
+                          handleInputChange({ target: { name: 'soporte', value: null } });
+                        }
+                  }
+                />
+              )}
+
+              {typeof formData.soporte === 'string' && formData.soporte && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  href={formData.soporte}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  startIcon={<PictureAsPdf color="error" />}
+                >
+                  Ver PDF cargado
+                </Button>
+              )}
+
+              {!(formData.soporte instanceof File) &&
+                (formData.url_soporte_fondo || formData.archivo_fondo_comun) && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    href={formData.url_soporte_fondo || formData.archivo_fondo_comun}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    startIcon={<PictureAsPdf color="error" />}
+                  >
+                    Ver soporte en Drive
+                  </Button>
+                )}
+            </Box>
+
+            {!hasSoporte && (
+              <Typography variant="caption" color="error" sx={{ display: 'block', mt: 1, fontWeight: 500 }}>
+                * Debe adjuntar el archivo PDF de soporte para poder finalizar el formulario.
+              </Typography>
+            )}
           </Box>
         </Grid>
       )}
@@ -281,8 +367,15 @@ Step3FormSection2.propTypes = {
       PropTypes.string,
       PropTypes.shape({ name: PropTypes.string }),
     ]),
+    soporte: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.shape({ name: PropTypes.string }),
+    ]),
+    url_soporte_fondo: PropTypes.string,
     observaciones: PropTypes.string,
   }).isRequired,
   handleInputChange: PropTypes.func.isRequired,
+  handleFileChange: PropTypes.func,
+  isReadOnly: PropTypes.bool,
   totalGastos: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
 };

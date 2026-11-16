@@ -13,6 +13,8 @@ import {
   addWorkflowObservation,
   deleteWorkflowObservation,
   getWorkflowObservations,
+  addWorkflowObservationComment,
+  updateWorkflowObservation,
 } from "../../services/workflowService";
 
 const normalize = (value) => String(value ?? "").trim().toLowerCase();
@@ -27,6 +29,8 @@ function FormStepObservations({
   const [observations, setObservations] = useState([]);
   const [draft, setDraft] = useState("");
   const [currentStage, setCurrentStage] = useState(stage || "");
+  const [commentDrafts, setCommentDrafts] = useState({});
+  const [commentLoading, setCommentLoading] = useState({});
 
   useEffect(() => {
     if (stage) setCurrentStage(stage);
@@ -41,9 +45,9 @@ function FormStepObservations({
         (observation) =>
           normalize(observation.formulario) === normalize(formNumber) &&
           normalize(observation.paso) === normalize(stepNumber) &&
-          normalize(observation.estado) !== "subsanada",
+          (canAddObservation || normalize(observation.estado) !== "subsanada"),
       ),
-    [formNumber, observations, stepNumber],
+    [canAddObservation, formNumber, observations, stepNumber],
   );
 
   useEffect(() => {
@@ -85,6 +89,37 @@ function FormStepObservations({
       setObservations(Array.isArray(loaded) ? loaded : []);
     } catch (err) {
       alert(err?.response?.data?.error || err?.response?.data?.message || "No se pudo eliminar la observación.");
+    }
+  };
+
+  const handleAddComment = async (observationId) => {
+    const text = String(commentDrafts[observationId] || "").trim();
+    if (!text) return;
+    setCommentLoading((prev) => ({ ...prev, [observationId]: true }));
+    try {
+      await addWorkflowObservationComment(idSolicitud, observationId, {
+        texto: text,
+      });
+      setCommentDrafts((prev) => ({ ...prev, [observationId]: "" }));
+      const loaded = await getWorkflowObservations(idSolicitud);
+      setObservations(Array.isArray(loaded) ? loaded : []);
+    } catch (err) {
+      alert(err?.response?.data?.error || err?.response?.data?.message || "No se pudo guardar el comentario.");
+    } finally {
+      setCommentLoading((prev) => ({ ...prev, [observationId]: false }));
+    }
+  };
+
+  const handleToggleSubsanada = async (observation) => {
+    const nextStatus = observation.estado === "subsanada" ? "pendiente" : "subsanada";
+    try {
+      await updateWorkflowObservation(idSolicitud, observation.id_observacion, {
+        estado: nextStatus,
+      });
+      const loaded = await getWorkflowObservations(idSolicitud);
+      setObservations(Array.isArray(loaded) ? loaded : []);
+    } catch (err) {
+      alert(err?.response?.data?.error || err?.response?.data?.message || "No se pudo actualizar el estado.");
     }
   };
 
@@ -149,27 +184,109 @@ function FormStepObservations({
           {stepObservations.map((observation) => (
             <Box
               key={observation.id_observacion}
-              sx={{ p: 1, backgroundColor: "#fff", borderRadius: 1 }}
+              sx={{ p: 1.5, backgroundColor: "#fff", borderRadius: 1.5, border: "1px solid #e2e8f0" }}
             >
-              <Typography variant="body2">
+              <Typography variant="body2" fontWeight={500}>
                 {observation.observacion}
               </Typography>
               <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center" sx={{ mt: 0.5 }}>
                 <Typography variant="caption" color="text.secondary">
                   {observation.nombre_autor || "Usuario"} ·{" "}
-                  {observation.estado || "pendiente"}
+                  <span style={{ fontWeight: 600, color: observation.estado === 'subsanada' ? '#16a34a' : '#d97706' }}>
+                    {observation.estado || "pendiente"}
+                  </span>
                 </Typography>
-                {canAddObservation && (
-                  <Button
-                    size="small"
-                    color="error"
-                    sx={{ fontSize: "0.7rem", p: "2px 6px", minWidth: "auto" }}
-                    onClick={() => handleDeleteStepObservation(observation.id_observacion)}
-                  >
-                    Desechar
-                  </Button>
-                )}
+                <Stack direction="row" spacing={0.5}>
+                  {canAddObservation && (
+                    <>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color={observation.estado === "subsanada" ? "warning" : "success"}
+                        sx={{ fontSize: "0.7rem", py: "1px", px: "6px", minWidth: "auto" }}
+                        onClick={() => handleToggleSubsanada(observation)}
+                      >
+                        {observation.estado === "subsanada" ? "Marcar pendiente" : "Marcar subsanada"}
+                      </Button>
+                      <Button
+                        size="small"
+                        color="error"
+                        sx={{ fontSize: "0.7rem", py: "1px", px: "6px", minWidth: "auto" }}
+                        onClick={() => handleDeleteStepObservation(observation.id_observacion)}
+                      >
+                        Desechar
+                      </Button>
+                    </>
+                  )}
+                </Stack>
               </Stack>
+
+              {/* Hilo de comentarios identados sobre la observación */}
+              <Box
+                sx={{
+                  pl: 2,
+                  ml: 1,
+                  borderLeft: "2px solid #cbd5e1",
+                  mt: 1.5,
+                  pt: 0.5,
+                }}
+              >
+                {Array.isArray(observation.comentarios) && observation.comentarios.length > 0 && (
+                  <Stack spacing={0.75} sx={{ mb: 1 }}>
+                    {observation.comentarios.map((com) => (
+                      <Box
+                        key={com.id_comentario}
+                        sx={{
+                          p: 0.75,
+                          backgroundColor: "#f8fafc",
+                          borderRadius: 1,
+                          border: "1px solid #e2e8f0",
+                        }}
+                      >
+                        <Stack direction="row" spacing={1} justifyContent="space-between" alignItems="center">
+                          <Typography variant="caption" fontWeight={600} color="primary">
+                            {com.nombre_autor || "Revisor"}
+                            {com.rol_autor ? ` (${com.rol_autor === "revisor_2" ? "Revisor 2" : com.rol_autor === "revisor_1" ? "Revisor 1" : com.rol_autor})` : ""}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {com.fecha_creacion ? new Date(com.fecha_creacion).toLocaleDateString() : ""}
+                          </Typography>
+                        </Stack>
+                        <Typography variant="body2" sx={{ fontSize: "0.85rem", mt: 0.25, whiteSpace: "pre-wrap" }}>
+                          {com.texto}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                )}
+
+                {canAddObservation && (
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+                    <TextField
+                      placeholder="Comentar esta observación..."
+                      size="small"
+                      fullWidth
+                      value={commentDrafts[observation.id_observacion] || ""}
+                      onChange={(e) =>
+                        setCommentDrafts((prev) => ({
+                          ...prev,
+                          [observation.id_observacion]: e.target.value,
+                        }))
+                      }
+                      sx={{ backgroundColor: "#fff", "& input": { fontSize: "0.85rem", py: 0.75 } }}
+                    />
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      disabled={!String(commentDrafts[observation.id_observacion] || "").trim() || commentLoading[observation.id_observacion]}
+                      onClick={() => handleAddComment(observation.id_observacion)}
+                      sx={{ fontSize: "0.75rem", minWidth: 70, height: 32 }}
+                    >
+                      {commentLoading[observation.id_observacion] ? <CircularProgress size={14} /> : "Comentar"}
+                    </Button>
+                  </Stack>
+                )}
+              </Box>
             </Box>
           ))}
           {!stepObservations.length && (

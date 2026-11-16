@@ -14,16 +14,20 @@ function Step2FormSection2({
   const isExtensionSolidaria = String(formData.extension_solidaria || '').trim().toLowerCase() === 'si';
 
   useEffect(() => {
-    if (!isExtensionSolidaria) return;
-
-    if (Number(formData.ingresos_cantidad || 0) !== 0) {
-      handleNumberInputChange({ target: { name: 'ingresos_cantidad', value: 0 } });
+    if (isExtensionSolidaria) {
+      if (Number(formData.ingresos_cantidad || 0) !== 0) {
+        handleNumberInputChange({ target: { name: 'ingresos_cantidad', value: 0 } });
+      }
+      if (Number(formData.ingresos_vr_unit || 0) !== 0) {
+        handleNumberInputChange({ target: { name: 'ingresos_vr_unit', value: 0 } });
+      }
+    } else {
+      const valorInscripcionForm1 = Number(formData.valor_inscripcion || 0);
+      if (Number(formData.ingresos_vr_unit || 0) !== valorInscripcionForm1) {
+        handleNumberInputChange({ target: { name: 'ingresos_vr_unit', value: valorInscripcionForm1 } });
+      }
     }
-
-    if (Number(formData.ingresos_vr_unit || 0) !== 0) {
-      handleNumberInputChange({ target: { name: 'ingresos_vr_unit', value: 0 } });
-    }
-  }, [formData.ingresos_cantidad, formData.ingresos_vr_unit, handleNumberInputChange, isExtensionSolidaria]);
+  }, [formData.ingresos_cantidad, formData.ingresos_vr_unit, formData.valor_inscripcion, handleNumberInputChange, isExtensionSolidaria]);
 
   // Estructura jerárquica de gastos (actualizada)
   const gastosStructure = [
@@ -385,19 +389,22 @@ function Step2FormSection2({
               decimalSeparator=","
               prefix="$ "
               name="ingresos_vr_unit"
-              value={isExtensionSolidaria ? 0 : formData.ingresos_vr_unit}
+              value={isExtensionSolidaria ? 0 : (formData.valor_inscripcion !== undefined && formData.valor_inscripcion !== null && formData.valor_inscripcion !== '' ? formData.valor_inscripcion : (formData.ingresos_vr_unit || 0))}
               onValueChange={(values) => handleCurrencyChange('ingresos_vr_unit', values)}
-              onKeyPress={(e) => {
-                if (e.key === '.' || e.key === ',') e.preventDefault();
-              }}
               inputProps={numericInputProps}
               allowNegative={false}
-              disabled={isExtensionSolidaria}
+              disabled={true}
+              helperText={
+                isExtensionSolidaria
+                  ? "Extensión solidaria ($0)"
+                  : "Definido en Formulario 1 (Paso 4)"
+              }
               sx={{
-                width: 150,
+                width: 170,
                 '& .MuiInputBase-input': {
                   textAlign: 'right',
                   p: '8px 10px',
+                  backgroundColor: '#f5f5f5',
                   '&::placeholder': { opacity: 0.6 }
                 }
               }}
@@ -717,14 +724,32 @@ function Step2FormSection2({
             align="right"
             sx={{ 
               fontWeight: 600, 
-              backgroundColor: diferencia >= 0 ? '#e8f5e9' : '#ffebee',
-              color: diferencia >= 0 ? '#2e7d32' : '#c62828'
+              backgroundColor: diferencia >= 0 || isExtensionSolidaria ? '#e8f5e9' : '#ffebee',
+              color: diferencia >= 0 || isExtensionSolidaria ? '#2e7d32' : '#c62828'
             }}
           >
             {formatCurrency(diferencia)}
           </TableCell>
           <TableCell></TableCell>
         </TableRow>
+        {!isExtensionSolidaria && diferencia < 0 && (
+          <TableRow>
+            <TableCell colSpan={5} sx={{ backgroundColor: '#fff3e0', py: 1.5, px: 2 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: '#c62828' }}>
+                ⚠️ La diferencia entre ingresos y gastos no puede ser negativa para actividades que no son de extensión solidaria. Los ingresos deben cubrir o superar los gastos (incluyendo el 3% de imprevistos) para poder avanzar.
+              </Typography>
+            </TableCell>
+          </TableRow>
+        )}
+        {isExtensionSolidaria && (
+          <TableRow>
+            <TableCell colSpan={5} sx={{ backgroundColor: '#f0fdf4', py: 1, px: 2 }}>
+              <Typography variant="caption" sx={{ color: '#166534', fontWeight: 500 }}>
+                ℹ️ Actividad de extensión solidaria: los ingresos se fijan en $0 y la diferencia negativa es permitida para continuar el trámite.
+              </Typography>
+            </TableCell>
+          </TableRow>
+        )}
       </TableBody>
     </Table>
   );
@@ -734,6 +759,7 @@ function Step2FormSection2({
 Step2FormSection2.propTypes = {
   formData: PropTypes.shape({
     extension_solidaria: PropTypes.string,
+    valor_inscripcion: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     ingresos_cantidad: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     ingresos_vr_unit: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     imprevistos_porcentaje: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),

@@ -8,7 +8,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CheckIcon from '@mui/icons-material/Check';
 import WifiOffIcon from '@mui/icons-material/WifiOff'; 
 import { styled } from '@mui/system';
-import { useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Step1FormSection2 from './Step1FormSection2';
 import Step2FormSection2 from './Step2FormSection2';
 import Step3FormSection2 from './Step3FormSection2';
@@ -74,7 +74,7 @@ const API_URL = config.API_URL;
   );
   
 
-function FormSection2({ formData, setFormData: setParentFormData, handleInputChange, setCurrentSection, userData, totalAportesUnivalle, currentStep, validateStep, formId, observationProps }) {
+function FormSection2({ formData, setFormData: setParentFormData, handleInputChange, handleFileChange, setCurrentSection, userData, totalAportesUnivalle, currentStep, validateStep, formId, observationProps }) {
   
   const steps = ['Datos Generales', 'Ingresos y Gastos', 'Resumen Financiero'];
 
@@ -82,7 +82,10 @@ function FormSection2({ formData, setFormData: setParentFormData, handleInputCha
   const [extraExpenses, setExtraExpenses] = useState([]); 
   const id_usuario = userData?.id;
   const location = useLocation();
-  const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); 
+  const navigate = useNavigate();
+  const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud'));
+  const targetSolId = new URLSearchParams(location.search).get('solicitud') || idSolicitud || formData?.id_solicitud || localStorage.getItem('id_solicitud') || '';
+  const exitUrl = targetSolId ? ('/?solicitud=' + targetSolId) : '/'; 
   const [isLoading, setIsLoading] = useState(false); 
   const [showModal, setShowModal] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
@@ -95,6 +98,8 @@ function FormSection2({ formData, setFormData: setParentFormData, handleInputCha
   const isReadOnly = new URLSearchParams(location.search).get('readOnly') === '1';
   const currentUserId = userData?.id || userData?.id_usuario || '';
   const isAdminUser = String(userData?.role || '').toLowerCase() === 'admin';
+  const userRole = String(userData?.role || userData?.rol || '').trim().toLowerCase();
+  const isSolicitante = !userRole || userRole === 'solicitante';
   const [revisionStatusData, setRevisionStatusData] = useState(null);
   const [revisionActionLoading, setRevisionActionLoading] = useState(false);
   const [correctionComment, setCorrectionComment] = useState('');
@@ -109,15 +114,15 @@ function FormSection2({ formData, setFormData: setParentFormData, handleInputCha
   }, [currentStep]);
   const hasUnsavedChanges = JSON.stringify(formData || {}) !== initialFormDataRef.current;
   const handleExit = useCallback(() => {
-    if (isReadOnly || !hasUnsavedChanges) return window.location.href = '/';
+    if (isReadOnly || !hasUnsavedChanges) return navigate(exitUrl);
     setExitDialogOpen(true);
-  }, [isReadOnly, hasUnsavedChanges]);
+  }, [isReadOnly, hasUnsavedChanges, exitUrl, navigate]);
   useEffect(() => {
     const handleHeaderExit = () => handleExit();
     window.addEventListener('form:request-exit', handleHeaderExit);
     return () => window.removeEventListener('form:request-exit', handleHeaderExit);
   }, [handleExit]);
-  const handleExitWithoutSaving = () => { setExitDialogOpen(false); window.location.href = '/'; };
+  const handleExitWithoutSaving = () => { setExitDialogOpen(false); navigate(exitUrl); };
   const handleSaveAndExit = async () => {
     setExitDialogOpen(false);
     const previousStatus = estadoFormularios?.[String(formId)] || '';
@@ -128,7 +133,7 @@ function FormSection2({ formData, setFormData: setParentFormData, handleInputCha
       id_solicitud: idSolicitud, etapa_actual: 2, paso_actual: steps.length,
       estado_formularios: { ...estadoFormularios, '2': previousStatus },
     });
-    window.location.href = '/';
+    navigate(exitUrl);
   };
 
   // Define setFormData updating parent state directly so readOnly hydration works too
@@ -268,16 +273,20 @@ function FormSection2({ formData, setFormData: setParentFormData, handleInputCha
   const isExtensionSolidaria = String(formData.extension_solidaria || '').trim().toLowerCase() === 'si';
 
   useEffect(() => {
-    if (!isExtensionSolidaria) return;
-
-    if (Number(formData.ingresos_cantidad || 0) !== 0) {
-      handleInputChange({ target: { name: 'ingresos_cantidad', value: 0 } });
+    if (isExtensionSolidaria) {
+      if (Number(formData.ingresos_cantidad || 0) !== 0) {
+        handleInputChange({ target: { name: 'ingresos_cantidad', value: 0 } });
+      }
+      if (Number(formData.ingresos_vr_unit || 0) !== 0) {
+        handleInputChange({ target: { name: 'ingresos_vr_unit', value: 0 } });
+      }
+    } else {
+      const valorInscripcionForm1 = Number(formData.valor_inscripcion || 0);
+      if (Number(formData.ingresos_vr_unit || 0) !== valorInscripcionForm1) {
+        handleInputChange({ target: { name: 'ingresos_vr_unit', value: valorInscripcionForm1 } });
+      }
     }
-
-    if (Number(formData.ingresos_vr_unit || 0) !== 0) {
-      handleInputChange({ target: { name: 'ingresos_vr_unit', value: 0 } });
-    }
-  }, [formData.ingresos_cantidad, formData.ingresos_vr_unit, handleInputChange, isExtensionSolidaria]);
+  }, [formData.ingresos_cantidad, formData.ingresos_vr_unit, formData.valor_inscripcion, handleInputChange, isExtensionSolidaria]);
 
   useEffect(() => {
     if (Number(formData.facultad_instituto_porcentaje || 0) !== 5) {
@@ -862,7 +871,21 @@ const handleNext = async () => {
           formulario: 'Formulario 2'
         };
         break;
-      case 1:
+      case 1: {
+    const ingresosCantidadCheck = isExtensionSolidaria ? 0 : (parseInt(formData.ingresos_cantidad, 10) || 0);
+    const ingresosVrUnitCheck = isExtensionSolidaria ? 0 : (parseInt(formData.ingresos_vr_unit || formData.valor_inscripcion, 10) || 0);
+    const totalIngresosCheck = ingresosCantidadCheck * ingresosVrUnitCheck;
+    const subtotalGastosCheck = Number(totalGastos) || 0;
+    const imprevistosCheck = subtotalGastosCheck * 0.03;
+    const totalGastosImprevistosCheck = subtotalGastosCheck + imprevistosCheck;
+    const diferenciaCheck = totalIngresosCheck - totalGastosImprevistosCheck;
+
+    if (!isExtensionSolidaria && diferenciaCheck < 0) {
+      alert("La diferencia entre ingresos y gastos no puede ser negativa para actividades que no son de extensión solidaria. Los ingresos deben cubrir o superar los gastos (incluyendo el 3% de imprevistos) para poder avanzar.");
+      setIsLoading(false);
+      return;
+    }
+
   try {
     // 1. Primero guardar los gastos en la hoja GASTOS
     await handleSaveGastos();
@@ -890,6 +913,13 @@ const handleNext = async () => {
     
     // Calcular exactamente 3% para imprevistos
     const imprevistos_3 = subtotal_gastos * 0.03; 
+    const diferenciaCalculada = total_ingresos - (subtotal_gastos + imprevistos_3);
+
+    if (!isExtensionSolidaria && diferenciaCalculada < 0) {
+      alert("La diferencia entre ingresos y gastos no puede ser negativa para actividades que no son de extensión solidaria. Los ingresos deben cubrir o superar los gastos (incluyendo el 3% de imprevistos) para poder avanzar.");
+      setIsLoading(false);
+      return;
+    }
     
     pasoData = {
       ingresos_cantidad: ingresos_cantidad,
@@ -899,7 +929,7 @@ const handleNext = async () => {
       'imprevistos_3%': 3, // Porcentaje fijo
       imprevistos_3: imprevistos_3,
       total_gastos_imprevistos: subtotal_gastos + imprevistos_3,
-      diferencia: total_ingresos - (subtotal_gastos + imprevistos_3)
+      diferencia: diferenciaCalculada
     };
     
     console.log("Guardando en SOLICITUDES2 con subtotal_gastos calculado del servidor:", subtotal_gastos);
@@ -926,6 +956,7 @@ const handleNext = async () => {
     };
   }
   break;
+}
       case 2: {
         // Datos del paso 3 (Aportes y Resumen Financiero)
         const ingresos_cantidad_p3 = ingresosCantidadValue;
@@ -963,6 +994,7 @@ const handleNext = async () => {
           facultad_instituto: facultad_instituto_p3,
           escuela_departamento: escuela_departamento_p3,
           total_recursos: total_recursos_p3,
+          diferencia: diferencia_p3,
           
           // Observaciones
           observaciones: formData.observaciones || ''
@@ -1085,6 +1117,15 @@ const handleNext = async () => {
       
       // Calcular valores monetarios basados en porcentajes
       const fondo_comun_porcentaje = parseFloat(formData.fondo_comun_porcentaje) || 30;
+      const isFondoComunModificado = Math.round(Number(fondo_comun_porcentaje) * 100) / 100 !== 30;
+      const hasSoporteAdjunto = Boolean(formData.soporte || formData.url_soporte_fondo || formData.archivo_fondo_comun);
+
+      if (isFondoComunModificado && !hasSoporteAdjunto) {
+        alert("El valor del fondo común fue modificado (diferente a 30%). Es obligatorio adjuntar un archivo PDF como soporte para continuar.");
+        setIsLoading(false);
+        return;
+      }
+
       const facultad_instituto_porcentaje = 5;
       const escuela_departamento_porcentaje = parseFloat(formData.escuela_departamento_porcentaje) || 0;
       
@@ -1092,7 +1133,7 @@ const handleNext = async () => {
       const facultad_instituto = total_ingresos * (facultad_instituto_porcentaje / 100);
       const escuela_departamento = total_ingresos * (escuela_departamento_porcentaje / 100);
       const total_recursos = fondo_comun + facultad_instituto + escuela_departamento;
-      const shouldIncludeArchivoFondoComun = fondo_comun_porcentaje > 30;
+      const currentSoporteUrl = typeof formData.soporte === 'string' ? formData.soporte : (formData.url_soporte_fondo || formData.archivo_fondo_comun || '');
 
       const basePaso3Data = mergeWithPersistedStepData({
         fondo_comun_porcentaje,
@@ -1103,47 +1144,90 @@ const handleNext = async () => {
         escuela_departamento,
         total_recursos,
         observaciones: formData.observaciones || '',
-        archivo_fondo_comun: shouldIncludeArchivoFondoComun
-          ? (formData.archivo_fondo_comun || '')
-          : '',
+        archivo_fondo_comun: isFondoComunModificado ? currentSoporteUrl : '',
+        url_soporte_fondo: isFondoComunModificado ? currentSoporteUrl : '',
       });
       
       // 1. Primero intentar con el endpoint específico para el paso 3
       try {
-        const paso3Response = await axios.post(`${API_URL}/guardarForm2Paso3`, {
-          id_solicitud: idSolicitud,
-          id_usuario: userData.id,
-          name: userData.name,
+        let paso3Response;
+        if (formData.soporte instanceof File) {
+          const payload = new FormData();
+          payload.append('id_solicitud', idSolicitud);
+          payload.append('id_usuario', userData?.id || '');
+          payload.append('name', userData?.name || '');
+          payload.append('fondo_comun_porcentaje', String(basePaso3Data.fondo_comun_porcentaje));
+          payload.append('facultad_instituto_porcentaje', String(basePaso3Data.facultad_instituto_porcentaje));
+          payload.append('escuela_departamento_porcentaje', String(basePaso3Data.escuela_departamento_porcentaje));
+          payload.append('fondo_comun', String(basePaso3Data.fondo_comun));
+          payload.append('facultad_instituto', String(basePaso3Data.facultad_instituto));
+          payload.append('escuela_departamento', String(basePaso3Data.escuela_departamento));
+          payload.append('total_recursos', String(basePaso3Data.total_recursos));
+          payload.append('observaciones', String(basePaso3Data.observaciones));
+          payload.append('total_ingresos', String(total_ingresos));
+          payload.append('ingresos_cantidad', String(ingresos_cantidad));
+          payload.append('ingresos_vr_unit', String(ingresos_vr_unit));
+          payload.append('subtotal_gastos', String(subtotal_gastos));
+          payload.append('imprevistos_porcentaje', String(imprevistos_porcentaje));
+          payload.append('imprevistos_3', String(imprevistos_3));
+          payload.append('total_gastos_imprevistos', String(subtotal_gastos + imprevistos_3));
+          payload.append('diferencia', String(total_ingresos - (subtotal_gastos + imprevistos_3)));
+          payload.append('soporte', formData.soporte);
+          payload.append('url_soporte_fondo', formData.soporte);
+          payload.append('archivo_fondo_comun', formData.soporte);
 
-          // Porcentajes
-          fondo_comun_porcentaje: basePaso3Data.fondo_comun_porcentaje,
-          facultad_instituto_porcentaje: basePaso3Data.facultad_instituto_porcentaje,
-          escuela_departamento_porcentaje: basePaso3Data.escuela_departamento_porcentaje,
-
-          // Valores monetarios
-          fondo_comun: basePaso3Data.fondo_comun,
-          facultad_instituto: basePaso3Data.facultad_instituto,
-          escuela_departamento: basePaso3Data.escuela_departamento,
-          total_recursos: basePaso3Data.total_recursos,
-
-          // Observaciones y soporte documental
-          observaciones: basePaso3Data.observaciones,
-          archivo_fondo_comun: basePaso3Data.archivo_fondo_comun,
-
-          // Datos adicionales para contexto
-          total_ingresos,
-          ingresos_cantidad,
-          ingresos_vr_unit,
-          subtotal_gastos,
-          imprevistos_porcentaje,
-          imprevistos_3,
-          total_gastos_imprevistos: subtotal_gastos + imprevistos_3,
-          diferencia: total_ingresos - (subtotal_gastos + imprevistos_3),
-        });
+          paso3Response = await axios.post(`${API_URL}/guardarForm2Paso3`, payload, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+        } else {
+          paso3Response = await axios.post(`${API_URL}/guardarForm2Paso3`, {
+            id_solicitud: idSolicitud,
+            id_usuario: userData.id,
+            name: userData.name,
+            fondo_comun_porcentaje: basePaso3Data.fondo_comun_porcentaje,
+            facultad_instituto_porcentaje: basePaso3Data.facultad_instituto_porcentaje,
+            escuela_departamento_porcentaje: basePaso3Data.escuela_departamento_porcentaje,
+            fondo_comun: basePaso3Data.fondo_comun,
+            facultad_instituto: basePaso3Data.facultad_instituto,
+            escuela_departamento: basePaso3Data.escuela_departamento,
+            total_recursos: basePaso3Data.total_recursos,
+            observaciones: basePaso3Data.observaciones,
+            archivo_fondo_comun: basePaso3Data.archivo_fondo_comun,
+            url_soporte_fondo: basePaso3Data.url_soporte_fondo,
+            total_ingresos,
+            ingresos_cantidad,
+            ingresos_vr_unit,
+            subtotal_gastos,
+            imprevistos_porcentaje,
+            imprevistos_3,
+            total_gastos_imprevistos: subtotal_gastos + imprevistos_3,
+            diferencia: total_ingresos - (subtotal_gastos + imprevistos_3),
+          });
+        }
 
         console.log('Respuesta del endpoint específico:', paso3Response.data);
 
         if (paso3Response.data && paso3Response.data.success) {
+          if (paso3Response.data.url_soporte_fondo) {
+            const uploadedUrl = paso3Response.data.url_soporte_fondo;
+            setFormData(prev => ({
+              ...prev,
+              soporte: uploadedUrl,
+              url_soporte_fondo: uploadedUrl,
+              archivo_fondo_comun: uploadedUrl
+            }));
+            try {
+              const savedFormData = JSON.parse(localStorage.getItem('formData') || '{}');
+              localStorage.setItem('formData', JSON.stringify({
+                ...savedFormData,
+                soporte: uploadedUrl,
+                url_soporte_fondo: uploadedUrl,
+                archivo_fondo_comun: uploadedUrl
+              }));
+            } catch (storageErr) {
+              console.warn('Error al actualizar localStorage con url_soporte_fondo:', storageErr);
+            }
+          }
           localStorage.setItem(`form2_completed_${idSolicitud}`, 'true');
           setShowModal(true);
           setIsLoading(false);
@@ -1166,9 +1250,10 @@ const handleNext = async () => {
         escuela_departamento: basePaso3Data.escuela_departamento,
         total_recursos: basePaso3Data.total_recursos,
         
-        // Observaciones
+        // Observaciones y soportes
         observaciones: basePaso3Data.observaciones,
         archivo_fondo_comun: basePaso3Data.archivo_fondo_comun,
+        url_soporte_fondo: basePaso3Data.url_soporte_fondo,
       };
 
       const pasoDataSafe = mergeWithPersistedStepData(pasoData);
@@ -1209,6 +1294,26 @@ const handleNext = async () => {
       console.log('📥 Form2 guardarProgreso response:', response?.data);
       
       if (response.data && response.data.success) {
+        if (response.data.url_soporte_fondo) {
+          const uploadedUrl = response.data.url_soporte_fondo;
+          setFormData(prev => ({
+            ...prev,
+            soporte: uploadedUrl,
+            url_soporte_fondo: uploadedUrl,
+            archivo_fondo_comun: uploadedUrl
+          }));
+          try {
+            const savedFormData = JSON.parse(localStorage.getItem('formData') || '{}');
+            localStorage.setItem('formData', JSON.stringify({
+              ...savedFormData,
+              soporte: uploadedUrl,
+              url_soporte_fondo: uploadedUrl,
+              archivo_fondo_comun: uploadedUrl
+            }));
+          } catch (storageErr) {
+            console.warn('Error al actualizar localStorage con url_soporte_fondo:', storageErr);
+          }
+        }
         // Actualizar estado local
         localStorage.setItem(`form2_completed_${idSolicitud}`, 'true');
         
@@ -1248,7 +1353,17 @@ const handleNext = async () => {
           onExtraExpensesChange={handleExtraExpensesChange}
         />;
       case 2:
-        return <Step3FormSection2 formData={formData} handleInputChange={handleInputChange} totalIngresos={formData.total_ingresos || 0}  totalAportesUnivalle={totalAportesUnivalle || 0} totalGastos={totalGastos} />;
+        return (
+          <Step3FormSection2
+            formData={formData}
+            handleInputChange={handleInputChange}
+            handleFileChange={handleFileChange}
+            totalIngresos={formData.total_ingresos || 0}
+            totalAportesUnivalle={totalAportesUnivalle || 0}
+            totalGastos={totalGastos}
+            isReadOnly={isReadOnly}
+          />
+        );
       default:
         return null;
     }
@@ -1558,37 +1673,40 @@ useEffect(() => {
           Atrás
         </Button>
         <Button
-          variant="outlined"
+          variant="contained"
           color="secondary"
           onClick={handleExit}
+          sx={{ color: '#fff' }}
         >
           Volver al inicio
         </Button>
-        <Button variant="contained"
-          color="primary" 
-          onClick={
-            isReadOnly
-              ? () => {
-                  if (activeStep < steps.length - 1) {
-                    setActiveStep((prev) => prev + 1);
+        {(activeStep < steps.length - 1 || isSolicitante) && (
+          <Button variant="contained"
+            color="primary" 
+            onClick={
+              isReadOnly
+                ? () => {
+                    if (activeStep < steps.length - 1) {
+                      setActiveStep((prev) => prev + 1);
+                    }
                   }
-                }
-              : activeStep === steps.length - 1
-                ? handleSubmit
-                : handleNext
-          }
-          disabled={
-            isLoading ||
-            isLockedByRevision ||
-            (isReadOnly ? activeStep === steps.length - 1 : isNextButtonBlocked)
-          }
-          startIcon={isLoading ? <CircularProgress size={20} /> : null}
-          >
-          {activeStep === steps.length - 1
-            ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
-            : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
-        </Button>
-        {nextCooldownRemaining > 0 && (
+                : activeStep === steps.length - 1
+                  ? handleSubmit
+                  : handleNext
+            }
+            disabled={
+              isLoading ||
+              isLockedByRevision ||
+              (isReadOnly ? activeStep === steps.length - 1 : isNextButtonBlocked)
+            }
+            startIcon={isLoading ? <CircularProgress size={20} /> : null}
+            >
+            {activeStep === steps.length - 1
+              ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
+              : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
+          </Button>
+        )}
+        {nextCooldownRemaining > 0 && (activeStep < steps.length - 1 || isSolicitante) && (
           <Typography variant="caption" color="warning.main" sx={{ width: '100%', textAlign: 'right', mt: 1 }}>
             Esperar por un minuto para evitar errores con el servidor
           </Typography>

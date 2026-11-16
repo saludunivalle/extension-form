@@ -8,6 +8,7 @@ import Layout from './components/Layout';
 import Cookies from 'js-cookie';
 import {config} from './config';
 import { clearAuthSession, isGoogleTokenExpired } from './services/authToken';
+import { userService } from './services/api';
 function App() {
   const [isLogged, setIsLogged] = useState(false);
   const [userData, setUserData] = useState();
@@ -34,6 +35,19 @@ function App() {
         
         setIsLogged(true);
         setUserData(user);
+
+        if (user && user.id) {
+          userService.saveUser(user)
+            .then((res) => {
+              const freshRole = res?.userInfo?.role || res?.role;
+              if (freshRole && freshRole !== user.role) {
+                const updatedUser = { ...user, role: freshRole };
+                setUserData(updatedUser);
+                localStorage.setItem('user_data', JSON.stringify(updatedUser));
+              }
+            })
+            .catch(() => {});
+        }
       } catch (error) {
         console.error('Error al parsear el token:', error);
         setIsLogged(false);

@@ -74,6 +74,16 @@ export const deleteWorkflowObservation = async (idSolicitud, observationId) => {
   return response.data;
 };
 
+export const addWorkflowObservationComment = async (idSolicitud, observationId, comment) => {
+  const response = await workflowClient.post(`/workflow/${idSolicitud}/observaciones/${observationId}/comentarios`, comment);
+  return response.data;
+};
+
+export const deleteWorkflowObservationComment = async (idSolicitud, observationId, commentId) => {
+  const response = await workflowClient.delete(`/workflow/${idSolicitud}/observaciones/${observationId}/comentarios/${commentId}`);
+  return response.data;
+};
+
 export const registerWorkflowSignature = async (idSolicitud, {
   file,
   observaciones = '',
@@ -86,6 +96,14 @@ export const registerWorkflowSignature = async (idSolicitud, {
   const response = await workflowClient.post(`/workflow/${idSolicitud}/firma`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+  return response.data;
+};
+
+export const deleteWorkflowSignature = async (idSolicitud, tipoFirma = '') => {
+  const url = tipoFirma
+    ? `/workflow/${idSolicitud}/firma/${tipoFirma}`
+    : `/workflow/${idSolicitud}/firma`;
+  const response = await workflowClient.delete(url);
   return response.data;
 };
 
@@ -106,11 +124,13 @@ export const sendWorkflowRequestToDecanato = async (idSolicitud, {
   destinatariosDecanato = [],
   asuntoDecanato = '',
   cuerpoDecanato = '',
+  notasPdf = '',
 } = {}) => {
   const response = await workflowClient.post(`/workflow/${idSolicitud}/enviar-decanato`, {
     destinatarios_decanato: destinatariosDecanato,
     asunto_decanato: asuntoDecanato,
     cuerpo_decanato: cuerpoDecanato,
+    notas_pdf: notasPdf,
   });
   return response.data;
 };
@@ -141,9 +161,11 @@ export const submitDecanatoCut = async ({ idSolicitud, resultado, observaciones 
   return response.data;
 };
 
-export const getWorkflowFormPdf = async (idSolicitud, formNumber, { download = false } = {}) => {
+export const getWorkflowFormPdf = async (idSolicitud, formNumber, { download = false, notas = '' } = {}) => {
+  const params = { download: download ? 1 : 0 };
+  if (notas) params.notas = notas;
   const response = await workflowClient.get(`/workflow/${idSolicitud}/formulario/${formNumber}/pdf`, {
-    params: { download: download ? 1 : 0 },
+    params,
     responseType: 'blob',
   });
   const blob = new Blob([response.data], { type: 'application/pdf' });
@@ -160,6 +182,28 @@ export const getWorkflowFormPdf = async (idSolicitud, formNumber, { download = f
     window.open(url, '_blank');
   }
   return true;
+};
+
+export const saveWorkflowDecanatoNotes = async (idSolicitud, {
+  notasPdf = '',
+  incluirHistorial = false,
+} = {}) => {
+  const response = await workflowClient.post(`/workflow/${idSolicitud}/guardar-notas-decanato`, {
+    notas_pdf: notasPdf,
+    incluir_historial: incluirHistorial,
+  });
+  return response.data;
+};
+
+export const confirmWorkflowPlataformaDecanato = async (idSolicitud, {
+  notasPdf = '',
+  comentario = '',
+} = {}) => {
+  const response = await workflowClient.post(`/workflow/${idSolicitud}/confirmar-plataforma-decanato`, {
+    notas_pdf: notasPdf,
+    comentario: comentario,
+  });
+  return response.data;
 };
 
 export const getWorkflowSignatureImage = async (idSolicitud, tipoFirma) => {

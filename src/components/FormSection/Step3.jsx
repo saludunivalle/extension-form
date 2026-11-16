@@ -4,20 +4,26 @@ import { useEffect } from 'react';
 
 function Step3({ formData, setFormData, errors  }) {
 
-  // useEffect para recalcular el total de horas automáticamente
+  // useEffect para recalcular el total de horas y créditos automáticamente
   useEffect(() => {
     const horasDependientes = parseInt(formData.horas_trabajo_presencial, 10) || 0;
     const horasIndependientes = parseInt(formData.horas_sincronicas, 10) || 0;
     const total = horasDependientes + horasIndependientes;
+    const calculatedCreditos = total >= 48 ? Math.min(50, Math.floor(total / 48)) : 0;
 
-    // Solo actualizar si el total es diferente al actual
-    if (total !== (parseInt(formData.total_horas, 10) || 0)) {
+    const currentTotal = parseInt(formData.total_horas, 10) || 0;
+    const currentCreditos = formData.creditos !== undefined && formData.creditos !== null && formData.creditos !== ''
+      ? Number(formData.creditos)
+      : null;
+
+    if (total !== currentTotal || currentCreditos !== calculatedCreditos) {
       setFormData(prev => ({
         ...prev,
-        total_horas: total
+        total_horas: total,
+        creditos: calculatedCreditos
       }));
     }
-  }, [formData.horas_trabajo_presencial, formData.horas_sincronicas, formData.total_horas, setFormData]);
+  }, [formData.horas_trabajo_presencial, formData.horas_sincronicas, formData.total_horas, formData.creditos, setFormData]);
 
   const handleCustomInputChange = (event) => {
     const { name, value } = event.target;
@@ -195,33 +201,20 @@ function Step3({ formData, setFormData, errors  }) {
                 label="Créditos"
                 fullWidth
                 name="creditos"
-                value={formData.creditos}
-                type="number" 
-                inputProps={{
-                  min: 0,
-                  max: 50,
-                  onKeyPress: (e) => {
-                    if (e.key === '-') e.preventDefault();
-                  }
+                value={formData.creditos !== undefined && formData.creditos !== null ? formData.creditos : 0}
+                type="number"
+                InputProps={{
+                  readOnly: true,
                 }}
-                onChange={(e) => {
-                  let value = e.target.value;
-                  // Limitar máximo a 50
-                  if (value > 50) value = 50;
-                  // Convertir a número y validar
-                  const numericValue = Math.max(0, Math.min(50, parseInt(value)));
-                  handleCustomInputChange({
-                    target: {
-                      name: "creditos",
-                      value: numericValue
-                    }
-                  });
-                }} 
-                required
+                disabled={true}
                 error={!!errors.creditos}
-                helperText={errors.creditos || "Máximo 50 créditos"}
-                
-                />
+                helperText={
+                  errors.creditos ||
+                  ((Number(formData.total_horas) || 0) < 48
+                    ? "Mínimo 48 horas para 1 crédito (48h = 1 crédito). Créditos: 0"
+                    : `Calculado automáticamente (48h = 1 crédito): ${formData.creditos || 0} crédito(s)`)
+                }
+              />
             </Grid>
 
             <Grid item xs={1.5}>
