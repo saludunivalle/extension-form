@@ -97,6 +97,8 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
   const [highestStepReached, setHighestStepReached] = useState(0); // Máximo paso alcanzado
   
   const [idSolicitud, setIdSolicitud] = useState(localStorage.getItem('id_solicitud')); // Usa el id_solicitud del localStorage
+  const targetSolId = new URLSearchParams(location.search).get('solicitud') || idSolicitud || formData?.id_solicitud || localStorage.getItem('id_solicitud') || '';
+  const exitUrl = targetSolId ? ('/?solicitud=' + targetSolId) : '/';
 
   const { maxAllowedStep, loading: navLoading, error: navError, isStepAllowed,
     updateMaxAllowedStep, formularioCompleto, estadoFormularios } = 
@@ -107,6 +109,8 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
   const isReadOnly = new URLSearchParams(location.search).get('readOnly') === '1';
   const currentUserId = userData?.id || userData?.id_usuario || '';
   const isAdminUser = String(userData?.role || '').toLowerCase() === 'admin';
+  const userRole = String(userData?.role || userData?.rol || '').trim().toLowerCase();
+  const isSolicitante = !userRole || userRole === 'solicitante';
   const [revisionStatusData, setRevisionStatusData] = useState(null);
   const [revisionActionLoading, setRevisionActionLoading] = useState(false);
   const [correctionComment, setCorrectionComment] = useState('');
@@ -120,15 +124,15 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
   const initialFormDataRef = useRef(JSON.stringify(formData || {}));
   const hasUnsavedChanges = JSON.stringify(formData || {}) !== initialFormDataRef.current;
   const handleExit = useCallback(() => {
-    if (isReadOnly || !hasUnsavedChanges) return navigate('/');
+    if (isReadOnly || !hasUnsavedChanges) return navigate(exitUrl);
     setUnsavedExitDialogOpen(true);
-  }, [isReadOnly, hasUnsavedChanges, navigate]);
+  }, [isReadOnly, hasUnsavedChanges, navigate, exitUrl]);
   useEffect(() => {
     const handleHeaderExit = () => handleExit();
     window.addEventListener('form:request-exit', handleHeaderExit);
     return () => window.removeEventListener('form:request-exit', handleHeaderExit);
   }, [handleExit]);
-  const handleExitWithoutSaving = () => { setUnsavedExitDialogOpen(false); navigate('/'); };
+  const handleExitWithoutSaving = () => { setUnsavedExitDialogOpen(false); navigate(exitUrl); };
   const handleSaveAndExit = async () => {
     setUnsavedExitDialogOpen(false);
     const previousStatus = estadoFormularios?.[String(formId)] || '';
@@ -139,7 +143,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
       id_solicitud: idSolicitud, etapa_actual: 4, paso_actual: steps.length,
       estado_formularios: { ...estadoFormularios, '4': previousStatus || 'Completado' },
     });
-    navigate('/');
+    navigate(exitUrl);
   };
 
   const startNextCooldown = useCallback(() => {
@@ -1088,7 +1092,7 @@ function FormSection4({ formData, handleInputChange, userData, currentStep, form
 
   const handleCloseModal = () => {
     setOpenModal(false);
-    navigate('/');
+    navigate(exitUrl);
   };
   
   const handleExitClick = () => {
@@ -1303,38 +1307,41 @@ const PrintReportButton = () => {
           </Button>
         )}
         <Button
-          variant="outlined"
+          variant="contained"
           color="secondary"
           onClick={handleExit}
+          sx={{ color: '#fff' }}
         >
           Volver al inicio
         </Button>
-        <Button 
-          variant="contained" 
-          color="primary" 
-          onClick={
-            isReadOnly
-              ? () => {
-                  if (activeStep < steps.length - 1) {
-                    setActiveStep((prev) => prev + 1);
+        {(activeStep < steps.length - 1 || isSolicitante) && (
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={
+              isReadOnly
+                ? () => {
+                    if (activeStep < steps.length - 1) {
+                      setActiveStep((prev) => prev + 1);
+                    }
                   }
-                }
-              : activeStep === steps.length - 1
-                ? handleSubmit
-                : handleNext
-          }
-          disabled={
-            isLoading ||
-            isLockedByRevision ||
-            (isReadOnly ? activeStep === steps.length - 1 : isNextButtonBlocked)
-          } 
-          startIcon={isLoading ? <CircularProgress size={20} /> : null}
-        >
-          {activeStep === steps.length - 1
-            ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
-            : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
-        </Button>
-        {nextCooldownRemaining > 0 && (
+                : activeStep === steps.length - 1
+                  ? handleSubmit
+                  : handleNext
+            }
+            disabled={
+              isLoading ||
+              isLockedByRevision ||
+              (isReadOnly ? activeStep === steps.length - 1 : isNextButtonBlocked)
+            } 
+            startIcon={isLoading ? <CircularProgress size={20} /> : null}
+          >
+            {activeStep === steps.length - 1
+              ? (nextCooldownRemaining > 0 ? `Finalizar (${formatCooldown(nextCooldownRemaining)})` : 'Finalizar')
+              : (nextCooldownRemaining > 0 ? `Siguiente (${formatCooldown(nextCooldownRemaining)})` : 'Siguiente')}
+          </Button>
+        )}
+        {nextCooldownRemaining > 0 && (activeStep < steps.length - 1 || isSolicitante) && (
           <Typography variant="caption" color="warning.main" sx={{ width: '100%', textAlign: 'right', mt: 1 }}>
             Esperar por un minuto para evitar errores con el servidor
           </Typography>
@@ -1474,7 +1481,7 @@ const PrintReportButton = () => {
             Cancelar
           </Button>
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button onClick={() => navigate('/')} color="secondary" variant="outlined">
+            <Button onClick={() => navigate(exitUrl)} color="secondary" variant="contained" sx={{ color: '#fff' }}>
               Volver al inicio
             </Button>
             <Button 
@@ -1509,7 +1516,7 @@ const PrintReportButton = () => {
             <Typography variant="h6">Formulario completado con éxito</Typography>
           </Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3, gap: 2, flexWrap: 'wrap' }}>
-            <Button onClick={() => navigate('/')} color="secondary" variant="outlined">
+            <Button onClick={() => navigate(exitUrl)} color="secondary" variant="contained" sx={{ color: '#fff' }}>
               Volver al inicio
             </Button>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>

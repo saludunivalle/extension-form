@@ -17,13 +17,13 @@ const ROLE_CONFIG = {
   revisor_2: {
     title: "Bandeja de Revisión 2",
     description:
-      "Verifica las solicitudes y atiende las devoluciones provenientes de Presupuesto.",
+      "Verifica las solicitudes, atiende devoluciones y gestiona solicitudes listas para Decanato.",
     receivedTitle: "Solicitudes asignadas a Revisión 2",
   },
   presupuesto: {
     title: "Bandeja de Presupuesto",
     description:
-      "Revisa la información financiera y devuelve observaciones a Revisión 2 cuando sea necesario.",
+      "Revisa la información financiera, aprueba solicitudes y gestiona la etapa Lista para Decanato.",
     receivedTitle: "Solicitudes para revisión presupuestal",
   },
   director: {
@@ -51,6 +51,9 @@ const normalizeRole = (role) => {
   const normalizedRole = String(role || "")
     .trim()
     .toLowerCase();
+  if (normalizedRole === "director_escuela" || normalizedRole.includes("director")) {
+    return "director";
+  }
   return ROLE_CONFIG[normalizedRole] ? normalizedRole : "solicitante";
 };
 

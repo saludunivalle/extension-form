@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Container, Typography, useMediaQuery, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button, Alert } from '@mui/material';
+import { Container, Typography, useMediaQuery, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button, Alert, Box } from '@mui/material';
 import FormSection from '../components/FormSection/FormSection';
 import FormSection2 from '../components/FormSection2/FormSection2';
 import FormSection3 from '../components/FormSection3/FormSection3';
@@ -641,7 +641,7 @@ useEffect(() => {
     total_infraestructura_fisica: '', total_gastos_generales: '',
     total_infraestructura_universitaria: '', imprevistos: '', imprevistos_porcentaje: '3', imprevistos_procentaje: '', total_aportes_univalle: '',
     fondo_comun_porcentaje: '30', facultad_instituto_porcentaje: '5', escuela_departamento_porcentaje: '0',
-    archivo_fondo_comun: '',
+    archivo_fondo_comun: '', url_soporte_fondo: '', soporte: null,
     // Hoja SOLICITUDES4
     descripcionPrograma: '', identificacionNecesidades: '', atributosBasicos: '',
     atributosDiferenciadores: '', competencia: '', programa: '',
@@ -685,7 +685,9 @@ useEffect(() => {
           total_horas: response?.data?.total_horas,
           valor_inscripcion: response?.data?.valor_inscripcion,
           pieza_grafica: response?.data?.pieza_grafica,
-          archivo_fondo_comun: response?.data?.archivo_fondo_comun,
+          archivo_fondo_comun: response?.data?.archivo_fondo_comun || response?.data?.url_soporte_fondo,
+          url_soporte_fondo: response?.data?.url_soporte_fondo || response?.data?.archivo_fondo_comun,
+          soporte: response?.data?.url_soporte_fondo || response?.data?.archivo_fondo_comun || '',
         });
 
         const normalizedData = normalizeLoadedSolicitudData(response.data);
@@ -712,6 +714,7 @@ useEffect(() => {
           valor_inscripcion: normalizedData?.valor_inscripcion,
           pieza_grafica: normalizedData?.pieza_grafica,
           archivo_fondo_comun: normalizedData?.archivo_fondo_comun,
+          url_soporte_fondo: normalizedData?.url_soporte_fondo,
         });
 
         setFormData((prev) => ({
@@ -904,8 +907,9 @@ useEffect(() => {
       }
     } else if (currentStep === 1) {
       // Validaciones para el paso 2
-      if (!formData.ingresos_cantidad) {
-        stepErrors.ingresos_cantidad = "Este campo es obligatorio";
+      const isSolidaria = String(formData.extension_solidaria || '').trim().toLowerCase() === 'si';
+      if (!isSolidaria && (!formData.ingresos_cantidad || Number(formData.ingresos_cantidad) <= 0)) {
+        stepErrors.ingresos_cantidad = "Este campo es obligatorio y debe ser mayor a 0";
       }
     }
 
@@ -1103,7 +1107,7 @@ useEffect(() => {
 
   return (
     <Container sx={{
-      marginTop: isSmallScreen ? '100px' : '130px',
+      marginTop: '0px',
       marginBottom: isSmallScreen ? '150px' : '20px',
       maxWidth: '100%',
       padding: { xs: '0 15px', sm: '0 20px' }
@@ -1117,9 +1121,29 @@ useEffect(() => {
         clickableSteps={accessibleForms.map(num => num - 1)} 
 
       />
-      <Typography variant={isSmallScreen ? 'h5' : 'h4'} gutterBottom sx={{ fontWeight: 'bold', textAlign: isSmallScreen ? 'center' : 'left' }}>
-        {sectionTitles[currentSection - 1]}
-      </Typography>
+      {Boolean(
+        isReadOnly ||
+        isFirmasOrLater ||
+        (requestStage && !['solicitud', '0', ''].includes(requestStage)) ||
+        (normalizedCurrentStage && !['solicitud', '0', ''].includes(normalizedCurrentStage)) ||
+        Object.values(estadoFormularios || {}).some((status) => {
+          const s = String(status || '').toLowerCase();
+          return s.includes('revision') || s.includes('completado') || s.includes('aprobado');
+        })
+      ) && formData?.nombre_actividad ? (
+        <Box sx={{ mb: 2, textAlign: isSmallScreen ? 'center' : 'left' }}>
+          <Typography variant={isSmallScreen ? 'h5' : 'h4'} sx={{ fontWeight: 'bold' }}>
+            {formData.nombre_actividad}
+          </Typography>
+          <Typography variant="body1" sx={{ color: 'text.secondary', mt: 0.5 }}>
+            {sectionTitles[currentSection - 1]}
+          </Typography>
+        </Box>
+      ) : (
+        <Typography variant={isSmallScreen ? 'h5' : 'h4'} gutterBottom sx={{ fontWeight: 'bold', textAlign: isSmallScreen ? 'center' : 'left' }}>
+          {sectionTitles[currentSection - 1]}
+        </Typography>
+      )}
       {isFirmasOrLater ? (
         <Alert severity="warning" sx={{ mb: 2 }}>
           Esta solicitud se encuentra en etapa de Firmas o posterior. Los formularios son documentos oficiales cerrados y se gestionan en formato PDF firmado (no editables).
