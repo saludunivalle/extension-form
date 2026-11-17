@@ -745,7 +745,7 @@ function Step2FormSection2({
           <TableRow>
             <TableCell colSpan={5} sx={{ backgroundColor: '#f0fdf4', py: 1, px: 2 }}>
               <Typography variant="caption" sx={{ color: '#166534', fontWeight: 500 }}>
-                ℹ️ Actividad de extensión solidaria: los ingresos se fijan en $0 y la diferencia negativa es permitida para continuar el trámite.
+                Actividad de extensión solidaria: los ingresos se fijan en $0 y la diferencia negativa es permitida para continuar el trámite.
               </Typography>
             </TableCell>
           </TableRow>

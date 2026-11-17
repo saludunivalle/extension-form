@@ -386,7 +386,7 @@ const API_URL = config.API_URL;
         if (!formData.extension_solidaria) stepErrors.extension_solidaria = "Debe seleccionar una opción";
         if (formData.extension_solidaria === 'si') {
           const costoSolidaria = Number(formData.costo_extension_solidaria);
-          if (Number.isNaN(costoSolidaria) || costoSolidaria < 0) {
+          if (formData.costo_extension_solidaria === '' || formData.costo_extension_solidaria === null || formData.costo_extension_solidaria === undefined || Number.isNaN(costoSolidaria) || costoSolidaria < 0) {
             stepErrors.costo_extension_solidaria = "Ingrese un valor de costo válido";
           }
         }

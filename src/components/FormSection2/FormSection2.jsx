@@ -983,6 +983,8 @@ const handleNext = async () => {
         const escuela_departamento_p3 = total_ingresos_p3 * (escuela_departamento_porcentaje_p3 / 100);
         const total_recursos_p3 = fondo_comun_p3 + facultad_instituto_p3 + escuela_departamento_p3;
         
+        // Observaciones y soportes
+        const currentSoporteUrl_p3 = typeof formData.soporte === 'string' ? formData.soporte : (formData.url_soporte_fondo || formData.archivo_fondo_comun || '');
         pasoData = {
           // Porcentajes
           fondo_comun_porcentaje: fondo_comun_porcentaje_p3,
@@ -996,8 +998,10 @@ const handleNext = async () => {
           total_recursos: total_recursos_p3,
           diferencia: diferencia_p3,
           
-          // Observaciones
-          observaciones: formData.observaciones || ''
+          // Observaciones y soportes
+          observaciones: formData.observaciones || '',
+          archivo_fondo_comun: currentSoporteUrl_p3,
+          url_soporte_fondo: currentSoporteUrl_p3
         };
         break;
       }
@@ -1173,12 +1177,8 @@ const handleNext = async () => {
           payload.append('total_gastos_imprevistos', String(subtotal_gastos + imprevistos_3));
           payload.append('diferencia', String(total_ingresos - (subtotal_gastos + imprevistos_3)));
           payload.append('soporte', formData.soporte);
-          payload.append('url_soporte_fondo', formData.soporte);
-          payload.append('archivo_fondo_comun', formData.soporte);
 
-          paso3Response = await axios.post(`${API_URL}/guardarForm2Paso3`, payload, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
+          paso3Response = await axios.post(`${API_URL}/guardarForm2Paso3`, payload);
         } else {
           paso3Response = await axios.post(`${API_URL}/guardarForm2Paso3`, {
             id_solicitud: idSolicitud,
@@ -1288,9 +1288,22 @@ const handleNext = async () => {
         facultad_instituto_porcentaje,
         escuela_departamento_porcentaje,
         archivo_fondo_comun: pasoDataSafe?.archivo_fondo_comun,
+        url_soporte_fondo: pasoDataSafe?.url_soporte_fondo,
       });
 
-      const response = await axios.post(`${API_URL}/guardarProgreso`, dataToSend);
+      let response;
+      if (formData.soporte instanceof File) {
+        const progressPayload = new FormData();
+        Object.entries(dataToSend).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            progressPayload.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+          }
+        });
+        progressPayload.append('soporte', formData.soporte);
+        response = await axios.post(`${API_URL}/guardarProgreso`, progressPayload);
+      } else {
+        response = await axios.post(`${API_URL}/guardarProgreso`, dataToSend);
+      }
       console.log('📥 Form2 guardarProgreso response:', response?.data);
       
       if (response.data && response.data.success) {
