@@ -247,14 +247,19 @@ function Step5({ formData, handleInputChange, errors, setFormData}) {
       {formData.extension_solidaria === 'si' && (
         <Grid item xs={12}>
           <TextField
-            label="Si se cobrase el curso, ¿cuanto costaria? (COP)"
+            label="Si se cobrase el curso, ¿cuánto costaría? (COP)"
             fullWidth
             name="costo_extension_solidaria"
-            type="number"
+            type="text"
             value={formData.costo_extension_solidaria ?? ''}
+            onFocus={(e) => {
+              if (formData.costo_extension_solidaria === 0 || formData.costo_extension_solidaria === '0') {
+                e.target.select();
+              }
+            }}
             onChange={(e) => {
               const rawValue = e.target.value.replace(/[^0-9]/g, '');
-              const numericValue = rawValue === '' ? 0 : parseInt(rawValue, 10);
+              const numericValue = rawValue === '' ? '' : parseInt(rawValue, 10);
               handleInputChange({
                 target: {
                   name: e.target.name,
@@ -266,11 +271,15 @@ function Step5({ formData, handleInputChange, errors, setFormData}) {
               inputMode: 'numeric',
               pattern: '[0-9]*',
             }}
+            placeholder="0"
             error={!!errors.costo_extension_solidaria}
             helperText={
-              formData.costo_extension_solidaria === 0
-                ? 'El programa es sin costo'
-                : `Valor estimado: $${new Intl.NumberFormat('es-CO').format(formData.costo_extension_solidaria || 0)} COP`
+              errors.costo_extension_solidaria ||
+              (formData.costo_extension_solidaria === 0 || formData.costo_extension_solidaria === '0'
+                ? 'El programa es sin costo ($0 COP)'
+                : formData.costo_extension_solidaria
+                ? `Valor estimado: $${new Intl.NumberFormat('es-CO').format(Number(formData.costo_extension_solidaria))} COP`
+                : 'Ingrese el valor estimado si se cobrase el curso')
             }
           />
         </Grid>
