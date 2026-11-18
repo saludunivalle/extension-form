@@ -165,11 +165,51 @@ const sortHistoryDesc = (historyList) => {
   });
 };
 
-const formatRequestSubheader = (request) => {
-  const fecha = request.fecha_solicitud || "Sin fecha";
-  const dependencia = String(request.nombre_dependencia || "")
+const getRequestDependencia = (request) => {
+  const raw =
+    request?.nombre_dependencia ||
+    request?.nombreDependencia ||
+    request?.SOLICITUDES?.nombre_dependencia ||
+    request?.SOLICITUDES?.nombreDependencia ||
+    "";
+  return String(raw)
     .replace(/^dependencia:\s*/i, "")
     .trim();
+};
+
+const sortRequestsByDependencia = (requestsList) => {
+  if (!Array.isArray(requestsList)) return [];
+  return [...requestsList].sort((a, b) => {
+    const depA = getRequestDependencia(a);
+    const depB = getRequestDependencia(b);
+
+    // Si una tiene dependencia y la otra no, colocar primero la que sí tiene
+    if (depA && !depB) return -1;
+    if (!depA && depB) return 1;
+
+    // Orden alfabético por dependencia
+    const cmp = depA.localeCompare(depB, "es", { sensitivity: "base" });
+    if (cmp !== 0) {
+      return cmp;
+    }
+
+    // Criterio secundario: solicitudes más recientes primero (fecha descendente)
+    const dateA = a?.fecha_solicitud ? new Date(a.fecha_solicitud).getTime() : 0;
+    const dateB = b?.fecha_solicitud ? new Date(b.fecha_solicitud).getTime() : 0;
+    if (!isNaN(dateA) && !isNaN(dateB) && dateA !== dateB) {
+      return dateB - dateA;
+    }
+
+    // Criterio terciario: ID descendente
+    const idA = Number(a?.idSolicitud) || 0;
+    const idB = Number(b?.idSolicitud) || 0;
+    return idB - idA;
+  });
+};
+
+const formatRequestSubheader = (request) => {
+  const fecha = request.fecha_solicitud || "Sin fecha";
+  const dependencia = getRequestDependencia(request);
   const solicitante = String(
     request.nombre_solicitante ||
       request.usuario?.name ||
@@ -3686,7 +3726,7 @@ function Dashboard({ userData }) {
 
   const renderRequesterList = (requests) => (
     <div className="requester-list">
-      {requests.map((request) => {
+      {sortRequestsByDependencia(requests).map((request) => {
         const waitingCorrections = hasCorrectionsInRequest(request);
         const overallStatus =
           request.estado_general ||
@@ -4937,7 +4977,7 @@ function Dashboard({ userData }) {
                   No hay solicitudes en esta etapa.
                 </Typography>
               ) : (
-                group.requests.map((request) => (
+                sortRequestsByDependencia(group.requests).map((request) => (
                   <Accordion
                     key={`${readOnlyMode ? "readonly" : "own"}-${request.idSolicitud}`}
                     id={`request-accordion-${request.idSolicitud}`}
