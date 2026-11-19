@@ -3776,16 +3776,6 @@ function Dashboard({ userData }) {
     const requestId = request.idSolicitud;
     const role = String(userData?.role || "").toLowerCase();
     const canManage = ["presupuesto", "revisor_2", "admin"].includes(role);
-    const submittedForms = [1, 2, 3, 4].filter((formNumber) => {
-      const status = normalizeStatusForMatch(
-        resolveFormStatus(request, formNumber),
-      );
-      return (
-        status &&
-        !["en progreso", "pendiente", "borrador", "no iniciado"].includes(status)
-      );
-    });
-    const formsToDisplay = submittedForms.length > 0 ? submittedForms : [1, 2, 3, 4];
     const currentNotes =
       listaDecanatoNotes[requestId] !== undefined
         ? listaDecanatoNotes[requestId]
@@ -3801,73 +3791,9 @@ function Dashboard({ userData }) {
           backgroundColor: "#f4f8fd",
         }}
       >
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
-          <Chip
-            label="Etapa: Lista para Decanato"
-            color="primary"
-            variant="filled"
-            sx={{ fontWeight: 600 }}
-          />
-        </Stack>
-
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          La solicitud cuenta con el visto bueno de Presupuesto. En esta etapa puedes descargar los formularios oficiales en PDF firmados (1. Aprobación y 2. Presupuesto), añadir notas u observaciones para los documentos, incluir el registro del último paso del historial en los PDF, ingresar a la plataforma institucional para cargarlos, y finalmente confirmar la subida para remitir la solicitud a Decanato.
-        </Typography>
-
-        {/* 1. Formularios en PDF */}
+        {/* Notas y registro de historial para los PDF */}
         <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5, color: "#1565c0" }}>
-          1. Formularios oficiales firmados (PDF)
-        </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
-          Descarga los formularios con firmas institucionales y notas para cargarlos en la plataforma externa:
-        </Typography>
-
-        <Stack spacing={1} sx={{ mb: 2.5 }}>
-          {formsToDisplay.map((formNum) => {
-            const formLabel =
-              formNum === 1
-                ? "Aprobación"
-                : formNum === 2
-                  ? "Presupuesto"
-                  : FORM_NAMES[formNum] || `Formulario ${formNum}`;
-            return (
-              <Box
-                key={formNum}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  p: 1.25,
-                  borderRadius: 1,
-                  bgcolor: "#ffffff",
-                  border: "1px solid #e0e0e0",
-                  flexWrap: "wrap",
-                  gap: 1,
-                }}
-              >
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {`Formulario ${formNum}: ${formLabel}`}
-                </Typography>
-                <Stack direction="row" spacing={1}>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    color="primary"
-                    startIcon={<DownloadOutlined fontSize="small" />}
-                    onClick={() => handleDownloadFormPdf(request, formNum)}
-                    disabled={Boolean(loadingReports[`${requestId}-${formNum}-pdf-download`])}
-                  >
-                    Descargar PDF
-                  </Button>
-                </Stack>
-              </Box>
-            );
-          })}
-        </Stack>
-
-        {/* 2. Notas y Registro de Historial para los PDF */}
-        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5, color: "#1565c0" }}>
-          2. Notas y registro del historial para los PDF
+          Notas y registro del historial para los PDF
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
           Estas notas se insertarán en una página final en cada PDF generado. Puedes escribir notas libres o insertar automáticamente el registro más reciente del historial:
@@ -3913,9 +3839,9 @@ function Dashboard({ userData }) {
           </Stack>
         )}
 
-        {/* 3. Carga en plataforma y envío a Decanato */}
+        {/* Carga en plataforma y envío a Decanato */}
         <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5, color: "#1565c0" }}>
-          3. Carga en plataforma externa y envío a Decanato
+          Carga en plataforma externa y envío a Decanato
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
           Abre la plataforma institucional para radicar los PDFs descargados. Una vez que los hayas subido, confirma el paso para avanzar la solicitud a Decanato:
