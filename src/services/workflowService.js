@@ -1,11 +1,11 @@
 import axios from 'axios';
 import { config } from '../config';
-import { getStoredGoogleToken, isGoogleTokenExpired, redirectToLogin } from './authToken';
+import { getAuthToken, isTokenExpired, redirectToLogin } from './authToken';
 
 const workflowClient = axios.create({ baseURL: config.API_URL, withCredentials: true });
 workflowClient.interceptors.request.use((request) => {
-  const token = getStoredGoogleToken();
-  if (token && !isGoogleTokenExpired(token)) request.headers.Authorization = `Bearer ${token}`;
+  const token = getAuthToken();
+  if (token && !isTokenExpired(token)) request.headers.Authorization = `Bearer ${token}`;
   return request;
 });
 
@@ -39,12 +39,17 @@ export const submitWorkflowDecision = async (idSolicitud, {
   comentario = '',
   comentarios_por_formulario = {},
   observaciones = [],
-}) => {
+  notas_pdf = '',
+  notasPdf = '',
+  ...extra
+} = {}) => {
   const response = await workflowClient.post(`/workflow/${idSolicitud}/decision`, {
     accion,
     comentario,
     comentarios_por_formulario,
     observaciones,
+    notas_pdf: notas_pdf || notasPdf || '',
+    ...extra,
   });
   return response.data;
 };

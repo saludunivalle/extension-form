@@ -7,6 +7,7 @@ import { Box, CircularProgress, Typography } from '@mui/material';
 import PropTypes from "prop-types";
 import { config } from '../config';
 import { userService, checkServerHealth } from '../services/api';
+import { saveAuthSession } from '../services/authToken';
 
 const GoogleLogin = ({ setIsLogin, setUserData }) => {
   const navigate = useNavigate();
@@ -37,6 +38,8 @@ const GoogleLogin = ({ setIsLogin, setUserData }) => {
       localStorage.setItem('email', data_decode.email);
       localStorage.setItem('user_id', data_decode.sub); // Guardar el ID inmediatamente
       
+      let sessionToken = null;
+
       // Verificar si el servidor está disponible antes de intentar guardar
       const serverAvailable = await checkServerHealth();
       
@@ -44,6 +47,9 @@ const GoogleLogin = ({ setIsLogin, setUserData }) => {
         try {
           const authResponse = await userService.authGoogle(response.credential);
           console.log('Respuesta de autenticación backend:', authResponse);
+          if (authResponse?.token) {
+            sessionToken = authResponse.token;
+          }
           const backendUser = authResponse?.userInfo;
 
           if (backendUser?.id) {
@@ -88,13 +94,10 @@ const GoogleLogin = ({ setIsLogin, setUserData }) => {
         authenticatedUser.role = data_decode.role;
       }
 
-      localStorage.setItem('user_data', JSON.stringify(authenticatedUser));
+      // Guardar sesión persistente con vigencia de 30 días
+      saveAuthSession(sessionToken || response.credential, authenticatedUser);
       setUserData(authenticatedUser);
       setIsLogin(true);
-
-      Cookies.set('token', JSON.stringify(data_decode), { 
-        expires: new Date(new Date().getTime() + 5 * 24 * 60 * 60 * 1000) 
-      });
 
       navigate('/'); 
     } catch (error) {

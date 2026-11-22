@@ -2,7 +2,20 @@ import { Grid, TextField, RadioGroup, FormControlLabel, Radio, FormControl, Form
 import PropTypes from 'prop-types';
 import { useEffect } from 'react';
 
-function Step5({ formData, handleInputChange, errors, setFormData}) {
+const SMMLV = 1750905;
+
+const formatCop = (value) => {
+  const numeric = Number(value || 0);
+  if (!numeric) return '';
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(numeric);
+};
+
+function Step5({ formData, handleInputChange, errors, setFormData }) {
 
   // useEffect para calcular automáticamente el total de becas
   useEffect(() => {
@@ -15,23 +28,84 @@ function Step5({ formData, handleInputChange, errors, setFormData}) {
       parseInt(formData.becas_otros || 0)
     );
 
-    // Solo actualizar si el total es diferente al actual
     if (totalBecas !== parseInt(formData.becas_total || 0)) {
       setFormData(prev => ({
         ...prev,
         becas_total: totalBecas.toString()
       }));
     }
-
-    // Debug: Log para becas_otros
-    console.log("🔍 Debug becas_otros en Step5:", {
-      valor: formData.becas_otros,
-      tipo: typeof formData.becas_otros,
-      totalCalculado: totalBecas
-    });
-
   }, [formData.becas_convenio, formData.becas_estudiantes, formData.becas_docentes, 
       formData.becas_egresados, formData.becas_funcionarios, formData.becas_otros, formData.becas_total, setFormData]);
+
+  // Sincronización automática entre SMMLV y COP
+  useEffect(() => {
+    if (formData.extension_solidaria === 'si') {
+      if (formData.tipo_valor !== 'cifra_pesos' || formData.valor_inscripcion !== 0 || formData.valor_unitario !== 0) {
+        setFormData(prev => ({
+          ...prev,
+          tipo_valor: 'cifra_pesos',
+          valor_inscripcion: 0,
+          valor_unitario: 0
+        }));
+      }
+      return;
+    }
+
+    if (formData.tipo_valor === 'valor_unitario') {
+      const unitValue = Number(formData.valor_unitario || 0);
+      const calculatedPesos = Math.round(unitValue * SMMLV);
+      const currentPesos = Number(formData.valor_inscripcion || 0);
+
+      if (!Number.isNaN(unitValue) && calculatedPesos !== currentPesos) {
+        handleInputChange({
+          target: {
+            name: 'valor_inscripcion',
+            value: calculatedPesos,
+          },
+        });
+      }
+    }
+
+    if (formData.tipo_valor === 'cifra_pesos') {
+      const pesos = Number(formData.valor_inscripcion || 0);
+      const calculatedUnitValue = pesos === 0 ? 0 : parseFloat((pesos / SMMLV).toFixed(4));
+      const currentUnitValue = Number(formData.valor_unitario || 0);
+
+      if (!Number.isNaN(pesos) && calculatedUnitValue !== currentUnitValue) {
+        handleInputChange({
+          target: {
+            name: 'valor_unitario',
+            value: calculatedUnitValue,
+          },
+        });
+      }
+    }
+  }, [formData.extension_solidaria, formData.tipo_valor, formData.valor_unitario, formData.valor_inscripcion, handleInputChange, setFormData]);
+
+  const handleExtensionSolidariaChange = (e) => {
+    const value = e.target.value;
+    handleInputChange(e);
+
+    if (value === 'si') {
+      // Si es solidaria: se autoselecciona cifra en pesos y valor 0
+      setFormData(prev => ({
+        ...prev,
+        extension_solidaria: 'si',
+        tipo_valor: 'cifra_pesos',
+        valor_inscripcion: 0,
+        valor_unitario: 0
+      }));
+    } else if (value === 'no') {
+      // Si no es solidaria: se activa para que el usuario escoja el tipo de valor
+      setFormData(prev => ({
+        ...prev,
+        extension_solidaria: 'no',
+        tipo_valor: prev.tipo_valor === 'cifra_pesos' && (prev.valor_inscripcion === 0 || prev.valor_inscripcion === '0') ? '' : prev.tipo_valor,
+        valor_inscripcion: prev.valor_inscripcion === 0 || prev.valor_inscripcion === '0' ? '' : prev.valor_inscripcion,
+        valor_unitario: prev.valor_unitario === 0 || prev.valor_unitario === '0' ? '' : prev.valor_unitario
+      }));
+    }
+  };
 
   return (
     <Grid container spacing={2}>
@@ -52,7 +126,7 @@ function Step5({ formData, handleInputChange, errors, setFormData}) {
               inputProps={{ 
                 min: "0",
                 onKeyPress: (e) => {
-                  if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
+                  if (e.key === '-') e.preventDefault();
                 }
               }}
               error={!!errors.becas_convenio}
@@ -70,7 +144,7 @@ function Step5({ formData, handleInputChange, errors, setFormData}) {
               inputProps={{ 
                 min: "0",
                 onKeyPress: (e) => {
-                  if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
+                  if (e.key === '-') e.preventDefault();
                 }
               }}
               error={!!errors.becas_estudiantes}
@@ -85,12 +159,12 @@ function Step5({ formData, handleInputChange, errors, setFormData}) {
               name="becas_docentes"
               type="number"
               value={formData.becas_docentes ?? "0"}
-              onChange={handleInputChange }
+              onChange={handleInputChange}
               placeholder="0"
               inputProps={{ 
                 min: "0",
                 onKeyPress: (e) => {
-                  if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
+                  if (e.key === '-') e.preventDefault();
                 }
               }}
               error={!!errors.becas_docentes}
@@ -109,7 +183,7 @@ function Step5({ formData, handleInputChange, errors, setFormData}) {
               inputProps={{ 
                 min: "0",
                 onKeyPress: (e) => {
-                  if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
+                  if (e.key === '-') e.preventDefault();
                 }
               }}
               error={!!errors.becas_egresados}
@@ -128,7 +202,7 @@ function Step5({ formData, handleInputChange, errors, setFormData}) {
               inputProps={{ 
                 min: "0",
                 onKeyPress: (e) => {
-                  if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
+                  if (e.key === '-') e.preventDefault();
                 }
               }}
               error={!!errors.becas_funcionarios}
@@ -147,7 +221,7 @@ function Step5({ formData, handleInputChange, errors, setFormData}) {
               inputProps={{ 
                 min: "0",
                 onKeyPress: (e) => {
-                  if (e.key === '-') e.preventDefault(); // Bloquear signo negativo
+                  if (e.key === '-') e.preventDefault();
                 }
               }}
             />
@@ -164,13 +238,13 @@ function Step5({ formData, handleInputChange, errors, setFormData}) {
               disabled={true}
               sx={{
                 "& .MuiInputBase-input.Mui-disabled": {
-                  WebkitTextFillColor: "#303030", // Texto en gris oscuro
+                  WebkitTextFillColor: "#303030",
                 },
                 "& .MuiOutlinedInput-root.Mui-disabled .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "#a1a1a1", // Borde más oscuro
+                  borderColor: "#a1a1a1",
                 },
                 "& .MuiInputLabel-root.Mui-disabled": {
-                  color: "#717171", // Label en gris oscuro
+                  color: "#717171",
                 },
               }}
             />
@@ -198,16 +272,12 @@ function Step5({ formData, handleInputChange, errors, setFormData}) {
       </Grid>
               
       <Grid item xs={12}>
-      <FormControl component="fieldset" required error={!!errors.organizacion_actividad}>
+        <FormControl component="fieldset" required error={!!errors.organizacion_actividad}>
           <FormLabel component="legend">La organización de la actividad se hará por</FormLabel>
           <RadioGroup
             name="organizacion_actividad"
             value={formData.organizacion_actividad || ''}
-            onChange={(e) => {
-              // Añadir un callback especial para este campo
-              console.log(`📋 organizacion_actividad seleccionado: ${e.target.value}`);
-              handleInputChange(e);
-            }}
+            onChange={handleInputChange}
             required
           >
             <FormControlLabel value="ofi_ext" control={<Radio />} label="Oficina de Extensión" />
@@ -229,13 +299,14 @@ function Step5({ formData, handleInputChange, errors, setFormData}) {
         </FormControl>
       </Grid>
 
+      {/* ¿Es Extensión Solidaria? */}
       <Grid item xs={12}>
         <FormControl component="fieldset" required error={!!errors.extension_solidaria}>
           <FormLabel component="legend">¿Es Extension Solidaria?</FormLabel>
           <RadioGroup
             name="extension_solidaria"
             value={formData.extension_solidaria || ''}
-            onChange={handleInputChange}
+            onChange={handleExtensionSolidariaChange}
           >
             <FormControlLabel value="si" control={<Radio />} label="Si" />
             <FormControlLabel value="no" control={<Radio />} label="No" />
@@ -285,6 +356,109 @@ function Step5({ formData, handleInputChange, errors, setFormData}) {
         </Grid>
       )}
 
+      {/* Si NO es extensión solidaria: se activa la selección de tipo de valor y el campo correspondiente */}
+      {formData.extension_solidaria === 'no' && (
+        <>
+          <Grid item xs={12}>
+            <FormControl component="fieldset" required error={!!errors.tipo_valor}>
+              <FormLabel component="legend">Tipo de valor a registrar</FormLabel>
+              <RadioGroup
+                row
+                name="tipo_valor"
+                value={formData.tipo_valor || ''}
+                onChange={handleInputChange}
+              >
+                <FormControlLabel value="valor_unitario" control={<Radio />} label="Valor unitario (SMMLV)" />
+                <FormControlLabel value="cifra_pesos" control={<Radio />} label="Cifra en pesos (COP)" />
+              </RadioGroup>
+              {errors.tipo_valor && <FormHelperText>{errors.tipo_valor}</FormHelperText>}
+            </FormControl>
+          </Grid>
+
+          {/* Se muestra SOLO si el usuario seleccionó "valor_unitario" */}
+          {formData.tipo_valor === 'valor_unitario' && (
+            <Grid item xs={12}>
+              <TextField
+                label="Valor unitario (SMMLV) *"
+                fullWidth
+                name="valor_unitario"
+                value={formData.valor_unitario ?? ''}
+                onChange={(e) => {
+                  const rawValue = String(e.target.value || '').trim();
+
+                  if (rawValue === '') {
+                    handleInputChange({ target: { name: 'valor_unitario', value: '' } });
+                    handleInputChange({ target: { name: 'valor_inscripcion', value: 0 } });
+                    return;
+                  }
+
+                  if (!/^\d{0,2}([.,]\d{0,2})?$/.test(rawValue)) {
+                    return;
+                  }
+
+                  const unitValue = parseFloat(rawValue.replace(',', '.'));
+                  if (Number.isNaN(unitValue)) return;
+
+                  handleInputChange({ target: { name: 'valor_unitario', value: unitValue } });
+                  handleInputChange({ target: { name: 'valor_inscripcion', value: Math.round(unitValue * SMMLV) } });
+                }}
+                placeholder="Ej: 10,5"
+                error={!!errors.valor_unitario}
+                helperText={
+                  errors.valor_unitario ||
+                  `SMMLV vigente: ${new Intl.NumberFormat('es-CO').format(SMMLV)} COP${
+                    formData.valor_inscripcion ? ` (Equivale a: ${formatCop(formData.valor_inscripcion)})` : ''
+                  }`
+                }
+              />
+            </Grid>
+          )}
+
+          {/* Se muestra SOLO si el usuario seleccionó "cifra_pesos" */}
+          {formData.tipo_valor === 'cifra_pesos' && (
+            <Grid item xs={12}>
+              <TextField
+                label="Valor de inscripción (COP) *"
+                fullWidth
+                name="valor_inscripcion"
+                value={formatCop(formData.valor_inscripcion)}
+                onChange={(e) => {
+                  const rawValue = e.target.value.replace(/[^0-9]/g, '');
+                  const numericValue = rawValue === '' ? 0 : parseInt(rawValue, 10);
+                  const calculatedUnitValue = numericValue === 0 ? 0 : parseFloat((numericValue / SMMLV).toFixed(4));
+
+                  handleInputChange({
+                    target: {
+                      name: e.target.name,
+                      value: numericValue
+                    }
+                  });
+
+                  handleInputChange({
+                    target: {
+                      name: 'valor_unitario',
+                      value: calculatedUnitValue,
+                    },
+                  });
+                }}
+                inputProps={{
+                  inputMode: "numeric",
+                  pattern: "[0-9]*"
+                }}
+                placeholder="0"
+                error={!!errors.valor_inscripcion}
+                helperText={
+                  errors.valor_inscripcion ||
+                  (formData.valor_inscripcion === 0
+                    ? "El programa es sin costo"
+                    : `Equivale a ${Number(formData.valor_unitario || 0).toFixed(4)} SMMLV`)
+                }
+              />
+            </Grid>
+          )}
+        </>
+      )}
+
       <Grid item xs={12}>
         <TextField
           label="Link pieza grafica"
@@ -301,6 +475,8 @@ function Step5({ formData, handleInputChange, errors, setFormData}) {
         <TextField
           label="Personal Externo Asignado"
           fullWidth
+          multiline
+          rows={3}
           name="personal_externo"
           value={formData.personal_externo || ''}
           onChange={handleInputChange}
@@ -308,11 +484,12 @@ function Step5({ formData, handleInputChange, errors, setFormData}) {
         />
       </Grid>
 
-      {/* "Personal Externo" campo */}
       <Grid item xs={12}>
         <TextField
           label="Observaciones y/o Cambios"
           fullWidth
+          multiline
+          rows={4}
           name="observaciones_cambios"
           value={formData.observaciones_cambios || ''}
           onChange={handleInputChange}
