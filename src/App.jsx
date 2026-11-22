@@ -7,66 +7,77 @@ import GoogleLogin from './components/GoogleLogin';
 import Layout from './components/Layout'; 
 import Cookies from 'js-cookie';
 import {config} from './config';
-import { clearAuthSession, isGoogleTokenExpired } from './services/authToken';
+import { clearAuthSession, getAuthToken, isTokenExpired } from './services/authToken';
 import { userService } from './services/api';
 function App() {
   const [isLogged, setIsLogged] = useState(false);
   const [userData, setUserData] = useState();
 
-  const syncUserFromCookie = () => {
-    const token = Cookies.get('token');
+  const syncUserFromSession = () => {
+    const authToken = getAuthToken();
     const savedUserData = localStorage.getItem('user_data');
-    const parsedSavedUserData = savedUserData ? JSON.parse(savedUserData) : null;
+    let user = null;
 
-    const googleToken = localStorage.getItem('google_token');
-
-    if (token && googleToken && !isGoogleTokenExpired(googleToken)) {
+    if (savedUserData) {
       try {
-        const decodedToken = JSON.parse(token);
-        const user = decodedToken.sub
-          ? {
-              id: decodedToken.sub,
-              name: decodedToken.name,
-              email: decodedToken.email,
-              role: decodedToken.role || parsedSavedUserData?.role || ''
-            }
-          : decodedToken;
-        console.log("User obtenido:", user);
-        
-        setIsLogged(true);
-        setUserData(user);
-
-        if (user && user.id) {
-          userService.saveUser(user)
-            .then((res) => {
-              const freshRole = res?.userInfo?.role || res?.role;
-              if (freshRole && freshRole !== user.role) {
-                const updatedUser = { ...user, role: freshRole };
-                setUserData(updatedUser);
-                localStorage.setItem('user_data', JSON.stringify(updatedUser));
-              }
-            })
-            .catch(() => {});
-        }
-      } catch (error) {
-        console.error('Error al parsear el token:', error);
-        setIsLogged(false);
-        setUserData(null);
+        user = JSON.parse(savedUserData);
+      } catch (e) {
+        console.error('Error al parsear user_data:', e);
       }
+    }
+
+    if (!user) {
+      const token = Cookies.get('token');
+      if (token) {
+        try {
+          const decodedToken = JSON.parse(token);
+          user = decodedToken.sub
+            ? {
+                id: decodedToken.sub,
+                name: decodedToken.name,
+                email: decodedToken.email,
+                role: decodedToken.role || ''
+              }
+            : decodedToken;
+        } catch (e) {
+          console.error('Error al parsear token de cookie:', e);
+        }
+      }
+    }
+
+    if (authToken && user && !isTokenExpired(authToken)) {
+      setIsLogged(true);
+      setUserData(user);
+
+      // Verificación pasiva en el backend para refrescar rol si hubo cambios
+      userService.verifySession()
+        .then((res) => {
+          const freshRole = res?.userInfo?.role;
+          if (freshRole && freshRole !== user.role) {
+            const updatedUser = { ...user, role: freshRole };
+            setUserData(updatedUser);
+            localStorage.setItem('user_data', JSON.stringify(updatedUser));
+          }
+        })
+        .catch((err) => {
+          console.warn('Verificación pasiva de sesión:', err?.response?.status || err?.message);
+        });
     } else {
-      if (token || googleToken) clearAuthSession();
+      if (authToken || user) {
+        clearAuthSession();
+      }
       setIsLogged(false);
       setUserData(null);
     }
   };
 
   useEffect(() => {
-    syncUserFromCookie();
+    syncUserFromSession();
   }, []);
 
   useEffect(() => {
     if (!userData && isLogged) {
-      syncUserFromCookie();
+      syncUserFromSession();
     }
   }, [isLogged, userData]);
   

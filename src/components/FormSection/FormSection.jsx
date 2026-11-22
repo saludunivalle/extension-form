@@ -318,11 +318,12 @@ const API_URL = config.API_URL;
         if (!formData.programCont) stepErrors.programCont = "Este campo es obligatorio";
         if (!formData.dirigidoa) stepErrors.dirigidoa = "Este campo es obligatorio";
         const totalHoras = Number(formData.total_horas) || 0;
+        const noAplicaCreditos = formData.aplica_creditos === 'no';
         if (formData.creditos === undefined || formData.creditos === null || formData.creditos === "") {
           stepErrors.creditos = "Este campo es obligatorio";
-        } else if (totalHoras < 48 && Number(formData.creditos) > 0) {
+        } else if (!noAplicaCreditos && totalHoras < 48 && Number(formData.creditos) > 0) {
           stepErrors.creditos = "No se pueden agregar créditos con menos de 48 horas de intensidad horaria (48h = 1 crédito)";
-        } else if (Number(formData.creditos) > 50) {
+        } else if (!noAplicaCreditos && Number(formData.creditos) > 50) {
           stepErrors.creditos = "El máximo de creditos es 50";
         }
         if (!formData.cupo_min) stepErrors.cupo_min = "Este campo es obligatorio";
@@ -355,31 +356,14 @@ const API_URL = config.API_URL;
         
         if (!formData.certificado_solicitado) {
           stepErrors.certificado_solicitado = "Debe seleccionar una opción";
-      } else {
+        } else {
           if (formData.certificado_solicitado === "De aprobación" && !formData.calificacion_minima) {
-              stepErrors.calificacion_minima = "Este campo es obligatorio";
+            stepErrors.calificacion_minima = "Este campo es obligatorio";
           }
           if (formData.certificado_solicitado === "No otorga certificado" && !formData.razon_no_certificado) {
-              stepErrors.razon_no_certificado = "Este campo es obligatorio";
+            stepErrors.razon_no_certificado = "Este campo es obligatorio";
           }
-      }  
-        if (!formData.tipo_valor) {
-          stepErrors.tipo_valor = "Debe seleccionar una opción";
-        }
-
-        if (formData.tipo_valor === 'valor_unitario') {
-          const valorUnitario = Number(formData.valor_unitario);
-          if (Number.isNaN(valorUnitario) || valorUnitario <= 0) {
-            stepErrors.valor_unitario = "Ingrese un valor unitario válido";
-          }
-        }
-
-        if (formData.tipo_valor === 'cifra_pesos') {
-          const valorInscripcion = Number(formData.valor_inscripcion);
-          if (Number.isNaN(valorInscripcion) || valorInscripcion < 0) {
-            stepErrors.valor_inscripcion = "Debe ser un valor en pesos válido";
-          }
-        }
+        }  
       } else if (activeStep === 4) {
         if (!formData.periodicidad_oferta) stepErrors.periodicidad_oferta = "Debe seleccionar una periodicidad";
         if (!formData.organizacion_actividad) stepErrors.organizacion_actividad = "Debe seleccionar una opción";
@@ -389,9 +373,22 @@ const API_URL = config.API_URL;
           if (formData.costo_extension_solidaria === '' || formData.costo_extension_solidaria === null || formData.costo_extension_solidaria === undefined || Number.isNaN(costoSolidaria) || costoSolidaria < 0) {
             stepErrors.costo_extension_solidaria = "Ingrese un valor de costo válido";
           }
+        } else if (formData.extension_solidaria === 'no') {
+          if (!formData.tipo_valor) {
+            stepErrors.tipo_valor = "Debe seleccionar una opción";
+          } else if (formData.tipo_valor === 'valor_unitario') {
+            const valorUnitario = Number(formData.valor_unitario);
+            if (Number.isNaN(valorUnitario) || valorUnitario <= 0) {
+              stepErrors.valor_unitario = "Ingrese un valor unitario válido";
+            }
+          } else if (formData.tipo_valor === 'cifra_pesos') {
+            const valorInscripcion = Number(formData.valor_inscripcion);
+            if (Number.isNaN(valorInscripcion) || valorInscripcion < 0) {
+              stepErrors.valor_inscripcion = "Debe ser un valor en pesos válido";
+            }
+          }
         }
-
-        }
+      }
     
       setErrors(stepErrors);
       return Object.keys(stepErrors).length === 0;
@@ -582,6 +579,7 @@ const API_URL = config.API_URL;
                       creditos: formData.creditos || '0',
                       cupo_min: formData.cupo_min || '0',
                       cupo_max: formData.cupo_max || '0',
+                      aplica_creditos: formData.aplica_creditos === 'no' ? 'no' : 'sí',
                   };
                   
                   // DEBUG: Log específico para paso 3 y cupos
@@ -609,9 +607,6 @@ const API_URL = config.API_URL;
                       certificado_solicitado: formData.certificado_solicitado || '',
                       calificacion_minima: formData.calificacion_minima || '',
                       razon_no_certificado: formData.razon_no_certificado || '',
-                        tipo_valor: formData.tipo_valor || '',
-                        valor_unitario: formData.valor_unitario || '0',
-                      valor_inscripcion: formData.valor_inscripcion || '0',
                   };
                   break;
               case 4: {
@@ -639,6 +634,9 @@ const API_URL = config.API_URL;
                   });
                   
                   pasoData = {
+                      tipo_valor: formData.extension_solidaria === 'si' ? 'cifra_pesos' : (formData.tipo_valor || ''),
+                      valor_unitario: formData.extension_solidaria === 'si' ? '0' : (formData.valor_unitario ?? '0'),
+                      valor_inscripcion: formData.extension_solidaria === 'si' ? '0' : (formData.valor_inscripcion ?? '0'),
                       becas_convenio: formData.becas_convenio || '0',
                       becas_estudiantes: formData.becas_estudiantes || '0',
                       becas_docentes: formData.becas_docentes || '0',
@@ -658,6 +656,7 @@ const API_URL = config.API_URL;
                       
                       
                       observaciones_cambios: formData.observaciones_cambios || '',
+                      aplica_creditos: formData.aplica_creditos === 'no' ? 'no' : 'sí',
                   };
                   
                   // Debug: Log del objeto pasoData completo
@@ -796,6 +795,9 @@ const API_URL = config.API_URL;
         });
 
         let pasoData = {
+            tipo_valor: formData.extension_solidaria === 'si' ? 'cifra_pesos' : (formData.tipo_valor || ''),
+            valor_unitario: formData.extension_solidaria === 'si' ? '0' : (formData.valor_unitario ?? '0'),
+            valor_inscripcion: formData.extension_solidaria === 'si' ? '0' : (formData.valor_inscripcion ?? '0'),
             becas_convenio: formData.becas_convenio || '0',
             becas_estudiantes: formData.becas_estudiantes || '0',
             becas_docentes: formData.becas_docentes || '0',

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { downloadFormReport } from "../services/reportServices";
 import {
@@ -23,6 +23,7 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  Alert,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { config } from "../config";
@@ -33,6 +34,10 @@ import {
   DownloadOutlined,
   VisibilityOutlined,
   OpenInNew,
+  CloudUploadOutlined,
+  SupervisorAccount,
+  AssignmentOutlined,
+  ArrowBack,
 } from "@mui/icons-material";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import PropTypes from "prop-types";
@@ -59,6 +64,7 @@ import {
   confirmWorkflowPlataformaDecanato,
 } from "../services/workflowService";
 import WorkflowRoleView from "./Workflow/WorkflowRoleView";
+import DirectorsManagement from "./Directors/DirectorsManagement";
 const API_URL = config.API_URL;
 const WORKFLOW_ONLY_ROLES = new Set([
   "revisor_1",
@@ -222,14 +228,25 @@ const formatRequestSubheader = (request) => {
 const formatHistoryDate = (value) => {
   const raw = String(value || "").trim();
   if (!raw) return "Fecha no disponible";
-  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
 
-  const parsed = new Date(raw);
+  // Si solo viene fecha exacta YYYY-MM-DD sin componente de hora
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+
+  // Normalizar strings como "2026-11-21 17:15:30" para que Date() lo parsee de forma confiable
+  const normalizedRaw = raw.includes(" ") && !raw.includes("T") ? raw.replace(" ", "T") : raw;
+  const parsed = new Date(normalizedRaw);
   if (Number.isNaN(parsed.getTime())) return raw;
+
   return new Intl.DateTimeFormat("es-CO", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
     timeZone: "America/Bogota",
   }).format(parsed);
 };
@@ -1158,6 +1175,7 @@ const FORM_NAMES = {
 };
 
 const getStoredPdfNotes = (request) => {
+  if (request?.notas_presupuesto_pdf) return request.notas_presupuesto_pdf;
   if (!request?.comentarios) return "";
   try {
     const parsed =
@@ -1248,6 +1266,242 @@ SignatureImagePreview.propTypes = {
   alt: PropTypes.string.isRequired,
 };
 
+function InteractiveSignatureBox({
+  idSolicitud,
+  tipoFirma,
+  alt,
+  hasServerSignature,
+  isBlocked,
+  blockedText,
+  canSign,
+  selectedFile,
+  onFileSelect,
+  onFileRemove,
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [localUrl, setLocalUrl] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setLocalUrl("");
+      return;
+    }
+    const url = URL.createObjectURL(selectedFile);
+    setLocalUrl(url);
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [selectedFile]);
+
+  if (hasServerSignature) {
+    return (
+      <div
+        className="workflow-signature-card__preview"
+        style={isBlocked ? { backgroundColor: "#eceff1", borderColor: "#b0bec5" } : {}}
+      >
+        <SignatureImagePreview
+          idSolicitud={idSolicitud}
+          tipoFirma={tipoFirma}
+          alt={alt}
+        />
+      </div>
+    );
+  }
+
+  if (isBlocked || !canSign) {
+    return (
+      <div
+        className="workflow-signature-card__preview"
+        style={{ backgroundColor: "#eceff1", borderColor: "#b0bec5", padding: "16px 8px" }}
+      >
+        <Typography variant="caption" color="text.secondary" textAlign="center" sx={{ display: "block", lineHeight: 1.4 }}>
+          {blockedText}
+        </Typography>
+      </div>
+    );
+  }
+
+  if (selectedFile && localUrl) {
+    return (
+      <div
+        className="workflow-signature-card__preview"
+        style={{
+          border: "2px solid #4caf50",
+          backgroundColor: "#f1f8e9",
+          minHeight: "125px",
+          padding: "8px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onFileSelect(file);
+          }}
+        />
+        <Box sx={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <img
+            src={localUrl}
+            alt="Vista previa de firma"
+            className="workflow-signature-card__image"
+            style={{ maxHeight: 85, objectFit: "contain", marginBottom: 6 }}
+          />
+          <Stack direction="row" spacing={0.75} alignItems="center">
+            <Chip
+              size="small"
+              color="success"
+              label="Firma lista"
+              sx={{ fontSize: "0.68rem", height: 20 }}
+            />
+            <Button
+              size="small"
+              variant="outlined"
+              sx={{
+                fontSize: "0.68rem",
+                py: 0.1,
+                px: 1,
+                minHeight: 0,
+                textTransform: "none",
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                inputRef.current?.click();
+              }}
+            >
+              Cambiar imagen
+            </Button>
+          </Stack>
+        </Box>
+      </div>
+    );
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (file) {
+      if (file.type.startsWith("image/")) {
+        onFileSelect(file);
+      } else {
+        alert("Por favor selecciona o arrastra un archivo de imagen (PNG, JPG, WEBP).");
+      }
+    }
+  };
+
+  return (
+    <div
+      className={`workflow-signature-card__preview ${isDragging ? "workflow-signature-card__preview--dragging" : ""}`}
+      style={{
+        cursor: "pointer",
+        position: "relative",
+        border: isDragging
+          ? "2px dashed #1976d2"
+          : "2px dashed #90caf9",
+        backgroundColor: isDragging
+          ? "#e3f2fd"
+          : "#f8fafc",
+        transition: "all 0.2s ease-in-out",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "125px",
+        padding: "8px",
+      }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      onClick={() => inputRef.current?.click()}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onFileSelect(file);
+        }}
+      />
+
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 0.5,
+          textAlign: "center",
+        }}
+      >
+        <CloudUploadOutlined sx={{ fontSize: 32, color: isDragging ? "#1565c0" : "#1976d2" }} />
+        <Typography
+          variant="body2"
+          sx={{
+            fontWeight: 600,
+            fontSize: "0.82rem",
+            color: isDragging ? "#1565c0" : "text.primary",
+          }}
+        >
+          {isDragging ? "Suelta la imagen aquí" : "Arrastra tu firma aquí"}
+        </Typography>
+        <Button
+          size="small"
+          variant="contained"
+          component="span"
+          sx={{
+            mt: 0.5,
+            fontSize: "0.72rem",
+            py: 0.2,
+            px: 1.2,
+            textTransform: "none",
+            boxShadow: "none",
+          }}
+        >
+          Subir archivo
+        </Button>
+        <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.68rem", mt: 0.3 }}>
+          PNG, JPG o WEBP
+        </Typography>
+      </Box>
+    </div>
+  );
+}
+
+InteractiveSignatureBox.propTypes = {
+  idSolicitud: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  tipoFirma: PropTypes.string.isRequired,
+  alt: PropTypes.string.isRequired,
+  hasServerSignature: PropTypes.bool,
+  isBlocked: PropTypes.bool,
+  blockedText: PropTypes.string,
+  canSign: PropTypes.bool,
+  selectedFile: PropTypes.any,
+  onFileSelect: PropTypes.func,
+  onFileRemove: PropTypes.func,
+};
+
 function Dashboard({ userData }) {
   const [ownRequests, setOwnRequests] = useState([]);
   const [receivedRequests, setReceivedRequests] = useState([]);
@@ -1275,7 +1529,11 @@ function Dashboard({ userData }) {
   const [savingDecanatoNotes, setSavingDecanatoNotes] = useState({});
   const [confirmPlataformaRequest, setConfirmPlataformaRequest] = useState(null);
   const [confirmingPlataforma, setConfirmingPlataforma] = useState(false);
+  const [presupuestoModalRequest, setPresupuestoModalRequest] = useState(null);
+  const [presupuestoModalNote, setPresupuestoModalNote] = useState("");
+  const [submittingPresupuestoApproval, setSubmittingPresupuestoApproval] = useState(false);
   const [sendingPresupuestoId, setSendingPresupuestoId] = useState(null);
+  const [revisorActiveTab, setRevisorActiveTab] = useState("solicitudes"); // "solicitudes" | "directores"
   const [decanatoData, setDecanatoData] = useState({});
   const [totalHoursByRequest, setTotalHoursByRequest] = useState({});
   const navigate = useNavigate();
@@ -2465,9 +2723,13 @@ function Dashboard({ userData }) {
     }
   };
 
-  const handleWorkflowSignature = async (request) => {
+  const handleWorkflowSignature = async (request, tipoFirma = null) => {
+    const role = String(userData?.role || "").toLowerCase() || "solicitante";
+    const isDirectorRole = role === "director" || role === "director_escuela" || role.includes("director");
+    const targetType = tipoFirma || (isDirectorRole ? "director" : "solicitante");
+    const signatureKey = `${request.idSolicitud}-${targetType}`;
     const actionKey = `${request.idSolicitud}-signature`;
-    const file = signatureFiles[request.idSolicitud];
+    const file = signatureFiles[signatureKey] || signatureFiles[request.idSolicitud];
     if (!file) {
       alert("Selecciona la imagen de la firma.");
       return;
@@ -2479,7 +2741,7 @@ function Dashboard({ userData }) {
     try {
       const response = await registerWorkflowSignature(request.idSolicitud, {
         file,
-        observaciones: signatureNotes[request.idSolicitud] || "",
+        observaciones: signatureNotes[signatureKey] || signatureNotes[request.idSolicitud] || "",
       });
       alert(
         response?.data?.notificacion?.estado === "fallida"
@@ -2675,6 +2937,37 @@ function Dashboard({ userData }) {
       );
     } finally {
       setReviewAction((prev) => ({ ...prev, [requestId]: null }));
+    }
+  };
+
+  const handleConfirmPresupuestoApproval = async () => {
+    if (!presupuestoModalRequest || submittingPresupuestoApproval) return;
+    const request = presupuestoModalRequest;
+    const requestId = request.idSolicitud;
+    const note = String(presupuestoModalNote || "").trim();
+    setSubmittingPresupuestoApproval(true);
+    try {
+      await submitWorkflowDecision(requestId, {
+        accion: "aprobar",
+        comentario: note || "Aprobado en Presupuesto y remitido a Lista para Decanato",
+        notas_pdf: note,
+      });
+      setListaDecanatoNotes((prev) => ({
+        ...prev,
+        [requestId]: note,
+      }));
+      alert("Solicitud aprobada exitosamente y enviada a la etapa Lista para Decanato.");
+      setPresupuestoModalRequest(null);
+      setPresupuestoModalNote("");
+      window.location.reload();
+    } catch (error) {
+      alert(
+        error?.response?.data?.error ||
+          error?.response?.data?.message ||
+          "No se pudo aprobar la solicitud.",
+      );
+    } finally {
+      setSubmittingPresupuestoApproval(false);
     }
   };
 
@@ -2908,6 +3201,22 @@ function Dashboard({ userData }) {
     // Si es solicitante, el espacio del director sale en gris clarito como bloqueado
     const isDirectorCardBlocked = !isDirector && !["admin"].includes(role);
 
+    // Regla de negocio: El Solicitante sólo puede firmar una vez el Director haya registrado su firma (o si el rol es admin)
+    const isWaitingDirectorSignature =
+      !hasDirectorSignature &&
+      !isDirector &&
+      role !== "admin" &&
+      stage === "firmas";
+
+    const canSignDirector =
+      (isDirector || role === "admin") && !hasDirectorSignature && !isDirectorCardBlocked && stage === "firmas";
+    const canSignSolicitante =
+      (isRequesterSigner || role === "solicitante" || role === "admin") &&
+      !hasSolicitanteSignature &&
+      !isSolicitanteCardBlocked &&
+      !isWaitingDirectorSignature &&
+      stage === "firmas";
+
     return (
       <Box className="workflow-signatures-preview" sx={{ mt: 1.5, mb: 2 }}>
         <Typography variant="subtitle2" color="primary" sx={{ mb: 1 }}>
@@ -2969,59 +3278,140 @@ function Dashboard({ userData }) {
                     <DeleteOutline fontSize="small" />
                   </IconButton>
                 </Tooltip>
+              ) : canSignDirector && signatureFiles[`${request.idSolicitud}-director`] ? (
+                <Tooltip title="Quitar archivo seleccionado">
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() =>
+                      setSignatureFiles((prev) => ({
+                        ...prev,
+                        [`${request.idSolicitud}-director`]: null,
+                      }))
+                    }
+                  >
+                    <DeleteOutline fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               ) : null}
             </Box>
-            {hasDirectorSignature ? (
-              <>
-                <div
-                  className="workflow-signature-card__preview"
-                  style={isDirectorCardBlocked ? { backgroundColor: "#eceff1", borderColor: "#b0bec5" } : {}}
-                >
-                  <SignatureImagePreview
-                    idSolicitud={request.idSolicitud}
-                    tipoFirma="director_escuela"
-                    alt="Firma del director de escuela"
+            <InteractiveSignatureBox
+              idSolicitud={request.idSolicitud}
+              tipoFirma="director_escuela"
+              alt="Firma del director de escuela"
+              hasServerSignature={hasDirectorSignature}
+              isBlocked={isDirectorCardBlocked}
+              blockedText={
+                isDirectorCardBlocked
+                  ? "A cargo del Director de Escuela (pendiente)"
+                  : "Pendiente de registrar tu firma como Director"
+              }
+              canSign={canSignDirector}
+              selectedFile={canSignDirector ? signatureFiles[`${request.idSolicitud}-director`] : null}
+              onFileSelect={(file) =>
+                setSignatureFiles((prev) => ({
+                  ...prev,
+                  [`${request.idSolicitud}-director`]: file,
+                }))
+              }
+              onFileRemove={() =>
+                setSignatureFiles((prev) => ({
+                  ...prev,
+                  [`${request.idSolicitud}-director`]: null,
+                }))
+              }
+            />
+            <div className="workflow-signature-card__meta">
+              <Typography
+                variant="body2"
+                fontWeight={600}
+                sx={{ fontSize: "0.85rem", mb: 0.5 }}
+              >
+                <strong>Nombre:</strong>{" "}
+                {directorInfo.nombre_firmante ||
+                  request.nombre_director ||
+                  "Director de Escuela"}
+              </Typography>
+              {hasDirectorSignature ? (
+                <Typography variant="caption" color="text.secondary">
+                  Subida: {formatSignatureDateTime(directorInfo.fecha_firma)}
+                </Typography>
+              ) : canSignDirector && signatureFiles[`${request.idSolicitud}-director`] ? (
+                <Box sx={{ mt: 1, width: "100%" }}>
+                  <Typography variant="body2" fontWeight={600} color="success.main" sx={{ fontSize: "0.82rem" }}>
+                    Firma seleccionada: {signatureFiles[`${request.idSolicitud}-director`].name}
+                  </Typography>
+                  <TextField
+                    size="small"
+                    fullWidth
+                    multiline
+                    maxRows={2}
+                    placeholder="Observaciones de la firma (opcional)"
+                    value={signatureNotes[`${request.idSolicitud}-director`] || ""}
+                    onChange={(e) =>
+                      setSignatureNotes((prev) => ({
+                        ...prev,
+                        [`${request.idSolicitud}-director`]: e.target.value,
+                      }))
+                    }
+                    sx={{ my: 1, backgroundColor: "#fff", "& .MuiInputBase-input": { fontSize: "0.82rem" } }}
                   />
-                </div>
-                <div className="workflow-signature-card__meta">
-                  <Typography variant="body2" fontWeight={600}>
-                    {directorInfo.nombre_firmante || "Director de Escuela"}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Subida: {formatSignatureDateTime(directorInfo.fecha_firma)}
-                  </Typography>
-                </div>
-              </>
-            ) : (
-              <>
-                <div
-                  className="workflow-signature-card__preview"
-                  style={isDirectorCardBlocked ? { backgroundColor: "#eceff1", borderColor: "#b0bec5" } : {}}
-                >
-                  <Typography variant="caption" color="text.secondary" textAlign="center">
-                    {isDirectorCardBlocked
-                      ? "A cargo del Director de Escuela (pendiente)"
-                      : "Pendiente de registrar tu firma como Director"}
-                  </Typography>
-                </div>
-                <div className="workflow-signature-card__meta">
-                  <Typography variant="caption" color="text.secondary" fontStyle="italic">
-                    Sin firma registrada
-                  </Typography>
-                </div>
-              </>
-            )}
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    fullWidth
+                    size="small"
+                    onClick={() => {
+                      if (role === "director") {
+                        setConfirmDirectorSignatureRequest(request);
+                      } else {
+                        handleWorkflowSignature(request, "director");
+                      }
+                    }}
+                    disabled={Boolean(
+                      observationActionLoading[`${request.idSolicitud}-signature`],
+                    )}
+                    sx={{ textTransform: "none", fontWeight: 700, py: 0.75 }}
+                  >
+                    {observationActionLoading[`${request.idSolicitud}-signature`] ? (
+                      <>
+                        <CircularProgress size={16} sx={{ mr: 1, color: "inherit" }} />
+                        Registrando firma...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle sx={{ fontSize: 18, mr: 0.75 }} />
+                        Registrar firma
+                      </>
+                    )}
+                  </Button>
+                </Box>
+              ) : (
+                <Typography variant="caption" color="text.secondary" fontStyle="italic">
+                  Sin firma registrada
+                </Typography>
+              )}
+            </div>
           </div>
 
           {/* TARJETA SOLICITANTE */}
           <div
-            className={`workflow-signature-card ${isSolicitanteCardBlocked ? "workflow-signature-card--blocked" : ""}`}
+            className={`workflow-signature-card ${
+              isSolicitanteCardBlocked || isWaitingDirectorSignature
+                ? "workflow-signature-card--blocked"
+                : ""
+            }`}
             style={
               isSolicitanteCardBlocked
                 ? {
                     backgroundColor: "#f4f6f8",
                     border: "1px solid #cfd8dc",
                     opacity: 0.85,
+                  }
+                : isWaitingDirectorSignature
+                ? {
+                    backgroundColor: "#fffdf7",
+                    border: "1px dashed #ffe082",
                   }
                 : {}
             }
@@ -3036,7 +3426,11 @@ function Dashboard({ userData }) {
               <Typography
                 variant="body2"
                 fontWeight={700}
-                color={isSolicitanteCardBlocked ? "text.secondary" : "text.primary"}
+                color={
+                  isSolicitanteCardBlocked
+                    ? "text.secondary"
+                    : "text.primary"
+                }
               >
                 Firma del Solicitante
               </Typography>
@@ -3049,6 +3443,18 @@ function Dashboard({ userData }) {
                     height: 18,
                     backgroundColor: "#e0e0e0",
                     color: "#757575",
+                  }}
+                />
+              ) : isWaitingDirectorSignature ? (
+                <Chip
+                  size="small"
+                  label="Esperando firma de Director"
+                  sx={{
+                    fontSize: "0.68rem",
+                    height: 18,
+                    backgroundColor: "#fff3e0",
+                    color: "#e65100",
+                    fontWeight: 600,
                   }}
                 />
               ) : canDeleteSolicitante ? (
@@ -3068,51 +3474,121 @@ function Dashboard({ userData }) {
                     <DeleteOutline fontSize="small" />
                   </IconButton>
                 </Tooltip>
+              ) : signatureFiles[`${request.idSolicitud}-solicitante`] ? (
+                <Tooltip title="Quitar archivo seleccionado">
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() =>
+                      setSignatureFiles((prev) => ({
+                        ...prev,
+                        [`${request.idSolicitud}-solicitante`]: null,
+                      }))
+                    }
+                  >
+                    <DeleteOutline fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               ) : null}
             </Box>
-            {hasSolicitanteSignature ? (
-              <>
-                <div
-                  className="workflow-signature-card__preview"
-                  style={isSolicitanteCardBlocked ? { backgroundColor: "#eceff1", borderColor: "#b0bec5" } : {}}
-                >
-                  <SignatureImagePreview
-                    idSolicitud={request.idSolicitud}
-                    tipoFirma="solicitante"
-                    alt="Firma del solicitante"
+            <InteractiveSignatureBox
+              idSolicitud={request.idSolicitud}
+              tipoFirma="solicitante"
+              alt="Firma del solicitante"
+              hasServerSignature={hasSolicitanteSignature}
+              isBlocked={isSolicitanteCardBlocked || isWaitingDirectorSignature}
+              blockedText={
+                isSolicitanteCardBlocked
+                  ? "A cargo del Solicitante (pendiente)"
+                  : isWaitingDirectorSignature
+                  ? "Pendiente de la firma del Director de Escuela. Primero debe firmar el Director de Escuela para habilitar la carga y registro de tu firma."
+                  : "Pendiente de registrar tu firma como Solicitante"
+              }
+              canSign={canSignSolicitante}
+              selectedFile={canSignSolicitante ? signatureFiles[`${request.idSolicitud}-solicitante`] : null}
+              onFileSelect={(file) =>
+                setSignatureFiles((prev) => ({
+                  ...prev,
+                  [`${request.idSolicitud}-solicitante`]: file,
+                }))
+              }
+              onFileRemove={() =>
+                setSignatureFiles((prev) => ({
+                  ...prev,
+                  [`${request.idSolicitud}-solicitante`]: null,
+                }))
+              }
+            />
+            <div className="workflow-signature-card__meta">
+              <Typography
+                variant="body2"
+                fontWeight={600}
+                sx={{ fontSize: "0.85rem", mb: 0.5 }}
+              >
+                <strong>Nombre:</strong>{" "}
+                {solicitanteInfo.nombre_firmante ||
+                  request.nombre_solicitante ||
+                  "Solicitante"}
+              </Typography>
+              {hasSolicitanteSignature ? (
+                <Typography variant="caption" color="text.secondary">
+                  Subida:{" "}
+                  {formatSignatureDateTime(solicitanteInfo.fecha_firma)}
+                </Typography>
+              ) : canSignSolicitante && signatureFiles[`${request.idSolicitud}-solicitante`] ? (
+                <Box sx={{ mt: 1, width: "100%" }}>
+                  <Typography variant="body2" fontWeight={600} color="success.main" sx={{ fontSize: "0.82rem" }}>
+                    Firma seleccionada: {signatureFiles[`${request.idSolicitud}-solicitante`].name}
+                  </Typography>
+                  <TextField
+                    size="small"
+                    fullWidth
+                    multiline
+                    maxRows={2}
+                    placeholder="Observaciones de la firma (opcional)"
+                    value={signatureNotes[`${request.idSolicitud}-solicitante`] || ""}
+                    onChange={(e) =>
+                      setSignatureNotes((prev) => ({
+                        ...prev,
+                        [`${request.idSolicitud}-solicitante`]: e.target.value,
+                      }))
+                    }
+                    sx={{ my: 1, backgroundColor: "#fff", "& .MuiInputBase-input": { fontSize: "0.82rem" } }}
                   />
-                </div>
-                <div className="workflow-signature-card__meta">
-                  <Typography variant="body2" fontWeight={600}>
-                    {solicitanteInfo.nombre_firmante ||
-                      request.nombre_solicitante ||
-                      "Solicitante"}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Subida:{" "}
-                    {formatSignatureDateTime(solicitanteInfo.fecha_firma)}
-                  </Typography>
-                </div>
-              </>
-            ) : (
-              <>
-                <div
-                  className="workflow-signature-card__preview"
-                  style={isSolicitanteCardBlocked ? { backgroundColor: "#eceff1", borderColor: "#b0bec5" } : {}}
-                >
-                  <Typography variant="caption" color="text.secondary" textAlign="center">
-                    {isSolicitanteCardBlocked
-                      ? "A cargo del Solicitante (pendiente)"
-                      : "Pendiente de registrar tu firma como Solicitante"}
-                  </Typography>
-                </div>
-                <div className="workflow-signature-card__meta">
-                  <Typography variant="caption" color="text.secondary" fontStyle="italic">
-                    Sin firma registrada
-                  </Typography>
-                </div>
-              </>
-            )}
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    fullWidth
+                    size="small"
+                    onClick={() => handleWorkflowSignature(request, "solicitante")}
+                    disabled={Boolean(
+                      observationActionLoading[`${request.idSolicitud}-signature`],
+                    )}
+                    sx={{ textTransform: "none", fontWeight: 700, py: 0.75 }}
+                  >
+                    {observationActionLoading[`${request.idSolicitud}-signature`] ? (
+                      <>
+                        <CircularProgress size={16} sx={{ mr: 1, color: "inherit" }} />
+                        Registrando firma...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle sx={{ fontSize: 18, mr: 0.75 }} />
+                        Registrar firma
+                      </>
+                    )}
+                  </Button>
+                </Box>
+              ) : isWaitingDirectorSignature ? (
+                <Typography variant="caption" color="warning.dark" sx={{ fontWeight: 500, display: "block", mt: 0.5 }}>
+                  A la espera de la firma del Director de Escuela para habilitar tu firma.
+                </Typography>
+              ) : (
+                <Typography variant="caption" color="text.secondary" fontStyle="italic">
+                  Sin firma registrada
+                </Typography>
+              )}
+            </div>
           </div>
         </div>
       </Box>
@@ -3796,7 +4272,7 @@ function Dashboard({ userData }) {
           Notas y registro del historial para los PDF
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-          Estas notas se insertarán en una página final en cada PDF generado. Puedes escribir notas libres o insertar automáticamente el registro más reciente del historial:
+          Estas notas u observaciones se insertan en los PDF generados justo debajo del último contenido de la plantilla junto con todo el registro automático del historial institucional:
         </Typography>
 
         <TextField
@@ -3819,14 +4295,6 @@ function Dashboard({ userData }) {
 
         {canManage && (
           <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 3 }}>
-            <Button
-              size="small"
-              variant="outlined"
-              color="info"
-              onClick={() => handleInsertHistoryToNotes(request)}
-            >
-              + Agregar paso más reciente del historial a las notas
-            </Button>
             <Button
               size="small"
               variant="contained"
@@ -3931,15 +4399,6 @@ function Dashboard({ userData }) {
       !isDirector ||
       role === "solicitante" ||
       isOwnRequest(request, userData?.id, userData?.name, userData?.email);
-    const canSignAsSolicitante =
-      stage === "firmas" &&
-      hasDirectorSignature &&
-      isRequesterSigner &&
-      !hasSolicitanteSignature;
-    const signatureStage =
-      stage === "firmas" &&
-      ((isDirector && canAct && !hasDirectorSignature) ||
-        canSignAsSolicitante);
 
     return (
       <div className="workflow-panel">
@@ -4274,11 +4733,16 @@ function Dashboard({ userData }) {
                 <Button
                   variant="contained"
                   color="success"
-                  onClick={() =>
-                    canLegacyAdminReview
-                      ? handleLegacyAdminAction(request, "approve")
-                      : handleWorkflowReviewerAction(request, "approve")
-                  }
+                  onClick={() => {
+                    if (role === "presupuesto" || stage === "presupuesto") {
+                      setPresupuestoModalRequest(request);
+                      setPresupuestoModalNote(reviewComment[request.idSolicitud] || "");
+                    } else if (canLegacyAdminReview) {
+                      handleLegacyAdminAction(request, "approve");
+                    } else {
+                      handleWorkflowReviewerAction(request, "approve");
+                    }
+                  }}
                   disabled={Boolean(reviewAction[request.idSolicitud])}
                 >
                   {role === "presupuesto"
@@ -4291,73 +4755,6 @@ function Dashboard({ userData }) {
         )}
 
         {stage === "firmas" && renderSignaturePreviewGrid(request)}
-
-        {signatureStage && (
-          <div className="workflow-signature">
-            <Typography variant="body2" fontWeight={600}>
-              Registrar firma
-            </Typography>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={(event) =>
-                setSignatureFiles((previous) => ({
-                  ...previous,
-                  [request.idSolicitud]: event.target.files?.[0],
-                }))
-              }
-            />
-            <textarea
-              placeholder="Observaciones de la firma (opcional)"
-              value={signatureNotes[request.idSolicitud] || ""}
-              onChange={(event) =>
-                setSignatureNotes((previous) => ({
-                  ...previous,
-                  [request.idSolicitud]: event.target.value,
-                }))
-              }
-            />
-            <Button
-              variant="contained"
-              onClick={() => {
-                if (role === "director") {
-                  if (!signatureFiles[request.idSolicitud]) {
-                    alert("Selecciona la imagen de la firma.");
-                    return;
-                  }
-                  setConfirmDirectorSignatureRequest(request);
-                  return;
-                }
-                handleWorkflowSignature(request);
-              }}
-              disabled={
-                observationActionLoading[`${request.idSolicitud}-signature`]
-              }
-            >
-              {observationActionLoading[`${request.idSolicitud}-signature`] ? (
-                <>
-                  <CircularProgress size={16} sx={{ mr: 0.5 }} />
-                  Cargando...
-                </>
-              ) : (
-                "Registrar firma"
-              )}
-            </Button>
-            {/* Botón de recordatorio de firma oculto temporalmente
-            <Button
-              variant="outlined"
-              onClick={() =>
-                handleSignatureReminder(
-                  request,
-                  role === "director" ? "solicitante" : "director_escuela",
-                )
-              }
-            >
-              Recordar firma pendiente
-            </Button>
-            */}
-          </div>
-        )}
 
         {stage === "firmas" &&
           !isDirectorRole &&
@@ -5302,25 +5699,149 @@ function Dashboard({ userData }) {
     );
   };
 
+  const userRoleNormalized = String(userData?.role || "").trim().toLowerCase();
+  const isRevisor1User = userRoleNormalized === "revisor_1" || userRoleNormalized === "revisor1" || userRoleNormalized === "admin";
+
   return (
     <ThemeProvider theme={theme}>
       <div style={{ padding: "20px", marginTop: "0", width: "100%", boxSizing: "border-box" }}>
-        <WorkflowRoleView
-          role={userData.role}
-          ownRequests={ownRequests}
-          receivedRequests={receivedRequests}
-          onCreateRequest={handleCreateNewRequest}
-          renderOwnRequests={(requests) =>
-            renderRequestList({ requests, readOnlyMode: false })
-          }
-          renderReceivedRequests={(requests) =>
-            renderRequestList({
-              requests,
-              readOnlyMode: false,
-              isReceived: true,
-            })
-          }
-        />
+        {isRevisor1User && (
+          <Box
+            sx={{
+              mb: 3,
+              display: "flex",
+              justifyContent: revisorActiveTab === "directores" ? "flex-start" : "flex-end",
+              alignItems: "center",
+              borderBottom: "1px solid #e2e8f0",
+              pb: 1.5,
+            }}
+          >
+            {revisorActiveTab === "directores" ? (
+              <Button
+                variant="outlined"
+                startIcon={<ArrowBack />}
+                onClick={() => setRevisorActiveTab("solicitudes")}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  px: 2.5,
+                  py: 0.8,
+                  borderColor: "#1976d2",
+                  color: "#1976d2",
+                  "&:hover": {
+                    backgroundColor: "rgba(25, 118, 210, 0.08)",
+                    borderColor: "#1565c0",
+                  },
+                }}
+              >
+                Volver a solicitudes
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                startIcon={<SupervisorAccount />}
+                onClick={() => setRevisorActiveTab("directores")}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  px: 2.5,
+                  py: 0.8,
+                  backgroundColor: "#1976d2",
+                  color: "#ffffff",
+                  "&:hover": {
+                    backgroundColor: "#1565c0",
+                  },
+                }}
+              >
+                Gestión de Directores
+              </Button>
+            )}
+          </Box>
+        )}
+
+        {isRevisor1User && revisorActiveTab === "directores" ? (
+          <DirectorsManagement userData={userData} />
+        ) : (
+          <WorkflowRoleView
+            role={userData.role}
+            ownRequests={ownRequests}
+            receivedRequests={receivedRequests}
+            onCreateRequest={handleCreateNewRequest}
+            renderOwnRequests={(requests) =>
+              renderRequestList({ requests, readOnlyMode: false })
+            }
+            renderReceivedRequests={(requests) =>
+              renderRequestList({
+                requests,
+                readOnlyMode: false,
+                isReceived: true,
+              })
+            }
+          />
+        )}
+
+        <Dialog
+          open={Boolean(presupuestoModalRequest)}
+          onClose={() => !submittingPresupuestoApproval && setPresupuestoModalRequest(null)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{ fontWeight: 700, color: "#1b5e20", display: "flex", alignItems: "center", gap: 1 }}>
+            <CheckCircle color="success" /> Aprobación en Presupuesto
+          </DialogTitle>
+          <DialogContent dividers>
+            <Typography variant="body1" sx={{ mb: 1.5, fontWeight: 500 }}>
+              Está a punto de aprobar la solicitud{" "}
+              <strong>#{presupuestoModalRequest?.idSolicitud}</strong>
+              {presupuestoModalRequest?.nombre_actividad
+                ? ` (${presupuestoModalRequest.nombre_actividad})`
+                : ""}{" "}
+              y remitirla a la etapa <strong>Lista para Decanato</strong>.
+            </Typography>
+
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Todo el registro institucional del historial de la solicitud se insertará automáticamente en los documentos PDF.
+            </Alert>
+
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              ¿Desea agregar una observación o nota presupuestal adicional para los documentos y Decanato? (opcional):
+            </Typography>
+
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              size="small"
+              placeholder="Escriba aquí alguna observación o consideración presupuestal (opcional)..."
+              value={presupuestoModalNote}
+              onChange={(e) => setPresupuestoModalNote(e.target.value)}
+              disabled={submittingPresupuestoApproval}
+            />
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button
+              variant="outlined"
+              color="inherit"
+              onClick={() => {
+                setPresupuestoModalRequest(null);
+                setPresupuestoModalNote("");
+              }}
+              disabled={submittingPresupuestoApproval}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="contained"
+              color="success"
+              onClick={handleConfirmPresupuestoApproval}
+              disabled={submittingPresupuestoApproval}
+            >
+              {submittingPresupuestoApproval ? "Aprobando..." : "Confirmar y Aprobar"}
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         <Dialog
           open={Boolean(confirmPlataformaRequest)}
@@ -5379,7 +5900,7 @@ function Dashboard({ userData }) {
                 const targetRequest = confirmDirectorSignatureRequest;
                 setConfirmDirectorSignatureRequest(null);
                 if (targetRequest) {
-                  handleWorkflowSignature(targetRequest);
+                  handleWorkflowSignature(targetRequest, "director");
                 }
               }}
             >

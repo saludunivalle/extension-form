@@ -140,7 +140,7 @@ header {
 .workflow-history__meta { color:#6b7280; font-size:.78rem; }
 .workflow-history__item small { color:#6b7280; }
 .review-panel { display:grid; gap:10px; margin-top:18px; padding:14px; background:#f7f9fc; border:1px solid #e1e6ee; border-radius:8px; }
-.review-panel textarea { width:100%; min-height:70px; border:1px solid #c8d0db; border-radius:6px; padding:9px; resize:vertical; font:inherit; }
+.review-panel textarea { width:100%; min-height:70px; border:1px solid #c8d0db; border-radius:6px; padding:9px; resize:vertical; overflow-y:auto; font:inherit; }
 .review-panel button + button { margin-left:8px; }
 .workflow-panel { display:grid; gap:12px; margin-top:18px; padding:16px; background:#f7f9fc; border:1px solid #dce3ec; border-radius:10px; }
 .workflow-role-view { display:grid; gap:26px; width:100%; }
@@ -175,7 +175,7 @@ header {
 .workflow-observation-form input, .workflow-decanato input, .workflow-decanato select, .workflow-signature input[type=file] { min-height:38px; border:1px solid #c8d0db; border-radius:6px; padding:8px 10px; background:#fff; color:#1f2933; font:inherit; color-scheme:light; }
 .workflow-decanato label { color:#374151; font-size:.85rem; font-weight:600; }
 .workflow-decanato__select option { background:#fff; color:#1f2933; }
-.workflow-observation-form textarea, .workflow-decision-actions textarea, .workflow-signature textarea, .workflow-decanato textarea { width:100%; min-height:68px; border:1px solid #c8d0db; border-radius:6px; padding:9px; resize:vertical; font:inherit; background:#fff; color:#1f2933; }
+.workflow-observation-form textarea, .workflow-decision-actions textarea, .workflow-signature textarea, .workflow-decanato textarea { width:100%; min-height:68px; border:1px solid #c8d0db; border-radius:6px; padding:9px; resize:vertical; overflow-y:auto; font:inherit; background:#fff; color:#1f2933; }
 @media (max-width: 800px) { .approval-card__details { padding:16px !important; } .approval-card__header { flex-direction:column; } .approval-card__badges { align-items:flex-start; flex-direction:row; flex-wrap:wrap; } }
 @media (max-width: 600px) { .workflow-section-heading { align-items:stretch; flex-direction:column; } .workflow-section-heading > button { width:100%; } }
 

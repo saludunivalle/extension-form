@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { config } from '../config';
-import { getStoredGoogleToken, isGoogleTokenExpired, redirectToLogin } from './authToken';
+import { getAuthToken, isTokenExpired, redirectToLogin } from './authToken';
 
 // Crear instancia de axios con configuración base
 const apiClient = axios.create({
@@ -16,8 +16,8 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     // Agregar token si existe
-    const token = getStoredGoogleToken();
-    if (token && !isGoogleTokenExpired(token)) {
+    const token = getAuthToken();
+    if (token && !isTokenExpired(token)) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -76,6 +76,56 @@ export const userService = {
       return response.data;
     } catch (error) {
       console.error('Error al obtener usuario:', error);
+      throw error;
+    }
+  },
+
+  verifySession: async () => {
+    try {
+      const response = await apiClient.get('/auth/verify');
+      return response.data;
+    } catch (error) {
+      console.error('Error al verificar sesión en servidor:', error);
+      throw error;
+    }
+  },
+
+  getDirectors: async () => {
+    try {
+      const response = await apiClient.get('/user/directors');
+      return response.data;
+    } catch (error) {
+      console.error('Error al consultar directores:', error);
+      throw error;
+    }
+  },
+
+  addDirector: async ({ email, name = '' }) => {
+    try {
+      const response = await apiClient.post('/user/directors', { email, name });
+      return response.data;
+    } catch (error) {
+      console.error('Error al agregar director:', error);
+      throw error;
+    }
+  },
+
+  updateDirector: async ({ currentEmail, newEmail, name }) => {
+    try {
+      const response = await apiClient.put('/user/directors', { currentEmail, newEmail, name });
+      return response.data;
+    } catch (error) {
+      console.error('Error al actualizar director:', error);
+      throw error;
+    }
+  },
+
+  deleteDirector: async (email) => {
+    try {
+      const response = await apiClient.delete(`/user/directors/${encodeURIComponent(email)}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error al eliminar director:', error);
       throw error;
     }
   }

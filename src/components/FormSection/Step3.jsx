@@ -1,4 +1,4 @@
-import { FormControl, FormControlLabel, FormLabel, Grid, Radio, RadioGroup, TextField, Typography, Box, FormHelperText  } from '@mui/material';
+import { FormControl, FormControlLabel, FormLabel, Grid, Radio, RadioGroup, TextField, Typography, Box, FormHelperText, Checkbox } from '@mui/material';
 import PropTypes from 'prop-types';
 import { useEffect } from 'react';
 
@@ -9,7 +9,8 @@ function Step3({ formData, setFormData, errors  }) {
     const horasDependientes = parseInt(formData.horas_trabajo_presencial, 10) || 0;
     const horasIndependientes = parseInt(formData.horas_sincronicas, 10) || 0;
     const total = horasDependientes + horasIndependientes;
-    const calculatedCreditos = total >= 48 ? Math.min(50, Math.floor(total / 48)) : 0;
+    const aplicaCreditos = formData.aplica_creditos !== 'no';
+    const calculatedCreditos = (aplicaCreditos && total >= 48) ? Math.min(50, Math.floor(total / 48)) : 0;
 
     const currentTotal = parseInt(formData.total_horas, 10) || 0;
     const currentCreditos = formData.creditos !== undefined && formData.creditos !== null && formData.creditos !== ''
@@ -23,7 +24,7 @@ function Step3({ formData, setFormData, errors  }) {
         creditos: calculatedCreditos
       }));
     }
-  }, [formData.horas_trabajo_presencial, formData.horas_sincronicas, formData.total_horas, formData.creditos, setFormData]);
+  }, [formData.horas_trabajo_presencial, formData.horas_sincronicas, formData.total_horas, formData.creditos, formData.aplica_creditos, setFormData]);
 
   const handleCustomInputChange = (event) => {
     const { name, value } = event.target;
@@ -114,8 +115,24 @@ function Step3({ formData, setFormData, errors  }) {
           />
       </Grid>
 
-      <Grid item xs={12}>
+      <Grid item xs={12} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <Typography variant="h6">Intensidad Horaria *</Typography>
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={formData.aplica_creditos !== 'no'}
+              onChange={(e) => {
+                const isChecked = e.target.checked;
+                setFormData(prev => ({
+                  ...prev,
+                  aplica_creditos: isChecked ? 'sí' : 'no'
+                }));
+              }}
+              color="primary"
+            />
+          }
+          label="¿Aplica créditos?"
+        />
       </Grid>
       {(formData.modalidad === "Presencial" || formData.modalidad === "Presencial asistida por tecnología" || formData.modalidad === "Virtual" || formData.modalidad === "Mixta" || formData.modalidad === "Semipresencial" || formData.modalidad === "Todas las anteriores" || formData.modalidad === "Horas de trabajo independientes") && (
         <Grid item xs={12}>
@@ -210,9 +227,11 @@ function Step3({ formData, setFormData, errors  }) {
                 error={!!errors.creditos}
                 helperText={
                   errors.creditos ||
-                  ((Number(formData.total_horas) || 0) < 48
-                    ? "Mínimo 48 horas para 1 crédito (48h = 1 crédito). Créditos: 0"
-                    : `Calculado automáticamente (48h = 1 crédito): ${formData.creditos || 0} crédito(s)`)
+                  (formData.aplica_creditos === 'no'
+                    ? "Esta actividad no aplica créditos (Créditos: 0)"
+                    : ((Number(formData.total_horas) || 0) < 48
+                        ? "Mínimo 48 horas para 1 crédito (48h = 1 crédito). Créditos: 0"
+                        : `Calculado automáticamente (48h = 1 crédito): ${formData.creditos || 0} crédito(s)`))
                 }
               />
             </Grid>
@@ -286,6 +305,7 @@ Step3.propTypes = {
     total_horas: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     programCont: PropTypes.string,
     dirigidoa: PropTypes.string,
+    aplica_creditos: PropTypes.string,
     creditos: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     cupo_min: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     cupo_max: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),

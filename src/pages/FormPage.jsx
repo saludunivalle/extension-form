@@ -296,6 +296,12 @@ const normalizeLoadedSolicitudData = (rawData) => {
     data.extension_solidaria = normalizeSiNoLower(data.extension_solidaria);
   }
 
+  if (data.aplica_creditos !== undefined && data.aplica_creditos !== null && String(data.aplica_creditos).trim() !== '') {
+    data.aplica_creditos = normalizeSiNoLower(data.aplica_creditos) === 'no' ? 'no' : 'sí';
+  } else {
+    data.aplica_creditos = 'sí';
+  }
+
   // Regla de negocio: porcentaje de facultad/instituto fijo en 5.
   data.facultad_instituto_porcentaje = 5;
 
@@ -331,6 +337,9 @@ const normalizeLoadedSolicitudData = (rawData) => {
   if (data.extension_solidaria === 'si') {
     data.ingresos_cantidad = 0;
     data.ingresos_vr_unit = 0;
+    data.tipo_valor = 'cifra_pesos';
+    data.valor_inscripcion = 0;
+    data.valor_unitario = 0;
 
     if (!String(data.observaciones || '').trim()) {
       data.observaciones = 'Actividad de extension solidaria sin recaudo por inscripcion.';
@@ -609,7 +618,7 @@ useEffect(() => {
     objetivo_general: '', objetivos_especificos: '', justificacion: '',
     metodologia: '', tipo: '', otro_tipo: '', modalidad: '',
     horas_trabajo_presencial: '', horas_sincronicas: '', total_horas: '',
-    programCont: '', dirigidoa: '', creditos: '', cupo_min: '', cupo_max: '',
+    programCont: '', dirigidoa: '', creditos: '', cupo_min: '', cupo_max: '', aplica_creditos: 'sí',
     profesor_participante: '', nombre_coordinador: '', correo_coordinador: '',
     tel_coordinador: '', perfil_competencia: '', formas_evaluacion: '',
     certificado_solicitado: '', calificacion_minima: '', razon_no_certificado: '',
